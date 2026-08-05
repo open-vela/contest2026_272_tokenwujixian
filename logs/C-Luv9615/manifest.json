@@ -1,0 +1,679 @@
+{
+  "schema_version": "1.0",
+  "team_id": "contest2026_272_tokenwujixian",
+  "github_login": "C-Luv9615",
+  "generator": "backfill-sqlite@mimocode",
+  "sessions": [
+    {
+      "session_id": "ses_03a889abfffeJ1KbfoY7wf00GU",
+      "tool": "mimocode",
+      "started_at": "2026-08-03T02:32:44.113Z",
+      "last_event_at": "2026-08-03T02:35:02.930Z",
+      "event_count": 5,
+      "file_path": "logs/C-Luv9615/2026-08-03/mimocode__ses_03a889abfffeJ1KbfoY7wf00GU.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_03a887601ffeG2Dg7fbiXnBaz7",
+      "tool": "mimocode",
+      "started_at": "2026-08-03T02:32:53.507Z",
+      "last_event_at": "2026-08-03T02:33:30.580Z",
+      "event_count": 4,
+      "file_path": "logs/C-Luv9615/2026-08-03/mimocode__ses_03a887601ffeG2Dg7fbiXnBaz7.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_03a7108d3ffe8re9KlZZKculh2",
+      "tool": "mimocode",
+      "started_at": "2026-08-03T02:58:30.531Z",
+      "last_event_at": "2026-08-03T02:58:30.566Z",
+      "event_count": 2,
+      "file_path": "logs/C-Luv9615/2026-08-03/mimocode__ses_03a7108d3ffe8re9KlZZKculh2.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_03a70317effeBtjHIdhTyhFqv6",
+      "tool": "mimocode",
+      "started_at": "2026-08-03T02:59:25.624Z",
+      "last_event_at": "2026-08-03T02:59:25.658Z",
+      "event_count": 2,
+      "file_path": "logs/C-Luv9615/2026-08-03/mimocode__ses_03a70317effeBtjHIdhTyhFqv6.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_03a6d5859ffejF1RFdTL4dokE6",
+      "tool": "mimocode",
+      "started_at": "2026-08-03T03:02:30.582Z",
+      "last_event_at": "2026-08-03T03:02:30.612Z",
+      "event_count": 2,
+      "file_path": "logs/C-Luv9615/2026-08-03/mimocode__ses_03a6d5859ffejF1RFdTL4dokE6.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_03a6a9ae1ffeF4lp9xkXSLjivD",
+      "tool": "mimocode",
+      "started_at": "2026-08-03T03:05:31.478Z",
+      "last_event_at": "2026-08-03T03:05:31.513Z",
+      "event_count": 2,
+      "file_path": "logs/C-Luv9615/2026-08-03/mimocode__ses_03a6a9ae1ffeF4lp9xkXSLjivD.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_03a662783ffeMQHsFNj1c7hxHr",
+      "tool": "mimocode",
+      "started_at": "2026-08-03T03:10:24.271Z",
+      "last_event_at": "2026-08-03T03:10:24.271Z",
+      "event_count": 1,
+      "file_path": "logs/C-Luv9615/2026-08-03/mimocode__ses_03a662783ffeMQHsFNj1c7hxHr.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_03a5eb8afffeCk95WuwIIc6XMk",
+      "tool": "mimocode",
+      "started_at": "2026-08-03T03:18:28.964Z",
+      "last_event_at": "2026-08-03T06:00:28.862Z",
+      "event_count": 15,
+      "file_path": "logs/C-Luv9615/2026-08-03/mimocode__ses_03a5eb8afffeCk95WuwIIc6XMk.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_03922dafbffeYdzxc638vRFllx",
+      "tool": "mimocode",
+      "started_at": "2026-08-03T09:03:29.558Z",
+      "last_event_at": "2026-08-03T09:05:16.336Z",
+      "event_count": 4,
+      "file_path": "logs/C-Luv9615/2026-08-03/mimocode__ses_03922dafbffeYdzxc638vRFllx.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_03909108bffeHx2XiQpcCsxt7a",
+      "tool": "mimocode",
+      "started_at": "2026-08-03T09:31:39.783Z",
+      "last_event_at": "2026-08-03T12:41:50.646Z",
+      "event_count": 103,
+      "file_path": "logs/C-Luv9615/2026-08-03/mimocode__ses_03909108bffeHx2XiQpcCsxt7a.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0390588d4ffeZsQoZIrw38c9L8",
+      "tool": "mimocode",
+      "started_at": "2026-08-03T09:35:31.119Z",
+      "last_event_at": "2026-08-03T09:37:35.193Z",
+      "event_count": 9,
+      "file_path": "logs/C-Luv9615/2026-08-03/mimocode__ses_0390588d4ffeZsQoZIrw38c9L8.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0386a3ce7ffe1X3gRNti2HzO5j",
+      "tool": "mimocode",
+      "started_at": "2026-08-03T12:25:08.637Z",
+      "last_event_at": "2026-08-03T12:25:08.637Z",
+      "event_count": 1,
+      "file_path": "logs/C-Luv9615/2026-08-03/mimocode__ses_0386a3ce7ffe1X3gRNti2HzO5j.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_035a31d72ffesnQo55U9qmipLP",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T01:21:52.800Z",
+      "last_event_at": "2026-08-04T02:13:38.242Z",
+      "event_count": 81,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_035a31d72ffesnQo55U9qmipLP.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_035a2f3c5ffew44CJP2GoF9EhT",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T01:22:03.457Z",
+      "last_event_at": "2026-08-04T01:24:58.645Z",
+      "event_count": 6,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_035a2f3c5ffew44CJP2GoF9EhT.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_03593f10cffeENbh5lbI0fuUm2",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T01:38:27.194Z",
+      "last_event_at": "2026-08-04T01:40:41.854Z",
+      "event_count": 5,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_03593f10cffeENbh5lbI0fuUm2.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_035775daaffeHv4v1zjL3PJ1x1",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T02:09:39.929Z",
+      "last_event_at": "2026-08-04T02:11:35.514Z",
+      "event_count": 4,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_035775daaffeHv4v1zjL3PJ1x1.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0357151dbffexKLV5eD6muwYBA",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T02:16:16.177Z",
+      "last_event_at": "2026-08-04T02:23:19.655Z",
+      "event_count": 11,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_0357151dbffexKLV5eD6muwYBA.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0357079c2ffeK40hI1RvBebSRF",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T02:17:11.490Z",
+      "last_event_at": "2026-08-04T02:18:10.114Z",
+      "event_count": 5,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_0357079c2ffeK40hI1RvBebSRF.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_035680579ffe6tBiJMQUpZ7JGy",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T02:26:51.969Z",
+      "last_event_at": "2026-08-04T07:55:20.102Z",
+      "event_count": 224,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_035680579ffe6tBiJMQUpZ7JGy.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0356788e0ffeBYGWhyPaJsPapB",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T02:26:57.444Z",
+      "last_event_at": "2026-08-04T02:27:47.163Z",
+      "event_count": 5,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_0356788e0ffeBYGWhyPaJsPapB.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0355e8522ffeE3GaFuwsorFE23",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T02:36:48.225Z",
+      "last_event_at": "2026-08-04T02:36:48.225Z",
+      "event_count": 1,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_0355e8522ffeE3GaFuwsorFE23.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_03551ce05ffes3421b7s4R6NKH",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T02:50:42.196Z",
+      "last_event_at": "2026-08-04T02:50:42.196Z",
+      "event_count": 1,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_03551ce05ffes3421b7s4R6NKH.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0355110ceffe1gB2VTUBsdgcXM",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T02:51:29.987Z",
+      "last_event_at": "2026-08-04T02:55:23.147Z",
+      "event_count": 10,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_0355110ceffe1gB2VTUBsdgcXM.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_03550f41fffe263uCWMdofJ7HN",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T02:51:37.320Z",
+      "last_event_at": "2026-08-04T02:52:16.646Z",
+      "event_count": 4,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_03550f41fffe263uCWMdofJ7HN.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0354ce3c7ffedgG25N1HDzvcqE",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T02:56:03.646Z",
+      "last_event_at": "2026-08-04T02:56:03.646Z",
+      "event_count": 1,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_0354ce3c7ffedgG25N1HDzvcqE.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0354c40a1ffebr73jiD0JWVlIf",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T02:56:46.217Z",
+      "last_event_at": "2026-08-04T02:56:52.021Z",
+      "event_count": 3,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_0354c40a1ffebr73jiD0JWVlIf.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0354b2ccbffeRDfu9nO7LuDRd2",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T02:57:56.685Z",
+      "last_event_at": "2026-08-04T02:58:03.234Z",
+      "event_count": 3,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_0354b2ccbffeRDfu9nO7LuDRd2.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_035470f45ffe224VZXcTqfkSWg",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T03:02:25.726Z",
+      "last_event_at": "2026-08-04T03:04:15.901Z",
+      "event_count": 5,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_035470f45ffe224VZXcTqfkSWg.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0354666ccffeD9tjpo9iCWIjRy",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T03:03:09.549Z",
+      "last_event_at": "2026-08-04T03:03:13.601Z",
+      "event_count": 3,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_0354666ccffeD9tjpo9iCWIjRy.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0352b5904ffey3mXtNq30fMwlG",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T03:32:41.857Z",
+      "last_event_at": "2026-08-04T03:35:02.744Z",
+      "event_count": 5,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_0352b5904ffey3mXtNq30fMwlG.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_034f50dbeffe0Eaf72Od1kMmY7",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T04:32:00.070Z",
+      "last_event_at": "2026-08-04T04:32:15.877Z",
+      "event_count": 2,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_034f50dbeffe0Eaf72Od1kMmY7.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_034f4a5d6ffe7BuhvK7JL6UtW2",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T04:32:26.689Z",
+      "last_event_at": "2026-08-04T04:33:57.692Z",
+      "event_count": 5,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_034f4a5d6ffe7BuhvK7JL6UtW2.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0349ef600ffewvcmNGl7H7ij7k",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T06:06:02.243Z",
+      "last_event_at": "2026-08-04T06:07:39.882Z",
+      "event_count": 5,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_0349ef600ffewvcmNGl7H7ij7k.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0349b17f1ffesaoLDqdDv1ckIN",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T06:10:15.707Z",
+      "last_event_at": "2026-08-04T06:10:15.707Z",
+      "event_count": 1,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_0349b17f1ffesaoLDqdDv1ckIN.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0349ae74dffegd78SK9MitXdDz",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T06:10:28.149Z",
+      "last_event_at": "2026-08-04T06:11:11.010Z",
+      "event_count": 4,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_0349ae74dffegd78SK9MitXdDz.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0348d4752ffewzJDVDKI7uK5hu",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T06:25:21.073Z",
+      "last_event_at": "2026-08-04T06:25:40.031Z",
+      "event_count": 2,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_0348d4752ffewzJDVDKI7uK5hu.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_03474f076ffetuqgu30JKM5CP4",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T06:52:28.923Z",
+      "last_event_at": "2026-08-04T06:52:39.068Z",
+      "event_count": 2,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_03474f076ffetuqgu30JKM5CP4.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0346c0462ffeL5FkXgTtKpS5PJ",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T07:01:40.898Z",
+      "last_event_at": "2026-08-04T07:01:40.898Z",
+      "event_count": 1,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_0346c0462ffeL5FkXgTtKpS5PJ.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0346bc3b5ffecNhdRCuiYoOLtw",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T07:01:57.453Z",
+      "last_event_at": "2026-08-04T07:02:15.096Z",
+      "event_count": 2,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_0346bc3b5ffecNhdRCuiYoOLtw.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0343a5eb9ffeTtHiOb8VGIqeWY",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T07:55:54.577Z",
+      "last_event_at": "2026-08-04T07:55:54.577Z",
+      "event_count": 1,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_0343a5eb9ffeTtHiOb8VGIqeWY.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0343a2df4ffeljtdr93x84gd1Y",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T07:56:07.055Z",
+      "last_event_at": "2026-08-04T07:57:34.540Z",
+      "event_count": 5,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_0343a2df4ffeljtdr93x84gd1Y.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_034350306ffeDKgou5byZHt81t",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T08:01:45.727Z",
+      "last_event_at": "2026-08-04T08:50:59.820Z",
+      "event_count": 82,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_034350306ffeDKgou5byZHt81t.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_034335446ffejxPTrrcdzpsgct",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T08:03:35.998Z",
+      "last_event_at": "2026-08-04T08:04:34.495Z",
+      "event_count": 5,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_034335446ffejxPTrrcdzpsgct.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_03401fe02ffeERzEBr3cyht357",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T08:57:29.446Z",
+      "last_event_at": "2026-08-05T01:59:23.535Z",
+      "event_count": 194,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_03401fe02ffeERzEBr3cyht357.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_03401d7ddffe5kl33eNBH0IQ1y",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T08:57:39.113Z",
+      "last_event_at": "2026-08-04T08:58:28.586Z",
+      "event_count": 5,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_03401d7ddffe5kl33eNBH0IQ1y.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_033f16cc9ffeDBtC1IWkZHkcrM",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T09:15:35.101Z",
+      "last_event_at": "2026-08-04T09:15:49.678Z",
+      "event_count": 3,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_033f16cc9ffeDBtC1IWkZHkcrM.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_033d1d329ffeL2muWk1JoSIJE6",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T09:50:06.049Z",
+      "last_event_at": "2026-08-04T09:50:06.060Z",
+      "event_count": 2,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_033d1d329ffeL2muWk1JoSIJE6.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_033c72fa3ffeXwHpFmClyfD1RF",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T10:01:43.266Z",
+      "last_event_at": "2026-08-04T10:02:58.175Z",
+      "event_count": 5,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_033c72fa3ffeXwHpFmClyfD1RF.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_033c5ff4bffezqIzVInW9RNUqF",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T10:03:01.175Z",
+      "last_event_at": "2026-08-04T10:04:10.295Z",
+      "event_count": 5,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_033c5ff4bffezqIzVInW9RNUqF.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_033b5d048ffemvQ9ynbtEaLIO4",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T10:20:41.786Z",
+      "last_event_at": "2026-08-04T10:22:18.042Z",
+      "event_count": 4,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_033b5d048ffemvQ9ynbtEaLIO4.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0335c0279ffe1lsYSmGMmLWOe3",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T11:58:47.177Z",
+      "last_event_at": "2026-08-04T12:00:37.236Z",
+      "event_count": 7,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_0335c0279ffe1lsYSmGMmLWOe3.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0334791daffeoWM4A8VAOUWvks",
+      "tool": "mimocode",
+      "started_at": "2026-08-04T12:21:06.729Z",
+      "last_event_at": "2026-08-04T12:22:44.610Z",
+      "event_count": 5,
+      "file_path": "logs/C-Luv9615/2026-08-04/mimocode__ses_0334791daffeoWM4A8VAOUWvks.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_030826e4fffedLT0BXHyJ7HMUb",
+      "tool": "mimocode",
+      "started_at": "2026-08-05T01:15:40.854Z",
+      "last_event_at": "2026-08-05T01:15:58.250Z",
+      "event_count": 2,
+      "file_path": "logs/C-Luv9615/2026-08-05/mimocode__ses_030826e4fffedLT0BXHyJ7HMUb.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0307e5ca6ffeehQ0JVtd0q7l8F",
+      "tool": "mimocode",
+      "started_at": "2026-08-05T01:20:07.529Z",
+      "last_event_at": "2026-08-05T01:20:07.529Z",
+      "event_count": 1,
+      "file_path": "logs/C-Luv9615/2026-08-05/mimocode__ses_0307e5ca6ffeehQ0JVtd0q7l8F.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0307aed67ffez6PTpYP4V8RjWQ",
+      "tool": "mimocode",
+      "started_at": "2026-08-05T01:23:52.606Z",
+      "last_event_at": "2026-08-05T01:23:52.618Z",
+      "event_count": 2,
+      "file_path": "logs/C-Luv9615/2026-08-05/mimocode__ses_0307aed67ffez6PTpYP4V8RjWQ.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0307a33f1ffew5CXHmpoxNVZgc",
+      "tool": "mimocode",
+      "started_at": "2026-08-05T01:24:40.084Z",
+      "last_event_at": "2026-08-05T01:24:54.210Z",
+      "event_count": 2,
+      "file_path": "logs/C-Luv9615/2026-08-05/mimocode__ses_0307a33f1ffew5CXHmpoxNVZgc.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0305a357bffePL8GOWWfJvb7kF",
+      "tool": "mimocode",
+      "started_at": "2026-08-05T01:59:36.880Z",
+      "last_event_at": "2026-08-05T08:24:55.503Z",
+      "event_count": 208,
+      "file_path": "logs/C-Luv9615/2026-08-05/mimocode__ses_0305a357bffePL8GOWWfJvb7kF.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0305a0870ffekN0FlW1x5zVdnf",
+      "tool": "mimocode",
+      "started_at": "2026-08-05T01:59:48.382Z",
+      "last_event_at": "2026-08-05T02:00:34.190Z",
+      "event_count": 7,
+      "file_path": "logs/C-Luv9615/2026-08-05/mimocode__ses_0305a0870ffekN0FlW1x5zVdnf.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_030504230ffeF3SfnvOsnw15qv",
+      "tool": "mimocode",
+      "started_at": "2026-08-05T02:10:28.952Z",
+      "last_event_at": "2026-08-05T02:10:28.952Z",
+      "event_count": 1,
+      "file_path": "logs/C-Luv9615/2026-08-05/mimocode__ses_030504230ffeF3SfnvOsnw15qv.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0303e9c42ffeR6YeJJm57wCOxW",
+      "tool": "mimocode",
+      "started_at": "2026-08-05T02:29:45.540Z",
+      "last_event_at": "2026-08-05T02:29:45.540Z",
+      "event_count": 1,
+      "file_path": "logs/C-Luv9615/2026-08-05/mimocode__ses_0303e9c42ffeR6YeJJm57wCOxW.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0302e6dccffeRH4aFaUyHBWtc1",
+      "tool": "mimocode",
+      "started_at": "2026-08-05T02:47:26.022Z",
+      "last_event_at": "2026-08-05T02:47:26.022Z",
+      "event_count": 1,
+      "file_path": "logs/C-Luv9615/2026-08-05/mimocode__ses_0302e6dccffeRH4aFaUyHBWtc1.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_030293dcfffeS41maE8Kjz76Ty",
+      "tool": "mimocode",
+      "started_at": "2026-08-05T02:53:05.980Z",
+      "last_event_at": "2026-08-05T02:53:06.006Z",
+      "event_count": 2,
+      "file_path": "logs/C-Luv9615/2026-08-05/mimocode__ses_030293dcfffeS41maE8Kjz76Ty.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0301f381fffe1lxH1np39HV84W",
+      "tool": "mimocode",
+      "started_at": "2026-08-05T03:04:02.792Z",
+      "last_event_at": "2026-08-05T03:05:41.270Z",
+      "event_count": 4,
+      "file_path": "logs/C-Luv9615/2026-08-05/mimocode__ses_0301f381fffe1lxH1np39HV84W.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_0301d5c5fffeUZJPkTKNZ4yspe",
+      "tool": "mimocode",
+      "started_at": "2026-08-05T03:06:04.579Z",
+      "last_event_at": "2026-08-05T03:06:30.790Z",
+      "event_count": 2,
+      "file_path": "logs/C-Luv9615/2026-08-05/mimocode__ses_0301d5c5fffeUZJPkTKNZ4yspe.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_02f6b3e9cffebmlpY8R06gjwuI",
+      "tool": "mimocode",
+      "started_at": "2026-08-05T06:20:37.609Z",
+      "last_event_at": "2026-08-05T06:20:59.506Z",
+      "event_count": 3,
+      "file_path": "logs/C-Luv9615/2026-08-05/mimocode__ses_02f6b3e9cffebmlpY8R06gjwuI.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_02f6a9cfbffepj1iCtTBNKASCE",
+      "tool": "mimocode",
+      "started_at": "2026-08-05T06:21:18.985Z",
+      "last_event_at": "2026-08-05T06:21:18.997Z",
+      "event_count": 2,
+      "file_path": "logs/C-Luv9615/2026-08-05/mimocode__ses_02f6a9cfbffepj1iCtTBNKASCE.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_02f2114c5ffeLCEumkP7I8n8aR",
+      "tool": "mimocode",
+      "started_at": "2026-08-05T07:42:08.320Z",
+      "last_event_at": "2026-08-05T07:44:04.787Z",
+      "event_count": 7,
+      "file_path": "logs/C-Luv9615/2026-08-05/mimocode__ses_02f2114c5ffeLCEumkP7I8n8aR.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    }
+  ],
+  "updated_at": "2026-08-05T08:25:28.246470+00:00"
+}
