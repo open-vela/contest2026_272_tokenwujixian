@@ -1,0 +1,21 @@
+{
+  "name": "vela-deskmate-acp-bridge-spike",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local contract spike for a DeskMate ACP bridge",
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "demo": "node src/cli.js < test/fixtures/demo.ndjson",
+    "verify:mimo": "node src/stdio-verifier.js",
+    "verify:mimo:profile": "DESKMATE_USE_CURRENT_PROFILE=1 node src/stdio-verifier.js",
+    "verify:mimo:external": "DESKMATE_USE_CURRENT_PROFILE=1 DESKMATE_PROBE_EXTERNAL_TEMP=1 node src/stdio-verifier.js",
+    "client": "node bin/deskmate-client.mjs",
+    "bridge:fake": "node bin/deskmate-bridge.mjs",
+    "demo:loop": "node --test test/loop.test.js",
+    "demo": "bin/deskmate-demo.sh"
+  },
+  "dependencies": {
+    "mqtt": "^5.15.2"
+  }
+}

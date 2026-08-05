@@ -1,0 +1,7 @@
+config LVX_USE_DEMO_CONTEST2026_272_DESKMATE
+	bool "DeskMate device client (contest team 272)"
+	depends on NETUTILS_MQTTC && NETUTILS_CJSON
+	default n
+	---help---
+		Enable the DeskMate MQTT device client. Broker address and credentials
+		are supplied when the app starts and are never stored in firmware logs.

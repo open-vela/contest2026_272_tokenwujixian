@@ -1,0 +1,21 @@
+# ============================================================
+# 基于 .gitignore.example，额外忽略采集器所需的本地身份文件。
+#
+# 注意：logs/ 下最终导出的 AI Coding 日志必须提交，不要忽略！
+# ============================================================
+
+# Build artifacts
+build/
+out/
+*.o
+*.a
+*.elf
+*.hex
+*.map
+AGENTS.md
+research/
+compile_commands.json
+.mimocode/
+docs/
+# 采集器身份文件（本地配置，含 TEAM_ID / GITHUB_LOGIN，不入仓）
+.env

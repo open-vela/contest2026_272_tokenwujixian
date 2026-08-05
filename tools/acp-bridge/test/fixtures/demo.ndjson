@@ -1,0 +1,3 @@
+{"type":"acp_request_permission","id":42,"params":{"sessionId":"session-1","toolCall":{"toolCallId":"tool-9","title":"Run command","rawInput":{"command":"git status","apiKey":"demo-secret"}},"options":[{"kind":"allow_once","optionId":"agent-choice-allow"},{"kind":"reject_once","optionId":"agent-choice-reject"}]}}
+{"type":"device_decision","id":"p-tnFuRb6YQNeE05pEzOq6RQeGTnr4IbQDED0yv_","decision":"once"}
+{"type":"device_decision","id":"p-tnFuRb6YQNeE05pEzOq6RQeGTnr4IbQDED0yv_","decision":"once"}
