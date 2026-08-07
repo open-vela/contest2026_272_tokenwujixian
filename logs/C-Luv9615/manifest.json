@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "team_id": "contest2026_272_tokenwujixian",
   "github_login": "C-Luv9615",
-  "generator": "backfill-sqlite@mimocode",
+  "generator": "opencode-collector@1.4.0",
   "sessions": [
     {
       "session_id": "ses_03a889abfffeJ1KbfoY7wf00GU",
@@ -568,11 +568,12 @@
       "session_id": "ses_0305a357bffePL8GOWWfJvb7kF",
       "tool": "mimocode",
       "started_at": "2026-08-05T01:59:36.880Z",
-      "last_event_at": "2026-08-05T08:24:55.503Z",
-      "event_count": 208,
-      "file_path": "logs/C-Luv9615/2026-08-05/mimocode__ses_0305a357bffePL8GOWWfJvb7kF.jsonl",
+      "last_event_at": "2026-08-06T03:16:24.013Z",
+      "event_count": 879,
+      "file_path": "logs/C-Luv9615/2026-08-06/opencode__ses_0305a357bffePL8GOWWfJvb7kF.jsonl",
       "collection_mode": "backfill-sqlite",
-      "health": "ok"
+      "health": "ok",
+      "raw_message_count": 385
     },
     {
       "session_id": "ses_0305a0870ffekN0FlW1x5zVdnf",
@@ -673,7 +674,79 @@
       "file_path": "logs/C-Luv9615/2026-08-05/mimocode__ses_02f2114c5ffeLCEumkP7I8n8aR.jsonl",
       "collection_mode": "backfill-sqlite",
       "health": "ok"
+    },
+    {
+      "session_id": "ses_02add0465ffey4JtU0TKKutsRy",
+      "tool": "opencode",
+      "started_at": "2026-08-06T03:34:27.482Z",
+      "last_event_at": "2026-08-06T07:30:30.979Z",
+      "event_count": 43,
+      "raw_message_count": 22,
+      "file_path": "logs/C-Luv9615/2026-08-06/opencode__ses_02add0465ffey4JtU0TKKutsRy.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "title": "查询自定义 Provider API Key 用量"
+    },
+    {
+      "session_id": "ses_02a04495bffeyclF47a7Jja1dG",
+      "tool": "opencode",
+      "started_at": "2026-08-06T07:31:11.140Z",
+      "last_event_at": "2026-08-06T07:31:16.514Z",
+      "event_count": 3,
+      "raw_message_count": 2,
+      "file_path": "logs/C-Luv9615/2026-08-06/opencode__ses_02a04495bffeyclF47a7Jja1dG.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "title": "仅回复 OK"
+    },
+    {
+      "session_id": "ses_029ae5beaffefTC1LHP9hosoVC",
+      "tool": "opencode",
+      "started_at": "2026-08-06T09:05:02.485Z",
+      "last_event_at": "2026-08-06T09:16:46.137Z",
+      "event_count": 8,
+      "raw_message_count": 6,
+      "file_path": "logs/C-Luv9615/2026-08-06/opencode__ses_029ae5beaffefTC1LHP9hosoVC.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "title": "删除 /tmp/1.txt 文件"
+    },
+    {
+      "session_id": "ses_029a2e480ffeNW2RubBLzmEnio",
+      "tool": "opencode",
+      "started_at": "2026-08-06T09:17:33.951Z",
+      "last_event_at": "2026-08-06T09:19:08.025Z",
+      "event_count": 4,
+      "raw_message_count": 3,
+      "file_path": "logs/C-Luv9615/2026-08-06/opencode__ses_029a2e480ffeNW2RubBLzmEnio.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "title": "New session - 2026-08-06T09:17:33.951Z"
+    },
+    {
+      "session_id": "ses_025fcbf8fffedq9cqEOC3ArFYr",
+      "tool": "opencode",
+      "started_at": "2026-08-07T02:17:54.033Z",
+      "last_event_at": "2026-08-07T02:20:00.378Z",
+      "event_count": 6,
+      "raw_message_count": 5,
+      "file_path": "logs/C-Luv9615/2026-08-07/opencode__ses_025fcbf8fffedq9cqEOC3ArFYr.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "title": "查询当前路径"
+    },
+    {
+      "session_id": "ses_025e40a30ffekjci9dnky448mG",
+      "tool": "opencode",
+      "started_at": "2026-08-07T02:44:53.327Z",
+      "last_event_at": "2026-08-07T02:45:35.359Z",
+      "event_count": 3,
+      "raw_message_count": 2,
+      "file_path": "logs/C-Luv9615/2026-08-07/opencode__ses_025e40a30ffekjci9dnky448mG.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "title": "问候语"
     }
   ],
-  "updated_at": "2026-08-05T08:25:28.246470+00:00"
+  "updated_at": "2026-08-07T02:45:35.359Z"
 }
