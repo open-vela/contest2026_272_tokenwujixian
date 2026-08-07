@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { AcpBridge, promptIdFor, summarizeArguments, summarizeMessage } from "../src/bridge.js";
+import { AcpBridge, promptIdFor, sanitizeAgentText, summarizeArguments, summarizeMessage } from "../src/bridge.js";
 
 function permissionRequest(overrides = {}) {
   return {
@@ -80,4 +80,10 @@ test("tool title remains within the 24-byte display limit", () => {
   const bridge = new AcpBridge();
   const snapshot = bridge.ptSubmit(permissionRequest({ toolCall: { toolCallId: "tool-9", title: "你".repeat(20) } }));
   assert.ok(Buffer.byteLength(snapshot.prompt.tool, "utf8") <= 24);
+});
+
+test("agent text redacts inline and JSON-shaped secret fields", () => {
+  const text = sanitizeAgentText('{"token":"very-secret","authorization":"Bearer another-secret"} password=third-secret');
+  assert.doesNotMatch(text, /very-secret|another-secret|third-secret/);
+  assert.match(text, /\[redacted\]/);
 });

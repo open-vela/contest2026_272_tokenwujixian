@@ -37,8 +37,15 @@ export class StdioAcpAdapter {
     await delay(READY_DELAY_MS);
     const created = await this.request("session/new", { cwd: this.cwd, mcpServers: [] });
     this.sessionId = created.sessionId;
+    this.listener({ type: "session_started", backend: this.backend });
     this.listener({ type: "text", text: `${this.backend} session ready` });
     return initialized;
+  }
+
+  attachSession() {
+    return typeof this.sessionId === "string" && this.sessionId
+      ? this.sessionId
+      : null;
   }
 
   async submit(text) {
@@ -57,7 +64,7 @@ export class StdioAcpAdapter {
     this.send({ jsonrpc: "2.0", id, method, params });
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => { this.pending.delete(id); reject(new Error(`${method}_timeout`)); }, 30_000);
-      this.pending.set(id, { resolve, reject, timer });
+      this.pending.set(id, { resolve, reject, timer, method, params });
     });
   }
 
@@ -69,7 +76,10 @@ export class StdioAcpAdapter {
     if (message.id !== undefined && (message.result !== undefined || message.error !== undefined)) {
       const entry = this.pending.get(message.id); if (!entry) return;
       clearTimeout(entry.timer); this.pending.delete(message.id);
-      if (message.error) entry.reject(new Error(message.error.message ?? "acp_error")); else entry.resolve(message.result);
+      if (message.error) entry.reject(new Error(message.error.message ?? "acp_error")); else {
+        this.#recordPromptUsage(entry, message.result);
+        entry.resolve(message.result);
+      }
       return;
     }
     if (message.id !== undefined && message.method === "session/request_permission") {
@@ -82,14 +92,60 @@ export class StdioAcpAdapter {
       this.send({ jsonrpc: "2.0", id: message.id, error: { code: -32601, message: "DeskMate bridge does not implement this ACP client request" } });
       return;
     }
-    if (message.method === "session/update" || message.method === "_kiro.dev/session/update") this.#normalize(message.params?.update);
+    if (message.method === "_kiro.dev/metadata") {
+      this.#normalizeKiroMetadata(message.params);
+      return;
+    }
+    if (message.method === "session/update" || message.method === "_kiro.dev/session/update") {
+      this.#normalize(message.params?.update, message.params?.sessionId);
+    }
   }
 
-  #normalize(update = {}) {
+  #recordPromptUsage(entry, result) {
+    if (entry.method !== "session/prompt") return;
+    const usage = result?.usage;
+    if (!usage || typeof usage !== "object") return;
+    const input = usage.inputTokens;
+    const output = usage.outputTokens;
+    const total = usage.totalTokens;
+    if (![input, output, total].every((value) => typeof value === "number" && Number.isFinite(value) && value >= 0)) return;
+    this.listener({ type: "usage", tokens: { input, output, total } });
+  }
+
+  #normalizeKiroMetadata(params = {}) {
+    if (params.sessionId && this.sessionId && params.sessionId !== this.sessionId) return;
+    const values = Array.isArray(params.meteringUsage) ? params.meteringUsage : [];
+    const credits = values.reduce((sum, entry) => {
+      if (entry?.unit !== "credit" || typeof entry.value !== "number" || !Number.isFinite(entry.value) || entry.value < 0) return sum;
+      return sum + entry.value;
+    }, 0);
+    const hasCredits = values.some((entry) => entry?.unit === "credit" && typeof entry.value === "number" && Number.isFinite(entry.value) && entry.value >= 0);
+    const percentage = params.contextUsagePercentage;
+    const context = typeof percentage === "number" && Number.isFinite(percentage) && percentage >= 0
+      ? { unit: "percent", used: percentage, limit: 100 }
+      : undefined;
+    if (hasCredits || context) {
+      this.listener({
+        type: "usage",
+        ...(hasCredits ? { charge: { kind: "credit", amount: credits, unit: "credits" } } : {}),
+        ...(context ? { context } : {}),
+      });
+    }
+  }
+
+  #normalize(update = {}, sessionId) {
     const type = update.sessionUpdate;
     if (type === "agent_message_chunk") {
       const text = update.content?.text;
       if (typeof text === "string" && text) this.listener({ type: "text", text });
+      return;
+    }
+    if (type === "usage_update") {
+      const used = update.used;
+      const limit = update.size;
+      if (sessionId === this.sessionId && typeof used === "number" && Number.isFinite(used) && used >= 0 && typeof limit === "number" && Number.isFinite(limit) && limit >= 0) {
+        this.listener({ type: "usage", context: { unit: "token", used, limit } });
+      }
       return;
     }
     if (type === "tool_call" || type === "tool_call_update") {

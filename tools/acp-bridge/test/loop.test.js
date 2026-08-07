@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { DeskMateBridgeCore } from "../src/bridge-core.js";
 import { FakeAcpAdapter } from "../src/fake-adapter.js";
 import { UnixLinkClient, UnixLinkServer } from "../src/unix-link.js";
-import { decision, hello, MAX_MESSAGE_BYTES } from "../src/protocol.js";
+import { decision, hello, MAX_MESSAGE_BYTES, usageQuery } from "../src/protocol.js";
 
 test("Unix loop carries nonce snapshot and exactly one permission decision", async () => {
   const directory = await mkdtemp(join(tmpdir(), "deskmate-loop-"));
@@ -17,6 +17,7 @@ test("Unix loop carries nonce snapshot and exactly one permission decision", asy
   const core = new DeskMateBridgeCore({ adapter, publish: (message) => server.send(message) });
   server = new UnixLinkServer(path, { onMessage: (message) => core.receive(message), onDisconnect: () => core.disconnect() });
   await server.listen();
+  await adapter.start();
   const client = new UnixLinkClient(path, { onMessage: (message) => received.push(message) });
   await client.connect(); client.send(hello("nonce-a"));
   await new Promise((resolve) => setTimeout(resolve, 10));
@@ -33,6 +34,44 @@ test("Unix loop carries nonce snapshot and exactly one permission decision", asy
   await new Promise((resolve) => setTimeout(resolve, 10));
   assert.equal(adapter.responses.length, 1);
   client.close(); await core.disconnect(); await server.close(); await rm(directory, { recursive: true, force: true });
+});
+
+test("Unix loop delivers session-local usage and answers a matching query", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "deskmate-usage-loop-"));
+  const path = join(directory, "link.sock");
+  const received = [];
+  const adapter = new FakeAcpAdapter();
+  let server;
+  const core = new DeskMateBridgeCore({ adapter, publish: (message) => server.send(message) });
+  server = new UnixLinkServer(path, { onMessage: (message) => core.receive(message), onDisconnect: () => core.disconnect() });
+  await server.listen();
+  await adapter.start();
+  const client = new UnixLinkClient(path, { onMessage: (message) => received.push(message) });
+  await client.connect();
+  client.send(hello("usage-nonce"));
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  const first = received.find((message) => message.type === "usage_snapshot");
+  assert.equal(first.usage.billing.charge, null);
+  assert.equal(first.usage.billing.tokens, null);
+
+  adapter.usage({ tokens: { input: 11, output: 3, total: 14 } });
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  const observed = received.at(-1);
+  assert.equal(observed.type, "usage_snapshot");
+  assert.deepEqual(observed.usage.billing.tokens, { input: 11, output: 3, total: 14 });
+
+  client.send(usageQuery("usage-nonce", observed.epoch));
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  const queried = received.at(-1);
+  assert.equal(queried.type, "usage_snapshot");
+  assert.ok(queried.usage_seq > observed.usage_seq);
+  assert.deepEqual(queried.usage, observed.usage);
+
+  client.send(usageQuery("wrong-nonce", observed.epoch));
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(received.at(-1).usage_seq, queried.usage_seq);
+  client.close(); await core.disconnect(); await server.close();
+  await rm(directory, { recursive: true, force: true });
 });
 
 test("stale epoch decisions never reach the ACP adapter", async () => {

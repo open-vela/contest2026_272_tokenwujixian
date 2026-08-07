@@ -5,6 +5,9 @@ const MESSAGE_MAX_BYTES = 128;
 const PROMPT_ID_MAX_BYTES = 40;
 
 const SENSITIVE_KEY = /(?:api[_-]?key|authorization|cookie|credential|password|secret|token)/i;
+const SENSITIVE_TEXT = /\b(?:api[_ -]?key|authorization|cookie|credential|password|secret|token)\b\s*([:=])\s*(?:Bearer\s+)?[^\s,;]+/gi;
+const SENSITIVE_JSON_DOUBLE = /("(?:api[_-]?key|authorization|cookie|credential|password|secret|token)"\s*:\s*)"(?:\\.|[^"\\])*"/gi;
+const SENSITIVE_JSON_SINGLE = /('(?:api[_-]?key|authorization|cookie|credential|password|secret|token)'\s*:\s*)'(?:\\.|[^'\\])*'/gi;
 
 function utf8Prefix(value, maxBytes) {
   const input = String(value ?? "");
@@ -61,6 +64,17 @@ function summarizeMessage(value) {
   const redacted = redact(value);
   const rendered = typeof redacted === "string" ? redacted : JSON.stringify(redacted);
   return utf8Summary(rendered, MESSAGE_MAX_BYTES);
+}
+
+/* Agent text is user-visible rather than a security boundary. This removes
+ * terminal control bytes and obvious inline secrets before it crosses the
+ * device link; it deliberately does not attempt to interpret ACP payloads. */
+function sanitizeAgentText(value) {
+  return String(value ?? "")
+    .replace(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f]/g, "")
+    .replace(SENSITIVE_JSON_DOUBLE, '$1"[redacted]"')
+    .replace(SENSITIVE_JSON_SINGLE, "$1'[redacted]'")
+    .replace(SENSITIVE_TEXT, (_match, separator) => `secret${separator}[redacted]`);
 }
 
 function choiceOptionId(options, kind) {
@@ -167,4 +181,4 @@ export class AcpBridge {
   }
 }
 
-export { promptIdFor, summarizeArguments, summarizeMessage, utf8Prefix, utf8Summary };
+export { promptIdFor, sanitizeAgentText, summarizeArguments, summarizeMessage, utf8Prefix, utf8Summary };

@@ -34,14 +34,32 @@ For the fake demo, type `prompt` into the bridge terminal. This creates a synthe
 
 ## Real ACP state-flow probe
 
-Use a selected backend in the bridge terminal and type a prompt as bridge stdin:
+Use a selected backend in the bridge terminal. It provides a small shell-style
+REPL: `deskmate>` accepts ordinary text as an ACP prompt and streams agent text,
+tool state, permission waits, and Billing events locally while continuing to
+publish the same facts to the DeskMate Link.
 
 ```sh
 node bin/deskmate-bridge.mjs --backend mimo --socket /tmp/deskmate-link.sock
 node bin/deskmate-bridge.mjs --backend kiro --socket /tmp/deskmate-link.sock
 ```
 
-The adapter runs `initialize`, `session/new`, and `session/prompt`, then turns `session/update` tool/text activity into DeskMate facts. A real `session/request_permission` is held until the terminal client sends `once` or `deny`; only the Agent-provided `allow_once` or `reject_once` option ID can be returned.
+The local commands are `help`, `status`, `usage`, and `quit`/`exit`; all other
+input is sent as an ACP prompt. The adapter runs `initialize`, `session/new`,
+and `session/prompt`, then turns `session/update` tool/text activity into
+DeskMate facts. A real `session/request_permission` is held until the terminal
+client sends `once` or `deny`; only the Agent-provided `allow_once` or
+`reject_once` option ID can be returned.
+
+## Session-local usage
+
+The bridge maintains an in-memory ledger for the one ACP session it creates. It publishes a `usage_snapshot` after the nonce handshake, on each observed usage increment, and every 30 seconds. The terminal client's `usage` command asks for the same snapshot without issuing a model prompt.
+
+- The snapshot has two display-ready `billing` slots: `charge` (left) and raw `tokens` (right). A device can render them as `Billing: <charge> / <total tokens>` and leaves any `null` slot blank.
+- MiMoCode contributes raw `input`/`output`/`total` tokens to the right slot from a completed `session/prompt`, plus separate token-based context-window use from `usage_update`.
+- Kiro contributes incremental `credits` to the left slot from `_kiro.dev/metadata.meteringUsage`; it does not expose raw token counts through ACP. Its context value is a percentage, not a token count.
+- A verified provider currency amount can use the same left slot with `kind: "currency"`; the bridge does not treat MiMoCode's local `$0` estimate as a real price.
+- The snapshot is only the bridge-process lifetime total for its current ACP session. It is never an account balance, remaining quota, rate-limit reading, or cross-machine aggregate. Units are deliberately never converted or summed together.
 
 Known limitation: the current MiMoCode profile has been observed to complete a bash tool call without emitting `session/request_permission`. The bridge will show its state/tool result but will not invent an Attention prompt; this is not a permission-control success.
 
@@ -75,4 +93,46 @@ bin/deskmate-demo.sh bridge mimo mqtt --broker mqtt://127.0.0.1:18883 --device-i
 bin/deskmate-demo.sh client mqtt --broker mqtt://127.0.0.1:18883 --device-id goldfish-1
 ```
 
+### Attach the native MiMo TUI to the bridge session
+
+MiMo ACP exposes an attachable loopback server as well as its stdio ACP stream.
+For a MiMo bridge, `--mimo-attach` gives the ACP server an explicit port,
+waits until the bridge has created its actual ACP session, then opens a tmux
+window attached to that exact session. It never guesses a session ID from logs:
+
+```sh
+bin/deskmate-demo.sh bridge mimo mqtt \
+  --broker mqtt://10.189.140.244:1883 --device-id goldfish-1 \
+  --mimo-attach --mimo-attach-port 4096
+```
+
+The chosen port must be unused before launch. If an earlier `mimo acp` still
+owns `4096`, stop that bridge first or choose another explicit port, such as
+`--mimo-attach-port 4097`.
+
+The bridge writes an atomic, mode-`0600` runtime ready file containing only the
+loopback URL and session ID, then deletes it when the bridge exits. Inside tmux,
+the launcher creates a `deskmate-mimo` window running `mimo attach`. Outside
+tmux, it opens a GNOME Terminal by default. It prints the exact attach command
+only when no graphical session is available, `gnome-terminal` is unavailable,
+or launching it fails. The native TUI and DeskMate share one ACP session: do
+not submit concurrent prompts from the TUI, `deskmate>`, and device `@` input.
+
 For the existing loop transport, replace the two final commands with `bridge <backend> loop` and `client loop`. Run `bin/deskmate-demo.sh --help` for all parameters. The launcher reads MQTT credentials only from `DESKMATE_MQTT_USERNAME` and `DESKMATE_MQTT_PASSWORD`.
+# DeskMate ACP bridge
+
+## Device chat turns
+
+When a DeskMate device sends `prompt_submit`, the bridge validates its current
+nonce/epoch, gives the request a single active ACP turn, and calls
+`session/prompt` with the complete text. It responds with `prompt_ack`, streams
+sanitized `agent_output` chunks, and ends with `turn_result`. The bridge, its
+local `deskmate>` REPL, and the device share one turn lock; neither side may
+interleave prompts in the same ACP session.
+
+The bridge does not pass ACP chunks through verbatim. It removes terminal
+control bytes and obvious inline secrets, batches output for up to 40 ms,
+splits it at UTF-8 boundaries, and verifies every produced message stays within
+the 4096-byte link limit. It never waits for an entire answer before streaming.
+The 2048-byte input limit and 4096-byte wire cap are intentional safety bounds;
+large document upload is not part of this protocol.

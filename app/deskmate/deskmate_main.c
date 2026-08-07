@@ -44,7 +44,7 @@ static void poll_console(void *context)
 
 int main(int argc, char *argv[])
 {
-  struct deskmate_controller_s controller;
+  static struct deskmate_controller_s controller;
   struct deskmate_mqtt_config_s config = { .port = "1883" };
   char nonce[DESKMATE_NONCE_MAX + 1];
   int option;
@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
   deskmate_controller_init(&controller, nonce);
   printf("DeskMate client started: %s\n",
          deskmate_state_name(controller.client.state));
-  printf("DeskMate: enter once or deny only for a pending approval\n");
+  printf("DeskMate: type help for commands\n");
   deskmate_console_prompt();
   return deskmate_mqtt_run(&config, &controller, poll_console, &controller) == 0 ? 0 : 1;
 }

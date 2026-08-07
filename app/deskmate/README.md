@@ -10,8 +10,9 @@ or denied current prompt through its active transport. `deskmate_mqtt.c` is the
 first transport: it uses NuttX MQTT-C over ordinary TCP, publishes complete JSON
 messages, and subscribes to bridge messages. It does not read local input.
 `deskmate_console.c` is a foreground-only input adapter that maps `once` and
-`deny` to the controller. Future GPIO input uses the same controller decision
-API; USB CDC will be a separate newline-framed transport.
+`deny` to the controller and maps `usage` to a read-only `usage_query`. Future
+GPIO input uses the same controller decision API; USB CDC will be a separate
+newline-framed transport.
 
 The controller keeps a local exact-prompt decision latch after a successful
 send. Repeated local input for that `prompt.id` is rejected until a later
@@ -43,8 +44,12 @@ new connection nonce, performs a new `hello` handshake, and remains Offline
 until a matching snapshot arrives.
 
 While the Goldfish app owns the NSH console, it displays a `DeskMate>` prompt.
-An empty line is a no-op; type `once` or `deny` followed by Enter only for the
-current approval request. This is a simulator bring-up input only; it invokes
+Use `help` to print the command list. An empty line is a no-op; type `once` or
+`deny` followed by Enter only for the current approval request. `usage` first
+prints the currently cached session-local Billing value, then sends a
+read-only query to refresh the cache. A changed query response is printed
+automatically; an identical response only advances the telemetry sequence and
+does not add duplicate console output. This is a simulator bring-up input only; it invokes
 the same exact-prompt decision path that future GPIO buttons will use.
 `deskmate` must remain the foreground command while this adapter is enabled,
 so it is the sole reader of stdin; no background service may read the NSH
@@ -60,3 +65,44 @@ gcc -std=c11 -Wall -Wextra -Werror -I app/deskmate \
 ```
 
 This is not USB, LCD/LED/key, or BK7258 bring-up evidence.
+
+## Session-local Billing telemetry
+
+The device accepts optional `usage_snapshot` telemetry only after the normal
+nonce/epoch authority snapshot has locked the session. It maintains a separate,
+strictly increasing `usage_seq`; a missing, stale, or malformed usage message
+cannot alter a pending permission, clear the decision latch, or refresh the
+30-second authority-snapshot liveness timer.
+
+The display form is `Billing: <charge> / <tokens>`. The left slot is a native
+provider charge (`credits` or a verified currency amount), while the right slot
+is raw token usage. Either `billing` slot may be JSON `null` and is displayed
+empty; the client never substitutes zero, derives a price from tokens, or
+treats context-window use as billing. All values are bridge-session-local, not
+an account balance or remaining quota.
+# DeskMate device client
+
+## Goldfish / NSH chat input
+
+Once `deskmate` has connected and received a bridge `hello_ack` advertising
+`chat_turns`, use the compact `@` prefix at its interactive prompt:
+
+```text
+DeskMate> @ 检查当前仓库有哪些未提交修改
+DeskMate [agent] 我先检查工作区。
+DeskMate [agent] 当前有以下修改……
+DeskMate: Agent turn completed
+DeskMate>
+```
+
+`@` sends one complete UTF-8 text prompt to the PC ACP Agent; it is not a
+shell command and cannot grant permission. The input limit is 2048 UTF-8
+bytes. While a turn or a real ACP permission request is active, a new `@`
+prompt is rejected locally. The existing `once` and `deny` commands remain
+the only permission decisions.
+
+The device prints Agent-facing text as it arrives, preserving a bounded 8 KiB
+transcript in memory for a future UI. It accepts increasing output sequence
+numbers, notes a QoS 0 gap without changing authority state, and ignores stale
+nonce, epoch, request, turn, or sequence values. DeskMate Link messages remain
+capped at 4096 UTF-8 bytes.
