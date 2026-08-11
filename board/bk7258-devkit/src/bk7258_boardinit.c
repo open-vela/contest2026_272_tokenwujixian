@@ -1,10 +1,12 @@
 /****************************************************************************
- * Contest 2026 team 000 board - boot stub (no-op placeholder)
+ * board/bk7258-devkit/src/bk7258_boardinit.c
  ****************************************************************************/
+
+#include <nuttx/config.h>
 
 #include <nuttx/board.h>
 
-void openvela_board_initialize(void)
+void board_early_initialize(void)
 {
-  /* Placeholder: no hardware initialization. */
+  /* Early pinmux and console hardware are owned by the secure chip layer. */
 }

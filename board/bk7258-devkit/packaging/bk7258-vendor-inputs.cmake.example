@@ -1,0 +1,15 @@
+# Copy this file to:
+#   <openvela-workspace>/local/bk7258-vendor-inputs.cmake
+# where <openvela-workspace> is the directory that contains build.sh and
+# nuttx/, one level above this team repository.
+#
+# Keep the copied file local. It identifies external vendor assets on this
+# workstation and must not be committed. Do not use environment variables to
+# select a BK7258 packaging profile.
+
+# Armino SDK root that provides the verified Beken packer substeps.
+set(BK7258_ARMINO_SDK_ROOT "/absolute/path/to/bk_avdk_smp")
+
+# Root of the locked beken_genie BK7258 build whose vendor Bootloader, app1
+# input and partition JSON files will be fingerprinted by the future packer.
+set(BK7258_BEKEN_GENIE_BUILD_ROOT "/absolute/path/to/beken_genie/build/bk7258/beken_genie")

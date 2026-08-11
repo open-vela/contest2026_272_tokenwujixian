@@ -1,0 +1,9 @@
+# BK7258 DevKit AP component configuration.
+#
+# This is a component-identity placeholder only. AP linker/startup, CPU1/CPU2
+# ownership, SMP policy, CP-to-AP handoff and app1.bin export are not
+# implemented. Do not use this defconfig to claim a buildable or bootable AP
+# image.
+
+CONFIG_ARCH_BOARD_BK7258_DEVKIT=y
+CONFIG_BK7258_COMPONENT_AP=y

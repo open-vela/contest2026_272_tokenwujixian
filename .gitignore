@@ -12,6 +12,9 @@ out/
 *.elf
 *.hex
 *.map
+__pycache__/
+*.py[cod]
+/bk_loader
 AGENTS.md
 research/
 compile_commands.json

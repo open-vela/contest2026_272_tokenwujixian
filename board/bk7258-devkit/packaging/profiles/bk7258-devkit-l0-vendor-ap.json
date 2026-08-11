@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "profile": "bk7258-devkit-l0-vendor-ap",
+  "purpose": "L2-dev Flash cold-boot package: OpenVela CP app.bin plus a locked vendor AP payload",
+  "container": {
+    "mode": "linear-crc-physical-flash",
+    "crc": {
+      "payload_bytes": 32,
+      "crc_bytes": 2,
+      "polynomial": "0x8005",
+      "byte_order": "big-endian",
+      "final_payload_padding": "0xff"
+    },
+    "excluded_formats": [
+      "BKDLV10 download container",
+      "BL1/BL2/MCUboot signature header",
+      "OTA update package"
+    ]
+  },
+  "board": {
+    "schematic": "AIDK_AI玩具开发板_原理图.pdf",
+    "schematic_title": "BK7258 AI Demo",
+    "schematic_revision": "V1.0",
+    "schematic_date": "2025-03-17",
+    "soc_package": "BK7258_QFN88_9X9",
+    "flash_capacity_bytes": 8388608,
+    "flash_capacity_evidence": "DevKit schematic AIDK_AI玩具开发板_原理图.pdf identifies U1 as BK7258_QFN88_9X9 and revision V1.0 dated 2025-03-17. BK7258 Datasheet DS-BK7258-E12 V2.1 lists QFN88 with 8 MB Flash; the locked vendor partition map ends at 0x00800000. A future read-only target probe should record physical confirmation before first experimental Flash write."
+  },
+  "partitions": {
+    "flash_size_bytes": 8388608,
+    "bootloader": {
+      "physical_offset": "0x00000000",
+      "physical_size": "0x00011000"
+    },
+    "cp": {
+      "physical_offset": "0x00011000",
+      "physical_size": "0x00165000",
+      "payload_virtual_offset": "0x00010000",
+      "xip_vector_base": "0x02010000",
+      "raw_max_bytes": 1376256
+    },
+    "ap": {
+      "physical_offset": "0x00176000",
+      "physical_size": "0x002ca000",
+      "raw_max_bytes": 2752512
+    }
+  },
+  "cpu0_l0_execution": {
+    "security_domain": "secure-spe",
+    "flash_vector_base": "0x02010000",
+    "vector_alignment_bytes": 512,
+    "sram_start": "0x2806ec00",
+    "sram_size": "0x00030b00",
+    "idle_stack_bytes": 2048,
+    "time_base": "secure-systick-external-32khz",
+    "systick_hz": 32000,
+    "uart0_base": "0x44820000",
+    "sys_base": "0x44010000",
+    "uart0_tx_pin": 11,
+    "uart_clock_hz": 26000000,
+    "uart_baud": 115200,
+    "secondary_cores": "do-not-release",
+    "deferred": [
+      "non-secure handoff",
+      "SAU/NSC gateway",
+      "FPU and hard-float ABI",
+      "ITCM/DTCM relocation",
+      "cache relocation",
+      "UART DMA",
+      "general timer and RTC alarm"
+    ],
+    "acceptance_note": "The opaque vendor Bootloader secure handoff, inherited secure PPC state, 32 kHz SysTick behavior, and absence of AP startup remain T7 Flash cold-boot checks."
+  },
+  "bootloader_staging": {
+    "normal_bootloader_padding": "0x00 to the next 32-byte boundary",
+    "partition_metadata": "Serialize bk_ota_partitions.json.part_table in source-array order; each entry is 64 bytes: little-endian magic, NUL-padded 24-byte name, NUL-padded 24-byte flash_name, little-endian offset, little-endian len, and little-endian CRC32 over the preceding 60 bytes.",
+    "crc_scope": "Encode the complete staged bootloader with the container CRC rule."
+  },
+  "locked_inputs": {
+    "armino_sdk": {
+      "revision": "d2ded037798530175e5dc5cde6fa1878f5d5ef35",
+      "branch": "release/v3.1.1"
+    },
+    "normal_bootloader": {
+      "relative_path": "cp/components/bk_libs/bk7258/bootloader/normal_bootloader/bootloader.bin",
+      "sha256": "53120001cb5b87307567ca0cedd4a94823e7dd726f841b1f4f6abb520c462919",
+      "raw_length_bytes": 52352
+    },
+    "staged_bootloader": {
+      "relative_path": "package/tmp/bootloader.bin",
+      "sha256": "d27be983a1c0eb80033e4ad8877aa16c6df87c55e96c7dae238a3a6866abb4a0",
+      "raw_length_bytes": 52608
+    },
+    "vendor_cp_fixture": {
+      "relative_path": "bk7258/app.bin",
+      "sha256": "646c3fe32593309d00dad1f3a763f2e93db2e79e54b73a975f804b835c98eae7",
+      "raw_length_bytes": 1196288
+    },
+    "vendor_ap_input": {
+      "relative_path": "bk7258_ap/app.bin",
+      "staged_relative_path": "package/tmp/app1.bin",
+      "sha256": "b245adb578ae1f8c0a4d5a4ee86e4707eeab115e0e96bd919cb6ddf9a3a6a6a7",
+      "raw_length_bytes": 2539112
+    },
+    "package_json": {
+      "relative_path": "partitions/bk_package.json",
+      "sha256": "e6b0accc6f34e20e8f2c857383225a3d53eb2c1f0ae6678e22f22a9d07853ee0"
+    },
+    "ota_partitions_json": {
+      "relative_path": "partitions/bk_ota_partitions.json",
+      "sha256": "4941e43a22615f3df230c08088717f1e54eebcbe59fd82d4143913bc858c440a"
+    },
+    "generated_partitions": {
+      "relative_path": "partitions/partitions_gen.h",
+      "sha256": "947aca50b298c6bb6b9c4fea91946ad4528832d58755311b62b0b445e5e25ebe"
+    },
+    "generated_ram_regions": {
+      "relative_path": "partitions/ram_regions.h",
+      "sha256": "c3251d30004c7e96b27e0aa1adf734aca5834db3cb38234508d86d2d3831da9a"
+    },
+    "generated_tfm_hal_ppc": {
+      "relative_path": "bk7258/armino/partitions/_build/tfm_hal_ppc.h",
+      "sha256": "930bd5c06c251e9fa5c49c38db0191094d9f8f4427068bedf4b3ddbf670372f4"
+    },
+    "generated_ppc_macros": {
+      "relative_path": "bk7258/armino/partitions/_build/_ppc.h",
+      "sha256": "d6a390b2f90da56064ccee8c8822d44da36eb28693eafeef32c14488ee29cbe6"
+    },
+    "generated_cp_sdkconfig": {
+      "relative_path": "bk7258/config/sdkconfig.h",
+      "sha256": "c07fa9f4d37fc08661025bdb5b3b2cf4fea26b3ab37cbb70623008efad6f4847"
+    },
+    "vendor_all_app_recovery_fixture": {
+      "relative_path": "package/all-app.bin",
+      "sha256": "1613a6018553de9ebb0564572b090844253688af53c9bcc3de7c5b40f06db89d",
+      "length_bytes": 4229792
+    }
+  },
+  "tool_fingerprints": {
+    "bk_crc16.py": "34bbb32004e79c925c5aea59d0932cae0541b6e4b32b181c2f2f8d8ff2d46b0f",
+    "bk_packager_linear_crc.py": "9f02db93f2ef90fa10ab86454b0d4a23b2f5079c699486c24a26365f18755ab6",
+    "bk_packager_crc_decorator.py": "df0f4333de1054981aafe657a20407302026ee98d3601cd10bf90d99a9326583",
+    "bk_packager_linear_linker.py": "d54aef487bf910b0e9ae9eba1a8434ba706e53c3a6f62837f66cceb82ad4ec5f",
+    "bk_ota_pack.py": "7c0226b32dbe79229838fc4254dae0150690e55ee85ba6d02cc8573012f96ea0",
+    "bk_loader": {
+      "version": "2.1.11.8",
+      "sha256": "55221d83d5582c362aab27d8883d799acf5eaa7b735d51135e01b0a24156b9ab"
+    }
+  },
+  "enforcement": {
+    "require_exact_locked_hashes": true,
+    "allow_vendor_ap_only_for_l0": true,
+    "reject_raw_cp_physical_flash_write": true,
+    "never_run_sdk_post_package": true,
+    "never_generate_ota": true,
+    "never_flash_automatically": true
+  }
+}

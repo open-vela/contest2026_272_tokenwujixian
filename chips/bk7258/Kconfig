@@ -1,0 +1,55 @@
+#
+# BK7258 custom chip configuration.
+#
+
+if ARCH_CHIP_CUSTOM
+
+menu "BK7258 CP Configuration"
+
+config ARCH_CHIP_BK7258
+	bool "Beken BK7258 CP / CPU0"
+	default y
+	select ARCH_CORTEXM33
+	select ARCH_HAVE_TRUSTZONE
+	select ARM_SYSTICK
+	select TIMER
+	select TIMER_ARCH
+	select OTHER_UART_SERIALDRIVER
+	help
+		Secure CPU0/CP configuration for the locked BK7258 DevKit L0 profile.
+		The image replaces only the vendor CP app.bin. CPU1/CPU2 startup,
+		TrustZone NS handoff, FPU, TCM, cache relocation and general timer
+		drivers remain disabled.
+
+config BK7258_SYSTICK_CLOCK_HZ
+	int "Secure SysTick clock frequency"
+	default 32000
+	range 1000 1000000
+	help
+		The locked vendor CP enables CPU0's external 32 kHz SysTick source.
+		The first Flash cold-boot test must validate the frequency and time
+		base behavior before any timing acceptance claim.
+
+config BK7258_UART0_BAUD
+	int "UART0 console baud"
+	default 115200
+	range 1200 6000000
+
+config BK7258_UART0_CLOCK_HZ
+	int "UART0 source clock"
+	default 26000000
+	range 1000000 100000000
+
+config BK7258_UART0_RXBUFSIZE
+	int "UART0 receive buffer size"
+	default 128
+	range 16 1024
+
+config BK7258_UART0_TXBUFSIZE
+	int "UART0 transmit buffer size"
+	default 128
+	range 16 1024
+
+endmenu
+
+endif

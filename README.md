@@ -50,7 +50,7 @@ repo sync -c -j8
 | -------- | -------------------------- | ---------------------------------------------- |
 | 应用     | `app/hello_app/`           | `packages/demos/contest2026_272_hello_app`     |
 | 快应用   | `quickapp/hello_quickapp/` | `packages/apps/contest2026_272_hello_quickapp` |
-| 板级适配 | `board/contest_board/`     | `vendor/openvela/boards/contest2026_272_board` |
+| 板级适配 | `board/bk7258-devkit/`    | `vendor/beken/boards/bk7258/bk7258-devkit`     |
 
 > 用不到的形态目录可以删掉；新增作品时按同样规则加子目录，并在 `contest2026_272_tokenwujixian.xml` 里补一条 `<linkfile>` 映射即可。**生产仓库（packages/nuttx/vendor 等）零改动。**
 
@@ -86,7 +86,7 @@ cd ..
 ./build.sh <board-config-path> [menuconfig|distclean] [-j8]
 ```
 
-> 具体的 board config 路径、目标产物、模拟器/真机部署方式请以你所在赛道的教程导航为准。本仓 `app/` `quickapp/` `board/` 三个示例骨架对应的 Kconfig 选项可通过 `menuconfig` 启用。
+> 具体的 board config 路径、目标产物、模拟器/真机部署方式请以你所在赛道的教程导航为准。`board/bk7258-devkit/` 与 `chips/bk7258/` 已提供实验性 CPU0/CP 配置：2026-08-11 已通过完整 L2 `all-app.bin` 在真机启动到 `NuttShell (NSH)`，并验证 UART0 输入。它不是完整 BSP；AP、Wi-Fi/BLE、USB、显示/按键、运行时 Flash 与稳定性仍未验收。构建、打包、烧录和已知边界见 `board/bk7258-devkit/README.md` 与 `chips/bk7258/BK7258_CPU0_BRINGUP_CONTRACT.md`。
 
 ---
 
