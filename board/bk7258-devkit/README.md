@@ -19,16 +19,16 @@ Flash package 由独立包装器使用 CP `app.bin`、经过 staging 的厂商 B
 
 当前目录已具备 BK7258 DevKit 的实验性 CPU0/CP L0 bring-up：custom chip/board 选择链路、secure CPU0 linker、L1 `app.bin` 导出和 L2 `all-app.bin` 打包均可复现。2026-08-11 的真机冷启动已观察到 `BK` 早期标记与 `NuttShell (NSH)` / `nsh>`；GPIO10 UART0 RX 修复后已能输入并执行 `?`。这只验证 CPU0 最小控制台路径，不验证 AP、Wi-Fi/BLE、USB、LCD/LED/按键、Flash 运行时访问或长期稳定性。
 
-当前阶段的完整镜像始终由 normal Bootloader、OpenVela CP `app.bin` 和 SHA-256 锁定的厂商 `app1.bin` 组成，并从物理 Flash `0x0` 写入。`0x11000` 是 CP 分区起点；不得将 raw `app.bin` 连续写入该位置。每次新 CP build 后，L1 导出 target 会依赖根构建目录的 `nuttx.bin`、`nuttx` 与 `nuttx.map`，防止 L2 包错误使用旧产物。
+完整镜像始终从物理 Flash `0x0` 写入。它由 normal Bootloader、OpenVela CP `app.bin` 和一个 AP 分区组成：本仓库自足的 bundled 路径使用 66 字节 AP 占位符，vendor 路径使用 SHA-256 锁定的厂商 `app1.bin`。`0x11000` 是 CP 分区起点；不得将 raw `app.bin` 连续写入该位置。每次新 CP build 后，L1 导出 target 会依赖根构建目录的 `nuttx.bin`、`nuttx` 与 `nuttx.map`，防止 L2 包错误使用旧产物。
 
-最近的 UART TX FIFO-drain 修复已通过 L1/L2 离线验证，但尚待真机复测。测试时将 minicom 配置为 115200 8N1，并关闭硬件和软件流控；长 `?`/`help` 输出必须在同一次命令中完整显示。
+最近的 UART TX FIFO-drain 修复已通过 L1/L2 离线验证，并于 2026-08-12 由操作者在真机确认：单次 `?`/`help` 长输出无需额外按键即可完成。测试时将 minicom 配置为 115200 8N1，并关闭硬件和软件流控；本次未保存 UART 原始日志。
 
 ## 已知 bring-up 故障与恢复
 
-- 若 `bk_loader` 在 `LinkCheck Timeout` / `GetBus fail` 停止，失败发生在镜像解析、擦写之前。重新进入下载模式，并先以只读 `Read Flash OK` 握手确认 CH340/BootROM 通道；不要把它归因于 `all-app.bin` 或 CP raw 内容。
+- 若 `bk_loader` 在 `LinkCheck Timeout` / `GetBus fail` 停止，失败发生在镜像解析、擦写之前。重新进入下载模式；需要单独诊断 CH340/BootROM 通道时，再以只读 `Read Flash OK` 握手确认。不要把它归因于 `all-app.bin` 或 CP raw 内容。
 - 已修复首个 `svc 0` 上下文切换的 HardFault：SVC 必须使用 NuttX 的 `0x60` 优先级，而 SysTick 使用普通 `0x80` 优先级。保留详细 fault 日志以供后续异常定位。
 - 已修复 console RX setup 被 NuttX console 特例跳过的问题：在注册 `/dev/console` 前配置 GPIO10 与 `RX_EN`。已在真机用 `?` 验证输入。
-- 已修复 TX FIFO-ready 中断没有 drain 软件缓冲区的问题；它目前仅完成离线验证，尚待真机长输出复测。
+- 已修复 TX FIFO-ready 中断没有 drain 软件缓冲区的问题。2026-08-12 已由操作者在真机确认单次 `?`/`help` 长输出无需额外按键即可完成；本次未保存 UART 原始日志。
 
 故障的完整现象、证据、映像边界和后续验收见
 `chips/bk7258/BK7258_CPU0_BRINGUP_CONTRACT.md`。工作区外的详细调查笔记不

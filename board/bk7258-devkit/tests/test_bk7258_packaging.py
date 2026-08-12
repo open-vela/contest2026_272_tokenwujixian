@@ -22,6 +22,7 @@ BOARD_DIR = Path(__file__).resolve().parents[1]
 TOOLS_DIR = BOARD_DIR / "tools"
 sys.path.insert(0, str(TOOLS_DIR))
 
+import bk7258_container as container
 import validate_bk7258_profile as profile_validator
 
 
@@ -163,6 +164,49 @@ def assert_payload_mapping(image: bytes, offset: int, fixture: bytes, label: str
         fail(f"{label} second payload block is not at physical offset 0x{offset + 34:08x}")
 
 
+def assert_container_matches_sdk(
+    profile: dict[str, object],
+    staged_bootloader: Path,
+    cp_input: Path,
+    ap_input: Path,
+    sdk_image: Path,
+) -> None:
+    """Prove tools/bk7258_container.py equals the locked SDK packer output.
+
+    This is the trust anchor the bundled profile relies on: it is what allows
+    packaging without the external SDK. It needs the vendor tree, so it can only
+    run on a machine that has the locked inputs.
+    """
+    partitions = profile["partitions"]
+    sections = [
+        container.Section(
+            int(str(partitions[label]["physical_offset"]), 0),
+            int(str(partitions[label]["physical_size"]), 0),
+            name,
+            path.read_bytes(),
+        )
+        for label, name, path in (
+            ("bootloader", "bootloader", staged_bootloader),
+            ("cp", "app", cp_input),
+            ("ap", "app1", ap_input),
+        )
+    ]
+    rebuilt = container.build_image(sections)
+    expected = sdk_image.read_bytes()
+    if rebuilt == expected:
+        return
+
+    detail = f"expected {len(expected)} bytes, got {len(rebuilt)}"
+    for index, (actual, wanted) in enumerate(zip(rebuilt, expected)):
+        if actual != wanted:
+            detail = (
+                f"first difference at 0x{index:08x}: "
+                f"container 0x{actual:02x}, SDK 0x{wanted:02x}"
+            )
+            break
+    fail(f"repository container encoder no longer matches the SDK packer; {detail}")
+
+
 def run_decoder(
     decoder: Path,
     image: Path,
@@ -232,6 +276,14 @@ def main() -> int:
             )
 
             staged_bootloader = baseline_dir / "staging/staged-bootloader.bin"
+            assert_container_matches_sdk(
+                profile,
+                staged_bootloader,
+                vendor_cp,
+                vendor_ap,
+                baseline,
+            )
+
             cp_fixture = temp / "synthetic-cp.bin"
             cp_fixture.write_bytes(
                 (0x28001234).to_bytes(4, "little")
@@ -297,6 +349,7 @@ def main() -> int:
 
         print("vendor no-change reconstruction: pass")
         print("independent baseline decode: pass")
+        print("repository container encoder matches SDK packer: pass")
         print("synthetic CP replacement mapping and isolation: pass")
         print("synthetic AP replacement mapping and isolation: pass")
         return 0

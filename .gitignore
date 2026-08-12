@@ -15,6 +15,9 @@ out/
 __pycache__/
 *.py[cod]
 /bk_loader
+# bk_loader writes a Windows-style relative log path, so on Linux it lands as a
+# literal backslash filename next to the tool, root-owned when run under sudo.
+*bk_loader_COM*.log
 AGENTS.md
 research/
 compile_commands.json

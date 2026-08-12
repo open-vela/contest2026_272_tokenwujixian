@@ -105,11 +105,86 @@ peripherals, networking, USB, or sustained operation. Record the exact image
 SHA-256, loader command and UART log for every further hardware experiment in
 the CPU0 bring-up contract.
 
+## Four-command loop
+
+The whole build/package/flash/console cycle, using only this repository and an
+OpenVela workspace. No Armino SDK, no `beken_genie` build tree, no local-only
+locator file.
+
+```bash
+# 1. compile the CP component (must run from the workspace root)
+cd <openvela-workspace>
+./build.sh vendor/beken/boards/bk7258/bk7258-devkit/configs/cp/ \
+  --cmake -b cmake_out/bk7258-devkit_cp/ -j12
+
+# 2. package + independently decode; prints the image path and SHA-256
+contest2026_272_tokenwujixian/board/bk7258-devkit/tools/bk7258-package.sh
+
+# 3. flash (paste the --image path step 2 printed)
+sudo contest2026_272_tokenwujixian/board/bk7258-devkit/tools/bk7258-flash.sh \
+  --image cmake_out/bk7258-l2-bundled-<timestamp>/all-app.bin
+
+# 4. console
+sudo minicom -o -D /dev/ttyUSB0 -b 115200
+```
+
+Only `build.sh` needs a specific working directory; both wrappers locate the
+workspace by its `build.sh` + `nuttx/` markers, so they work from anywhere.
+
+What the wrappers add beyond the raw commands:
+
+- `bk7258-package.sh` runs the independent decoder and refuses to report success
+  unless it passes, so an unverified image never reaches step 3. It defaults to
+  `cmake_out/bk7258-devkit_cp/bk7258/app.bin` and a timestamped output directory;
+  override with `--cp-app-bin` / `--output-dir`.
+- `bk7258-flash.sh` requires a passing `decode-report.json` beside the image and
+  refuses to run while another process holds the serial port. The loader's full
+  output goes straight to the terminal, so erase and write progress is visible
+  live. Afterwards the script moves the loader's own backslash-named log next to
+  the image as run evidence, and fails unless that log contains
+  `Writing Flash OK`. It runs `download` directly: the loader does its own reset
+  and bus handshake, and a failure there happens before `Begin EraseFlash`, so a
+  channel problem leaves Flash untouched.
+
+The console step is plain `minicom`. Turn hardware and software flow control off
+under `Ctrl-A O`: this DevKit does not wire RTS/CTS, and minicom's built-in
+default enables it. `Ctrl-A O` can also save that as the default. Add
+`-C <path>` to record a UART log, and exit with `Ctrl-A X` before flashing again,
+since minicom holds the port.
+
+For the vendor-input path (the exact lineage flashed on 2026-08-11) use the
+step-by-step runbook below instead; only the packaging step differs.
+
+## Two packaging paths
+
+| | Bundled inputs | Locked vendor inputs |
+| --- | --- | --- |
+| Profile | `profiles/bk7258-devkit-l0-bundled.json` | `profiles/bk7258-devkit-l0-vendor-ap.json` |
+| Packer | `tools/package_bk7258_bundled.py` | `tools/package_bk7258.py` |
+| Needs Armino SDK / `beken_genie` build tree | No | Yes |
+| Bootloader partition | Bundled, byte-identical to vendor | Vendor |
+| AP partition | Synthetic placeholder, 66 bytes | Locked vendor payload, 2.4 MB |
+| Cold-booted on hardware | Yes, 2026-08-12 (no UART log captured) | Yes, 2026-08-11 |
+
+Both paths share one container encoder,
+[`../tools/bk7258_container.py`](../tools/bk7258_container.py), and the same
+partition layout. `tests/test_bk7258_packaging.py` asserts that this encoder
+reproduces the locked SDK packer byte-for-byte, which is what makes packaging
+without the SDK trustworthy; that assertion needs the vendor tree and therefore
+only runs on a machine that has it.
+
+Use the bundled path when you only have this repository and an OpenVela
+workspace. Use the vendor path when the locked external assets are present and
+you want the exact image lineage that was flashed on 2026-08-11.
+
 ## End-to-end CPU0 L0 Runbook
 
 This section is the reproducible path after synchronizing the team repository
 into an OpenVela workspace. It builds and validates the experimental CPU0 L0
 image; it does not claim AP, network, USB, peripheral or stability acceptance.
+Steps 1, 3 and 4 are specific to the locked vendor inputs; for the bundled path
+use [Bundled-input Runbook](#bundled-input-runbook) instead and then rejoin at
+step 5.
 
 ### 1. Provision local-only vendor inputs
 
@@ -242,7 +317,91 @@ sudo minicom -o -D /dev/ttyUSB0 -b 115200
 
 Use 115200 8N1 with hardware flow control **No** and software flow control
 **No**. The observed CPU0 acceptance so far is `BK`, `NuttShell (NSH)`,
-`nsh>`, and input of `?`. The UART TX FIFO-drain fix still requires the
-long-output test: one `?` or `help` command must print its entire output
-without another keypress. Also record `uname`, `ps`, cold-reboot count and any
-fault log before claiming T7 complete.
+`nsh>`, and input of `?`. On 2026-08-12 the operator confirmed that one `?` or
+`help` command printed its entire output without another keypress, validating
+the UART TX FIFO-drain fix on hardware; no UART capture was retained for that
+run. Also record `uname`, `ps`, cold-reboot count and any fault log before
+claiming T7 complete.
+
+## Bundled-input Runbook
+
+This path needs only this repository and an OpenVela workspace: no Armino SDK,
+no `beken_genie` build tree, and no local-only locator file. It replaces steps
+1, 3 and 4 above; hardware steps 5 to 7 are shared.
+
+The inputs it uses are committed under
+[`bundled/`](bundled/README.md) and their SHA-256 values are locked in
+`profiles/bk7258-devkit-l0-bundled.json`.
+
+### B1. Build the CP component
+
+Identical to step 2; the CP build never reads vendor assets.
+
+```bash
+cd <openvela-workspace>
+
+./build.sh vendor/beken/boards/bk7258/bk7258-devkit/configs/cp/ \
+  --cmake -b cmake_out/bk7258-devkit_cp/ -j12
+```
+
+`bk7258/l1-validation.json` must report `"result": "pass"`.
+
+### B2. Run the bundled packaging regression
+
+```bash
+cd <openvela-workspace>/contest2026_272_tokenwujixian
+
+python3 board/bk7258-devkit/tests/test_bk7258_bundled_packaging.py
+```
+
+All six checks must print `pass`. This test needs no external asset, so it is
+the one a developer without the vendor tree can run.
+
+### B3. Package and independently decode L2
+
+```bash
+cd <openvela-workspace>
+
+BK7258_OUTPUT_DIR="cmake_out/bk7258-l2-bundled-$(date +%Y%m%d-%H%M%S)"
+BK7258_BOARD_DIR=contest2026_272_tokenwujixian/board/bk7258-devkit
+
+python3 "$BK7258_BOARD_DIR/tools/package_bk7258_bundled.py" \
+  --profile "$BK7258_BOARD_DIR/packaging/profiles/bk7258-devkit-l0-bundled.json" \
+  --cp-app-bin cmake_out/bk7258-devkit_cp/bk7258/app.bin \
+  --output-dir "$BK7258_OUTPUT_DIR"
+
+python3 "$BK7258_BOARD_DIR/tools/decode_bk7258_image.py" \
+  --image "$BK7258_OUTPUT_DIR/all-app.bin" \
+  --manifest "$BK7258_OUTPUT_DIR/manifest.json" \
+  --compare-cp cmake_out/bk7258-devkit_cp/bk7258/app.bin \
+  --compare-ap "$BK7258_BOARD_DIR/packaging/bundled/ap-placeholder.bin" \
+  --report "$BK7258_OUTPUT_DIR/decode-report.json"
+```
+
+The decoder must report `"result": "pass"`. Then continue with steps 5 to 7,
+which use `$BK7258_OUTPUT_DIR` unchanged.
+
+### What a bundled image does not carry
+
+A bundled image is **not** the image that was cold-booted on 2026-08-11:
+
+- Its AP partition is the 66-byte placeholder, not the vendor AP payload. One
+  such image (`675ae968…9d56`) was flashed and booted CP on 2026-08-12, so the
+  vendor Bootloader evidently tolerates it; whether that Bootloader inspects or
+  validates the AP partition at all is still unknown.
+- The image is about 1.46 MB instead of 4.2 MB. `bk_loader` writes only the
+  blocks the file contains, so any previously flashed AP content past the
+  placeholder's end at physical `0x00176066` stays on Flash. The placeholder
+  owns the AP vector base, so that residue is not reachable through the AP
+  vector table, but it is not erased either.
+- Its Bootloader partition *is* byte-identical to the vendor one: the bundled
+  Bootloader plus the serialized partition table reproduces the staged
+  Bootloader `d27be983a1c0eb80033e4ad8877aa16c6df87c55e96c7dae238a3a6866abb4a0`.
+
+Keep the locked vendor recovery `all-app.bin`
+(`1613a6018553de9ebb0564572b090844253688af53c9bcc3de7c5b40f06db89d`, 4229792
+bytes) available before flashing, and record the firmware SHA-256, loader command
+and full UART log for the run. `bk7258-flash.sh` saves the loader log next to the
+image for you; the UART log is still yours to capture with `minicom -C`. If the
+downloader channel itself is suspect, the step 5 read-only handshake diagnoses it
+without writing anything.

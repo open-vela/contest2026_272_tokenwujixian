@@ -56,10 +56,10 @@ sum of SDK `CPU_CNT` settings.
 | --- | --- | --- |
 | Board CMake L1 export left `bk7258/app.bin` stale after a CP relink. | The export command had only order-only target dependencies, not file dependencies on `nuttx.bin`, `nuttx` and `nuttx.map`. | Declare all three generated files as normal `DEPENDS`; L2 packaging now verifies that exported `app.bin` has the same SHA-256 as root `nuttx.bin`. |
 | Direct `cmake --build` failed with `ccache: not found`. | The project environment normally supplies the tool wrapper; direct CMake did not. | Use the parent-workspace `build.sh`/`bear -- ./build.sh` command for reproducible builds. This is a host environment caveat, not a target firmware failure. |
-| `bk_loader` intermittently failed at `LinkCheck Timeout` / `GetBus fail`. | The failure happened before input-image parsing, Flash erase or write; CH340/download-mode availability was transient. | Re-enter downloader mode and require a read-only `Read Flash OK` handshake before every experimental write. Do not attribute this failure to `all-app.bin`, CRC or image marker contents. |
+| `bk_loader` intermittently failed at `LinkCheck Timeout` / `GetBus fail`. | The failure happened before input-image parsing, Flash erase or write; CH340/download-mode availability was transient. | Re-enter downloader mode. `download` performs its own reset and bus handshake, so this failure still occurs before `Begin EraseFlash`; use a separate read-only `Read Flash OK` handshake only when diagnosing the channel. Do not attribute this failure to `all-app.bin`, CRC or image marker contents. |
 | First CPU0 image hard-faulted at the initial scheduler transition. | Original panic output overwrote the exception context, but detailed fault logs recovered `SYS_switch_context` (`svc 0`) at first `sched_unlock()`. BK code had assigned SVC `0x80`, the same as NuttX `BASEPRI` critical-section threshold. | Set SVC to `NVIC_SYSH_SVCALL_PRIORITY` (`0x60`), set SysTick to normal `0x80`, and retain detailed fault diagnostics. Subsequent CPU0 boot reached NSH; repeated stability is still unverified. |
 | `nsh>` printed but ignored typed input. | NuttX skips `setup()` for a console on first open; the prior early path initialized only UART TX, leaving GPIO10 RX and `RX_EN` unset. | Invoke the UART setup before console registration. One hardware `?` command reached NSH; disable host hardware and software flow control during testing. |
-| Long NSH help output ended only after a second input event. | TX bit 0 (`tx_fifo_need_write`) was cleared immediately after the first FIFO fill and the ISR ignored TX-ready status. | Enable and dispatch TX-ready to drain the software TX buffer. The L1/L2 result is verified offline; the long-output hardware retest remains required. |
+| Long NSH help output ended only after a second input event. | TX bit 0 (`tx_fifo_need_write`) was cleared immediately after the first FIFO fill and the ISR ignored TX-ready status. | Enable and dispatch TX-ready to drain the software TX buffer. The L1/L2 result is verified offline; on 2026-08-12 the operator confirmed one `?`/`help` command completed without another input event. No UART capture was retained for that run. |
 
 ### Candidate only — do not encode yet
 
@@ -290,9 +290,10 @@ sequence remain blocked until the TRM/SDK behavior is independently verified.
 
 The first implementation milestone is a reliable transmit marker before
 `nx_start()`. CPU0 cold boot and interactive NSH input now have one hardware
-observation. The UART TX FIFO-drain fix still requires a hardware long-output
-test: a single `?`/`help` command must finish without an additional input
-event. DMA remains deferred.
+observation. On 2026-08-12 the operator also confirmed that a single `?`/`help`
+command finishes without an additional input event, validating the UART TX
+FIFO-drain fix on hardware; no UART capture was retained for that run. DMA
+remains deferred.
 
 ## 5A. L1 component debug and L2 Flash-boot boundary
 
