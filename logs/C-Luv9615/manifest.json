@@ -746,7 +746,19 @@
       "collection_mode": "cli",
       "health": "ok",
       "title": "问候语"
+    },
+    {
+      "session_id": "ses_02529fa6bffeYKS43lwjF12xL6",
+      "tool": "opencode",
+      "started_at": "2026-08-07T06:08:07.060Z",
+      "last_event_at": "2026-08-11T12:51:50.625Z",
+      "event_count": 2026,
+      "raw_message_count": 1000,
+      "file_path": "logs/C-Luv9615/2026-08-11/opencode__ses_02529fa6bffeYKS43lwjF12xL6.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "title": "OpenVela 开发板开发流程总结"
     }
   ],
-  "updated_at": "2026-08-07T02:45:35.359Z"
+  "updated_at": "2026-08-12T04:33:10.967Z"
 }
