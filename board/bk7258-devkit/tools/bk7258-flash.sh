@@ -2,9 +2,9 @@
 # Flash a packaged BK7258 L2 image over the Beken downloader.
 #
 # Writes the complete image from physical Flash offset 0x0, streaming the
-# loader's full output. Needs root for the USB serial device.
+# loader's full output. Needs root, or a user in the serial device's group.
 #
-# Usage: sudo board/bk7258-devkit/tools/bk7258-flash.sh [--image PATH]
+# Usage: board/bk7258-devkit/tools/bk7258-flash.sh [--image PATH]
 #                                                      [--verify-only]
 #                                                      [--port 0] [--device /dev/ttyUSB0]
 #
@@ -146,8 +146,12 @@ if [[ ! -e "$DEVICE" ]]; then
   exit 1
 fi
 if [[ $EUID -ne 0 ]]; then
-  echo "error: run this with sudo; the downloader needs the serial device" >&2
-  exit 1
+  DEV_GROUP="$(stat -c %G -- "$DEVICE" 2>/dev/null || true)"
+  if [[ -z "$DEV_GROUP" ]] || ! id -G -n | grep -qw -- "$DEV_GROUP"; then
+    echo "error: root or a member of group '$DEV_GROUP' is required to open" >&2
+    echo "       $DEVICE; run with sudo or add yourself to the dialout group" >&2
+    exit 1
+  fi
 fi
 
 # A serial monitor holding the port makes the loader fail at GetBus, after the

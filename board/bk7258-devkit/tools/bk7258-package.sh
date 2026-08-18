@@ -190,7 +190,7 @@ echo
 # no path at all. Only an explicit evidence directory has to be named.
 echo "flash it with:"
 if [[ "$OUTPUT_DIR" == "$DEFAULT_OUTPUT_DIR" ]]; then
-  echo "  sudo $TOOLS_DIR/bk7258-flash.sh"
+  echo "  $TOOLS_DIR/bk7258-flash.sh"
 else
-  echo "  sudo $TOOLS_DIR/bk7258-flash.sh --image $OUTPUT_DIR/all-app.bin"
+  echo "  $TOOLS_DIR/bk7258-flash.sh --image $OUTPUT_DIR/all-app.bin"
 fi
