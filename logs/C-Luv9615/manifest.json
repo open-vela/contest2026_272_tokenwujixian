@@ -753,12 +753,48 @@
       "started_at": "2026-08-07T06:08:07.060Z",
       "last_event_at": "2026-08-11T12:51:50.625Z",
       "event_count": 2026,
-      "raw_message_count": 1000,
+      "raw_message_count": 7,
       "file_path": "logs/C-Luv9615/2026-08-11/opencode__ses_02529fa6bffeYKS43lwjF12xL6.jsonl",
       "collection_mode": "cli",
       "health": "ok",
       "title": "OpenVela 开发板开发流程总结"
+    },
+    {
+      "session_id": "ses_005cdae81ffevN59OiZrzqIgM7",
+      "tool": "opencode",
+      "started_at": "2026-08-13T08:17:09.502Z",
+      "last_event_at": "2026-08-13T08:25:11.443Z",
+      "event_count": 14,
+      "raw_message_count": 9,
+      "file_path": "logs/C-Luv9615/2026-08-13/opencode__ses_005cdae81ffevN59OiZrzqIgM7.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "title": "打印当前路径"
+    },
+    {
+      "session_id": "ses_002256fa0ffeT3zw5bZ07lzB60",
+      "tool": "opencode",
+      "started_at": "2026-08-14T01:19:47.295Z",
+      "last_event_at": "2026-08-14T01:22:17.782Z",
+      "event_count": 7,
+      "raw_message_count": 6,
+      "file_path": "logs/C-Luv9615/2026-08-14/opencode__ses_002256fa0ffeT3zw5bZ07lzB60.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "title": "打印当前路径"
+    },
+    {
+      "session_id": "ses_ff29bce95ffeoXJy1FkMGO0ahZ",
+      "tool": "opencode",
+      "started_at": "2026-08-17T01:44:25.194Z",
+      "last_event_at": "2026-08-18T03:44:11.462Z",
+      "event_count": 1606,
+      "raw_message_count": 888,
+      "file_path": "logs/C-Luv9615/2026-08-18/opencode__ses_ff29bce95ffeoXJy1FkMGO0ahZ.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "title": "BK7258 AP Bringup UART输出规划"
     }
   ],
-  "updated_at": "2026-08-12T07:59:24.420Z"
+  "updated_at": "2026-08-18T03:44:11.462Z"
 }
