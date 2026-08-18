@@ -1,0 +1,65 @@
+id	url_or_id	kind	year	title	relevance	credibility	claim_ids	notes
+S001	/home/czp/armino/bk_avdk_smp/tools/build_tools/build_process/bk_sdk/bk_curr_project.py:20	code	2026	Armino CP/AP project list	high	high	C1	Builds bk7258 and bk7258_ap as separate applications
+S002	/home/czp/armino/bk_avdk_smp/tools/build_tools/build_process/bk_sdk/bk_sdk_project.py:162	code	2026	Armino application output mapping	high	high	C1,C2	Maps CP to app.bin and AP to app1.bin
+S003	/home/czp/armino/bk_avdk_smp/projects/test/platform/partitions/bk7258/auto_partitions.csv:5	config	2026	BK7258 CP/AP Flash partitions	high	high	C1	Separate primary_cp_app and primary_ap_app
+S004	/home/czp/armino/bk_avdk_smp/cp/middleware/soc/bk7258/bk7258.defconfig:7	config	2026	Armino BK7258 CP defaults	high	high	C1	CPU_CNT=3 but single-core FreeRTOS configuration
+S005	/home/czp/armino/bk_avdk_smp/ap/middleware/soc/bk7258_ap/bk7258_ap.defconfig:8	config	2026	Armino BK7258 AP defaults	high	high	C2	CPU_CNT=2 SOC_SMP and FREERTOS_SMP enabled
+S006	/home/czp/armino/bk_avdk_smp/ap/include/os/os.h:1281	code	2026	AP logical to physical CPU mapping	high	high	C2,C3	AP local core ID plus offset 1 maps to global CPU1/CPU2
+S007	/home/czp/armino/bk_avdk_smp/cp/include/os/os.h:1245	code	2026	CP logical to physical CPU mapping	medium	high	C1	CP core offset is zero
+S008	/home/czp/armino/bk_avdk_smp/cp/components/bk_startup/system_main.c:144	code	2026	CP starts AP CPU1	high	high	C3	Reads APPLICATION1 and programs CPU1 boot/reset
+S009	/home/czp/armino/bk_avdk_smp/cp/middleware/driver/sys_ctrl/sys_ps_driver.c:77	code	2026	CPU1 and CPU2 lifecycle driver	high	high	C3	Boot offset power and reset driver calls
+S010	/home/czp/armino/bk_avdk_smp/cp/middleware/soc/bk7258/soc/sys_reg.h:117	code	2026	BK7258 CPU lifecycle registers	high	high	C3	Register bitfields for reset power halt and boot offset
+S011	/home/czp/armino/bk_avdk_smp/ap/middleware/soc/bk7258_ap/bk7258_ap_bsp.ld:33	code	2026	AP SMP linker layout	high	high	C2	One image contains aligned vectors and per-core stacks
+S012	/home/czp/armino/bk_avdk_smp/ap/components/os_source/freertos_smp_v2p0/FreeRTOS-Kernel/portable/GCC/ARM_CM33_NTZ/non_secure/port.c:1194	code	2026	AP FreeRTOS SMP scheduler startup	high	high	C2,C3	Primary AP core launches one secondary scheduler core
+S013	/home/czp/armino/bk_avdk_smp/ap/components/cmsis/CMSIS_5/Device/Beken/bk7236xx/Source/smp/startup_cpu1.c:259	code	2026	AP launches physical CPU2	high	high	C3	Uses core1 vector with reset_cpu2_core
+S014	/home/czp/armino/bk_avdk_smp/cp/include/driver/mailbox_channel.h:45	code	2026	CP mailbox identity	high	high	C1	CP is global MAILBOX_CPU0
+S015	/home/czp/armino/bk_avdk_smp/ap/include/driver/mailbox_channel.h:47	code	2026	AP mailbox identity	high	high	C1	AP primary is global MAILBOX_CPU1
+S016	/home/czp/armino/bk_avdk_smp/ap/middleware/driver/mailbox/mb_chnl_buff.c:22	code	2026	Armino mailbox shared buffers	high	high	C1	Shared swap_data buffers and host topology
+S017	/home/czp/armino/bk_avdk_smp/ap/middleware/driver/mailbox/mb_ipc_cmd.c:159	code	2026	Armino IPC cache maintenance	high	high	C1,C6	Cache clean invalidate and barriers around shared data
+S018	/home/czp/openvela_contest/nuttx/sched/Kconfig:405	code	2026	NuttX SMP configuration contract	high	high	C4	Requires ARCH_HAVE_MULTICPU and IRQ stack
+S019	/home/czp/openvela_contest/nuttx/sched/init/nx_smpstart.c:68	code	2026	NuttX SMP startup flow	high	high	C4	Starts secondary CPUs and enters idle trampoline
+S020	/home/czp/openvela_contest/nuttx/include/nuttx/arch.h:2330	code	2026	NuttX architecture SMP API	high	high	C4	Defines idle stack and up_cpu_start obligations
+S021	/home/czp/openvela_contest/nuttx/include/nuttx/percpu.h:40	code	2026	NuttX logical CPU mapping	high	high	C4,C6	up_cpu_index and up_this_cpu contract
+S022	/home/czp/openvela_contest/nuttx/sched/sched/sched_smp.c:191	code	2026	NuttX cross-CPU calls	high	high	C4	SMP call queues and architecture IPI hook
+S023	/home/czp/openvela_contest/nuttx/arch/arm/src/armv8-m/CMakeLists.txt:21	code	2026	ARMv8-M common source list	high	high	C4	No generic cpustart cpuindex or smpcall implementation
+S024	/home/czp/openvela_contest/nuttx/arch/arm/Kconfig:964	code	2026	Cortex-M33 architecture capabilities	high	high	C4	Does not select ARCH_HAVE_MULTICPU
+S025	/home/czp/openvela_contest/nuttx/drivers/rptun/Kconfig:6	code	2026	NuttX RPTUN configuration	high	high	C5	RPTUN selects RPMSG_VIRTIO
+S026	/home/czp/openvela_contest/nuttx/include/nuttx/rptun/rptun.h:335	code	2026	NuttX RPTUN board operations	high	high	C5,C6	Lifecycle resource table and notify interface
+S027	/home/czp/openvela_contest/nuttx/drivers/rpmsg/Kconfig:6	code	2026	NuttX RPMsg OpenAMP selection	high	high	C5	RPMSG selects OPENAMP
+S028	/home/czp/openvela_contest/nuttx/arch/arm/src/nrf53/nrf53_rptun.c:122	code	2026	nRF53 dual-M33 RPTUN reference	high	high	C5,C6	Independent images shared SRAM and IPC notify
+S029	/home/czp/openvela_contest/nuttx/arch/arm/src/stm32h7/stm32_rptun.c:128	code	2026	STM32H7 dual-core RPTUN reference	medium	high	C5,C6	Independent images and HSEM notify
+S030	/home/czp/openvela_contest/docs/en/device_dev_guide/kernel/KernelDev.md:65	docs	2026	OpenVela kernel component layout	medium	high	C5	OpenAMP is part of the NuttX/OpenVela kernel tree
+S031	/home/czp/openvela_contest/docs/en/device_dev_guide/security/security_configuration.md:31	docs	2026	OpenVela cross-core security example	medium	high	C5	Uses CONFIG_RPTUN and RPMsg for cross-core communication
+S032	/home/czp/openvela_contest/contest2026_272_tokenwujixian/board/bk7258-devkit/configs/ap/defconfig:1	config	2026	Team AP component identity	high	high	C6	Defconfig exists but only selects board and AP component
+S033	/home/czp/openvela_contest/contest2026_272_tokenwujixian/board/bk7258-devkit/packaging/bundled/README.md:43	docs	2026	Current AP placeholder boundary	high	high	C6	Placeholder is not a working AP and must remain recovery path
+S034	/home/czp/armino/bk_avdk_smp/cp/include/driver/pwr_clk.h:46	code	2026	PWR_MNG fixed-address ABI	high	high	C5,C6	First 128 bytes hold PM/reset/exception state and second 128 bytes hold shared Flash lock state
+S035	/home/czp/armino/bk_avdk_smp/projects/test/platform/partitions/bk7258/ram_regions.csv:5	config	2026	BK7258 complete SRAM allocation	high	high	C5,C6	640 KiB SRAM is fully allocated and SWAP expansion must take capacity from another region
+S036	/home/czp/armino/bk_avdk_smp/tools/env_tools/bk_py_libs/bk_ram_region/bk_ram_region.py:73	code	2026	Armino RAM region validation	high	high	C6	Rejects out-of-range or overlapping regions and derives omitted offsets sequentially
+S037	feishu-wiki:Tq2jwu1U2iYwJlk8UQ3cUkhdnYY@revision-4	docs	2026	核间通讯框架	high	high	C5,C6	Same-chip Rpmsg VirtIO transport requires shared memory plus inter-core interrupt; maps to BK7258 SWAP plus Mailbox
+S038	/home/czp/armino/bk_avdk_smp/cp/middleware/soc/common/hal/include/mbox0_hal.h:58	code	2026	BK7258 Mailbox v2 hardware message	high	high	C8	Hardware message carries only src/dest CPU plus two 32-bit words
+S039	/home/czp/armino/bk_avdk_smp/cp/middleware/soc/common/hal/mbox0_hal.c:55	code	2026	Mailbox v2 hardware send path	high	high	C8	Send writes only tdata0, tdata1 and tid; it does not copy shared buffers
+S040	/home/czp/armino/bk_avdk_smp/cp/middleware/driver/mailbox/mbox0_drv.c:7	code	2026	Mailbox v2 FIFO partitioning	high	high	C8	Eight FIFO entries are split 2/3/3 across three CPU channels
+S041	/home/czp/armino/bk_avdk_smp/cp/middleware/driver/mailbox/mbox0_drv.c:54	code	2026	Mailbox demultiplex between message and SMP command	high	high	C8	A zero length field selects the cross-core SMP command handler
+S042	/home/czp/armino/bk_avdk_smp/cp/middleware/driver/mailbox/mbox0_drv.c:100	code	2026	Mailbox device-level init ownership	high	high	C8	Device init and FIFO config are performed only by CPU0; other cores enable their own channel
+S043	/home/czp/armino/bk_avdk_smp/cp/middleware/driver/mailbox/mbox0_adapter.c:113	code	2026	Mailbox two-level indirection	high	high	C8	FIFO transfers the address and length of a software message structure in shared RAM
+S044	/home/czp/armino/bk_avdk_smp/cp/middleware/driver/mailbox/mb_chnl_buff.c:25	code	2026	Software slicing of SWAP shared memory	high	high	C8	Software statically splits SWAP into four channels times two remote CPUs times two directions times 128 bytes
+S045	/home/czp/armino/bk_avdk_smp/cp/include/driver/mailbox_channel.h:108	code	2026	Armino logical channel command layout	high	high	C8	mb_chnl_cmd_t is a header plus three parameters and may carry a payload pointer
+S046	/home/czp/armino/bk_avdk_smp/cp/middleware/soc/bk7258/soc/icu_map.h:93	config	2026	BK7258 Mailbox interrupt source	high	high	C8	INT_SRC_MAILBOX is 63 in GROUP1; per-core enables are bit 31 of SYS_CPUx_INT_32_63_EN
+S047	/home/czp/armino/bk_avdk_smp/cp/components/bk_cli/shell_task.c:26	code	2026	CP shell transport binding	high	high	C7	CP binds LOG_DEV and CMD_DEV to UART when SYS_PRINT_DEV_UART is selected
+S048	/home/czp/armino/bk_avdk_smp/ap/components/bk_cli/shell_task.c:25	code	2026	AP shell transport binding	high	high	C7	AP binds LOG_DEV and CMD_DEV to Mailbox when SYS_PRINT_DEV_MAILBOX is selected
+S049	/home/czp/armino/bk_avdk_smp/ap/components/bk_system/printf_base.c:56	code	2026	AP print port initialization condition	high	high	C7	The configured print port is initialized only under SYS_PRINT_DEV_UART, so UART_PRINT_PORT alone proves nothing
+S050	/home/czp/armino/bk_avdk_smp/cp/components/bk_cli/cli_main.c:1198	code	2026	CP ap_cmd builtin	high	high	C7	ap_cmd is a CP builtin that strips the prefix and forwards one command
+S051	/home/czp/armino/bk_avdk_smp/cp/components/bk_cli/shell_task.c:2411	code	2026	CP to AP command forwarding	high	high	C7	shell_cmd_forward wraps the command as MB_CMD_USER_INPUT over Mailbox
+S052	/home/czp/armino/bk_avdk_smp/ap/components/bk_cli/cli_main.c:1279	code	2026	AP shell task affinity	high	high	C7	AP shell task is created with affinity -1, so it is one OS-level shell rather than one per core
+S053	/home/czp/armino/bk_avdk_smp/ap/components/bk_system/printf.c:138	code	2026	AP per-core log prefix	high	high	C7	Core identity is rendered as a log prefix only and does not route commands
+S054	/home/czp/armino/bk_avdk_smp/ap/components/bk_cli/shell_mailbox_cp1.c:269	code	2026	AP exception UART bypass	high	high	C7	Exception output goes directly to the dump UART, which is configured as UART0
+S055	/home/czp/openvela_contest/nuttx/drivers/serial/uart_rpmsg.c:426	code	2026	RPMsg UART initialization and device registration	high	high	C9	Both sides must call uart_rpmsg_init; the tty node is registered before any RPMsg link exists
+S056	/home/czp/openvela_contest/nuttx/drivers/serial/uart_rpmsg.c:331	code	2026	RPMsg UART endpoint binding condition	high	high	C9	The endpoint is created only when the remote CPU name matches the configured cpuname exactly
+S057	/home/czp/openvela_contest/nuttx/drivers/serial/uart_rpmsg.c:350	code	2026	RPMsg UART disconnect gap	high	high	C9	Endpoint destroy does not call uart_connected, so no ENOTCONN or POLLHUP is reported and blocked readers are not woken
+S058	/home/czp/openvela_contest/nuttx/drivers/serial/serial.c:1122	code	2026	Serial blocking and timeout semantics	high	high	C9	O_NONBLOCK returns EAGAIN; read timeout requires SERIAL_TERMIOS with VMIN and VTIME in non-canonical mode
+S059	/home/czp/openvela_contest/nuttx/drivers/drivers_initialize.c:85	code	2026	Console uniqueness and rpmsg_serialinit timing	high	high	C9	Only one console driver may be selected and console binding is fixed during initialization
+S060	/home/czp/openvela_contest/nuttx/arch/risc-v/src/k230/k230_start.c:193	code	2026	up_putc under RPMsg console	high	high	C9	A reference port implements up_putc as an empty function, removing the non-RPMsg early output path
+S061	/home/czp/openvela_contest/nuttx/drivers/rptun/rptun.c:254	code	2026	RPTUN notify and receive callback path	high	high	C8,C9	notify is mandatory for sending and the registered callback drives vring checking on receive
+S062	/home/czp/openvela_contest/contest2026_272_tokenwujixian/board/bk7258-devkit/configs/cp/defconfig:35	config	2026	Team CP console and NSH ownership	high	high	C10	CP sets nsh_main as init entrypoint and enables DEV_CONSOLE, so the existing nsh belongs to CPU0
+S063	/home/czp/openvela_contest/contest2026_272_tokenwujixian/chips/bk7258/bk7258_uart.c:217	code	2026	Team UART0 console registration	high	high	C10	UART0 is registered as /dev/console and /dev/ttyS0 on the CP image
+S064	/home/czp/openvela_contest/contest2026_272_tokenwujixian/board/bk7258-devkit/configs/ap/defconfig:1	config	2026	Team AP RPMsg NSH configuration	high	high	C10	AP defconfig selects standard nsh_main with RPMsg UART console while keeping physical UART0 owned by CP

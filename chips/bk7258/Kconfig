@@ -4,22 +4,62 @@
 
 if ARCH_CHIP_CUSTOM
 
-menu "BK7258 CP Configuration"
+menu "BK7258 Configuration"
+
+choice
+	prompt "BK7258 image component"
+	default BK7258_COMPONENT_CP
+
+config BK7258_COMPONENT_CP
+	bool "CP / physical CPU0 component"
+	help
+		OpenVela CP component. It owns UART0 and releases physical CPU1.
+
+config BK7258_COMPONENT_AP
+	bool "AP / physical CPU1 component"
+	help
+		Single-core OpenVela AP MVP. It has no physical console and reports
+		reset, scheduler progress and heartbeat through SWAP.
+
+endchoice
+
+comment "All-OpenVela CP/AP SRAM contract"
+
+config BK7258_RPMSG_SHM_ADDR
+	hex "RPMsg shared-memory base"
+	default 0x28064000
+	help
+		Fixed base of the CP/AP shared carveout. It is reserved even while
+		CONFIG_RPTUN is disabled, so enabling AMP never moves a previously
+		validated AP heap, stack or section.
+
+		The all-OpenVela tuple reclaims the locked AI firmware's 108 KiB
+		HARDWARE_ACC region for AP RAM, gives AP 0x28010000..0x28064000,
+		then reserves 0x28064000..0x2806ec00 for RPMsg. The CP window remains
+		unchanged at 0x2806ec00..0x2809f700.
+
+config BK7258_RPMSG_SHM_SIZE
+	hex "RPMsg shared-memory size"
+	default 0xac00
+	help
+		43 KiB fixed reservation for the RPTUN resource table, two VirtIO
+		vrings and the RPMsg buffer pool. Descriptor and buffer tuning may use
+		less than this reservation, but must not move either boundary.
 
 config ARCH_CHIP_BK7258
 	bool "Beken BK7258 CP / CPU0"
 	default y
 	select ARCH_CORTEXM33
 	select ARCH_HAVE_TRUSTZONE
+	select ARMV8M_HAVE_DCACHE
+	select ARMV8M_HAVE_ICACHE
 	select ARM_SYSTICK
 	select TIMER
 	select TIMER_ARCH
-	select OTHER_UART_SERIALDRIVER
+	select OTHER_UART_SERIALDRIVER if BK7258_COMPONENT_CP
 	help
-		Secure CPU0/CP configuration for the locked BK7258 DevKit L0 profile.
-		The image replaces only the vendor CP app.bin. CPU1/CPU2 startup,
-		TrustZone NS handoff, FPU, TCM, cache relocation and general timer
-		drivers remain disabled.
+			Secure BK7258 CP/AP support for the locked DevKit profile. CP owns
+			UART0; the first AP image runs on physical CPU1 without a UART.
 
 config BK7258_SYSTICK_CLOCK_HZ
 	int "Secure SysTick clock frequency"
@@ -29,6 +69,21 @@ config BK7258_SYSTICK_CLOCK_HZ
 		The locked vendor CP enables CPU0's external 32 kHz SysTick source.
 		The first Flash cold-boot test must validate the frequency and time
 		base behavior before any timing acceptance claim.
+
+config BK7258_MAILBOX
+	bool "BK7258 Mailbox v2 doorbell"
+	depends on RPTUN
+	default y
+	help
+		Enable the chip-level Mailbox v2 FIFO and IRQ transport used as the
+		RPTUN doorbell. RPMsg payloads remain in shared SRAM; Mailbox carries
+		only a notification token.
+
+config BK7258_MAILBOX_IRQ_PRIORITY
+	int "Mailbox interrupt priority"
+	depends on BK7258_MAILBOX
+	default 128
+	range 0 255
 
 config BK7258_UART0_BAUD
 	int "UART0 console baud"

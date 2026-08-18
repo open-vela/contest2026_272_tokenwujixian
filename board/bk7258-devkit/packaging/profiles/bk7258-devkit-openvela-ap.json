@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "profile": "bk7258-devkit-openvela-ap",
+  "purpose": "BK7258 Flash image containing independently built OpenVela CP and single-core OpenVela AP components",
+  "container": {
+    "mode": "linear-crc-physical-flash",
+    "crc": {
+      "payload_bytes": 32,
+      "crc_bytes": 2,
+      "polynomial": "0x8005",
+      "byte_order": "big-endian",
+      "final_payload_padding": "0xff"
+    },
+    "trailing_preread_bytes": 34,
+    "image_alignment_bytes": 32
+  },
+  "board": {
+    "soc_package": "BK7258_QFN88_9X9",
+    "flash_capacity_bytes": 8388608
+  },
+  "partitions": {
+    "flash_size_bytes": 8388608,
+    "bootloader": {
+      "physical_offset": "0x00000000",
+      "physical_size": "0x00011000"
+    },
+    "cp": {
+      "physical_offset": "0x00011000",
+      "physical_size": "0x00165000",
+      "payload_virtual_offset": "0x00010000",
+      "xip_vector_base": "0x02010000",
+      "raw_max_bytes": 1376256
+    },
+    "ap": {
+      "physical_offset": "0x00176000",
+      "physical_size": "0x002ca000",
+      "payload_virtual_offset": "0x00160000",
+      "xip_vector_base": "0x02160000",
+      "raw_max_bytes": 2752512
+    }
+  },
+  "ap_execution": {
+    "component": "openvela-ap-cpu1-single-core",
+    "security_domain": "secure-spe",
+    "vector_alignment_bytes": 512,
+    "sram_start": "0x28010000",
+    "sram_size": "0x00054000",
+    "sram_end": "0x28064000",
+    "rpmsg_shm_start": "0x28064000",
+    "rpmsg_shm_size": "0x0000ac00",
+    "rpmsg_shm_end": "0x2806ec00",
+    "cpu2": "not-started-by-mvp; reset state requires hardware observation",
+    "console": "AP nsh_main over RPMsg UART /dev/console; CP enters through /dev/ttyAP with cu; SWAP heartbeat remains the independent health channel",
+    "deferred": [
+      "AP physical UART",
+      "CPU2 and SMP",
+      "AP peripheral ownership",
+      "AP stop/reset/start and transparent RPMsg UART session reconnection",
+      "cross-core syslog, coredump and panic/reboot propagation"
+    ]
+  },
+  "bundled_inputs": {
+    "normal_bootloader": {
+      "relative_path": "bundled/normal-bootloader.bin",
+      "sha256": "53120001cb5b87307567ca0cedd4a94823e7dd726f841b1f4f6abb520c462919",
+      "raw_length_bytes": 52352
+    },
+    "ota_partitions_json": {
+      "relative_path": "bundled/bk_ota_partitions.json",
+      "sha256": "4941e43a22615f3df230c08088717f1e54eebcbe59fd82d4143913bc858c440a",
+      "raw_length_bytes": 803
+    },
+    "staged_bootloader": {
+      "sha256": "d27be983a1c0eb80033e4ad8877aa16c6df87c55e96c7dae238a3a6866abb4a0",
+      "raw_length_bytes": 52608
+    }
+  },
+  "partition_table": {
+    "serialized_bytes": 256,
+    "record_layout": "Serialize bundled/bk_ota_partitions.json.part_table in source-array order using the locked 64-byte record format."
+  },
+  "enforcement": {
+    "require_explicit_openvela_ap": true,
+    "reject_placeholder_as_openvela_ap": true,
+    "reject_raw_component_physical_flash_write": true,
+    "never_flash_automatically": true
+  }
+}

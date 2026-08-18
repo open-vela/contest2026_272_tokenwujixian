@@ -7,9 +7,9 @@ These two cover build output through flashing, together with `build.sh` and
 OpenVela workspace by its `build.sh` + `nuttx/` markers, so they run from any
 directory.
 
-- `bk7258-package.sh` packages a built CP component and then verifies the result
-  with the independent decoder, printing only the key facts. It reports success
-  only if the decode passes, so an unverified image never reaches the loader.
+- `bk7258-package.sh` defaults to the safe CP + placeholder recovery package.
+  `--openvela-ap` explicitly selects the CP + OpenVela AP profile and requires
+  the AP L1 validation report. Both paths run the independent decoder.
 - `bk7258-flash.sh` flashes a packaged image. It requires a passing
   `decode-report.json` beside the image and refuses to run while another process
   holds the serial port. The loader's full output goes straight to the terminal
@@ -34,8 +34,9 @@ minicom holds the port.
   normal Bootloader, a CP raw `app.bin` and the profile-locked vendor AP raw
   `app1.bin`. Requires the external Armino SDK and `beken_genie` build tree.
 - `package_bk7258_bundled.py` creates the same container from repository-bundled
-  inputs only: the bundled Bootloader, a CP raw `app.bin` and the synthetic AP
-  placeholder. Needs no external SDK or build tree.
+  Bootloader/partition inputs. It supports either the synthetic placeholder or
+  an explicit OpenVela `app1.bin`; the latter must reproduce its ELF-backed L1
+  validation report before packaging.
 - `make_ap_placeholder.py` regenerates `../packaging/bundled/ap-placeholder.bin`
   deterministically. Its output is locked by the bundled profile.
 - `decode_bk7258_image.py` independently verifies section CRCs, physical
@@ -44,6 +45,8 @@ minicom holds the port.
   normal Bootloader. It does not flash hardware.
 - `validate_bk7258_cp_image.py` validates the CP ELF/raw vector, section and
   capacity contract.
+- `validate_bk7258_ap_image.py` validates the AP ELF/raw byte identity, vector
+  chain, fixed `OVAP` contract, RAM/XIP windows and idle-stack boundary.
 - `bk_loader` is the committed Linux x86_64 Beken downloader, version 2.1.11.8.
   Its SHA-256 is
   `55221d83d5582c362aab27d8883d799acf5eaa7b735d51135e01b0a24156b9ab`.

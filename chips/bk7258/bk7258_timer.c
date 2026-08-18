@@ -18,8 +18,8 @@ void up_timer_initialize(void)
   uint32_t regval;
   uint32_t reload;
 
-  /* The locked vendor CP selects CPU0's 32 kHz SysTick source. Do not use the
-   * application-level 120 MHz CPU vote: NuttX replaces that application path. */
+  /* CP and AP use separate 32 kHz SysTick selectors for physical CPU0 and
+   * physical CPU1. Do not touch the other domain's selector. */
 
   /* The Bootloader handoff does not define the SysTick state. Stop any
    * inherited counter and clear its pending exception before selecting the
@@ -29,12 +29,15 @@ void up_timer_initialize(void)
   putreg32(NVIC_INTCTRL_PENDSTCLR, NVIC_INTCTRL);
 
   regval = getreg32(BK7258_SYS_POWER_WAKEUP);
-  putreg32(regval | BK7258_SYS_CPU0_SYSTICK_32K,
-           BK7258_SYS_POWER_WAKEUP);
+#ifdef CONFIG_BK7258_COMPONENT_AP
+  regval |= BK7258_SYS_CPU1_SYSTICK_32K;
+#else
+  regval |= BK7258_SYS_CPU0_SYSTICK_32K;
+#endif
+  putreg32(regval, BK7258_SYS_POWER_WAKEUP);
 
-  /* systick_initialize() attaches the handler and enables SysTick. Seed the
-   * first interval first so that enable does not depend on reset or
-   * Bootloader-retained reload/current values. */
+  /* Seed the first interval before enabling SysTick so startup does not
+   * depend on reset or Bootloader-retained reload/current values. */
 
   reload = CONFIG_BK7258_SYSTICK_CLOCK_HZ / CLK_TCK - 1;
   putreg32(reload, NVIC_SYSTICK_RELOAD);

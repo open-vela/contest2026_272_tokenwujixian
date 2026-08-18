@@ -10,30 +10,6 @@ config ARCH_BOARD_BK7258_DEVKIT_TAG
 	string "Board tag"
 	default "bk7258-devkit"
 
-choice
-	prompt "BK7258 image component"
-	default BK7258_COMPONENT_CP
-	help
-		Selects the image component described by this board configuration.
-		CP and AP are independent component builds with separate linker,
-		startup, RAM and output contracts; they are not a single multi-core
-		NuttX image.
-
-config BK7258_COMPONENT_CP
-	bool "CP / CPU0 component"
-	help
-		Build contract for the CPU0/CP raw app.bin component. This is the
-		current L0 bring-up target. It is not yet a selectable, bootable BSP
-		until the BK7258 chip selection, linker and startup implementation
-		are added.
-
-config BK7258_COMPONENT_AP
-	bool "AP component (not implemented)"
-	help
-		Reserved for the independently built app1.bin component started by
-		CP under a later, separately verified handoff contract. Selecting
-		this does not enable AP startup, SMP, mailbox IPC or a buildable BSP.
-
-endchoice
+comment "CP/AP/RPMsg SRAM contract is defined by the BK7258 chip configuration"
 
 endif

@@ -6,6 +6,7 @@
 
 #include <stdint.h>
 
+#include <nuttx/cache.h>
 #include <nuttx/init.h>
 #include <nuttx/irq.h>
 
@@ -29,6 +30,23 @@ void __start(void)
    * up_irqinitialize installs the NuttX vector/handler state. */
 
   __asm__ volatile ("cpsid i" : : : "memory");
+
+  /* The locked Bootloader/vendor tuple enables D-cache. NuttX replaces that
+   * runtime and the RPMsg transport deliberately uses uncached shared SRAM,
+   * so clean and disable any inherited D-cache before touching .data, .bss,
+   * SWAP or RPMSG_SHM. */
+
+  if ((getreg32(NVIC_CFGCON) & NVIC_CFGCON_DC) != 0)
+    {
+      up_disable_dcache();
+    }
+
+  /* Make instruction fetch deterministic rather than inheriting an opaque
+   * Bootloader cache state. The BK7258 TIMER_ARCH time read must complete its
+   * resource/status snapshot between two SysTick updates. */
+
+  up_enable_icache();
+
   putreg32((uintptr_t)_vectors, NVIC_VECTAB);
   __asm__ volatile ("dsb\n\tisb" : : : "memory");
 

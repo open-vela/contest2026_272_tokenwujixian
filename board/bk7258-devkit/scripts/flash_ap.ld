@@ -1,28 +1,15 @@
 /****************************************************************************
- * board/bk7258-devkit/scripts/flash.ld
+ * board/bk7258-devkit/scripts/flash_ap.ld
  *
- * Secure CP linker script for the SHA-256-locked L0 replacement profile.
- * Flash is CPU-visible XIP, not the physical CRC-expanded package offset.
+ * Secure, single-core OpenVela AP linker script.  Physical CPU1 enters the
+ * vector table at the beginning of the AP raw payload.
  ****************************************************************************/
 
 #include <nuttx/config.h>
 
-/* The RAM window is taken from Kconfig so that this script and the component
- * defconfig cannot drift apart, and so an AP script can keep the same shape
- * while describing a different window.
- *
- * The chip header is deliberately not included here: it pulls in stdint.h and
- * its UINT32_C() suffixes, and the linker accepts neither. Cross-domain guards
- * against PWR_MNG/SWAP therefore live in C, where that header is usable.
- *
- * Flash stays literal. CONFIG_FLASH_START/CONFIG_FLASH_SIZE are 0 in this
- * configuration, and the vector base is already cross-checked against the
- * packaging profile by the L1 validator.
- */
-
 MEMORY
 {
-  flash (rx)  : ORIGIN = 0x02010000, LENGTH = 0x00150000
+  flash (rx)  : ORIGIN = 0x02160000, LENGTH = 0x002a0000
   sram  (rwx) : ORIGIN = CONFIG_RAM_START, LENGTH = CONFIG_RAM_SIZE
 }
 
@@ -39,6 +26,9 @@ SECTIONS
     _stext = ABSOLUTE(.);
     . = ALIGN(512);
     KEEP(*(.vectors))
+    _evectors = ABSOLUTE(.);
+    . = ORIGIN(flash) + 0x200;
+    KEEP(*(.ap_contract))
     *(.text .text.*)
     *(.fixup)
     *(.gnu.warning)
@@ -60,11 +50,7 @@ SECTIONS
     _einit = ABSOLUTE(.);
   } > flash
 
-  .ARM.extab : ALIGN(4)
-  {
-    *(.ARM.extab*)
-  } > flash
-
+  .ARM.extab : ALIGN(4) { *(.ARM.extab*) } > flash
   .ARM.exidx : ALIGN(4)
   {
     __exidx_start = ABSOLUTE(.);
@@ -101,23 +87,25 @@ SECTIONS
     _ebss = ABSOLUTE(.);
   } > sram
 
-  /* Link options disable build-id generation. If another toolchain adds an
-   * allocatable orphan section before .text, the vector-base assertion below
-   * must fail the link instead of producing a silently shifted raw image. */
-
   ASSERT((ORIGIN(flash) & 0x1ff) == 0,
-         "BK7258 CP vector base must be 512-byte aligned")
+         "BK7258 AP vector base must be 512-byte aligned")
   ASSERT(_vectors == ORIGIN(flash),
-         "BK7258 CP vector table must begin at the image base")
+         "BK7258 AP vector table must begin at the image base")
+  ASSERT(_evectors <= ORIGIN(flash) + 0x200,
+         "BK7258 AP vector table overlaps the image contract")
+  ASSERT(g_bk7258_ap_image_contract == ORIGIN(flash) + 0x200,
+         "BK7258 AP image contract must remain at offset 0x200")
+  ASSERT(ORIGIN(sram) == 0x28010000 && LENGTH(sram) == 0x00054000,
+         "BK7258 AP must use the all-OpenVela 336 KiB RAM window")
+  ASSERT(ORIGIN(sram) + LENGTH(sram) == CONFIG_BK7258_RPMSG_SHM_ADDR,
+         "BK7258 AP RAM must end where RPMSG_SHM begins")
   ASSERT(CONFIG_BK7258_RPMSG_SHM_ADDR + CONFIG_BK7258_RPMSG_SHM_SIZE ==
-         ORIGIN(sram),
-         "BK7258 CP RAM must begin after RPMSG_SHM")
-  ASSERT(ORIGIN(sram) + LENGTH(sram) == 0x2809f700,
-         "BK7258 CP RAM must end where PWR_MNG begins")
+         0x2806ec00,
+         "BK7258 RPMSG_SHM must end where locked CP RAM begins")
   ASSERT(_enoinit <= _sbss,
-         "BK7258 CP .noinit must remain below .bss and the idle stack")
+         "BK7258 AP .noinit must remain below .bss and the idle stack")
   ASSERT(_ebss + BK7258_IDLE_STACK_RESERVATION <= ORIGIN(sram) + LENGTH(sram),
-         "BK7258 CP SRAM exhausted by static sections and idle stack")
+         "BK7258 AP SRAM exhausted by static sections and idle stack")
 
   .stab 0 : { *(.stab) }
   .stabstr 0 : { *(.stabstr) }

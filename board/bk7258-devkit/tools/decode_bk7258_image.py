@@ -122,12 +122,84 @@ def validate_ff_padding(image: bytes, start: int, end: int, label: str) -> None:
         fail(f"{label} physical padding is not all 0xff")
 
 
+def validate_profile(manifest: dict[str, object]) -> dict[str, object]:
+    profile_path_value = manifest.get("profile_path")
+    profile_hash = manifest.get("profile_sha256")
+    if not isinstance(profile_path_value, str) or not isinstance(profile_hash, str):
+        fail("manifest lacks its profile path or SHA-256")
+
+    profile_path = Path(profile_path_value)
+    if not profile_path.is_file():
+        fail(f"manifest profile is missing: {profile_path}")
+    if sha256_file(profile_path) != profile_hash:
+        fail("manifest profile SHA-256 differs from the current profile file")
+
+    profile = json.loads(profile_path.read_text(encoding="utf-8"))
+    if profile.get("profile") != manifest.get("profile"):
+        fail("manifest profile identity differs from the profile file")
+    if profile.get("container", {}).get("mode") != manifest.get("container_mode"):
+        fail("manifest container mode differs from the profile file")
+
+    components = manifest.get("components", {})
+    partitions = profile.get("partitions", {})
+    for label in ("bootloader", "cp", "ap"):
+        component = components.get(label, {})
+        partition = partitions.get(label, {})
+        for field in ("physical_offset", "physical_size"):
+            if component.get(field) != partition.get(field):
+                fail(f"{label} {field} differs from the locked profile")
+        if label in ("cp", "ap"):
+            if component.get("xip_vector_base") != partition.get("xip_vector_base"):
+                fail(f"{label} XIP vector base differs from the locked profile")
+            if component.get("raw_length_bytes", 0) > partition.get("raw_max_bytes", 0):
+                fail(f"{label} raw image exceeds the locked profile capacity")
+
+    if profile.get("profile") == "bk7258-devkit-openvela-ap":
+        if manifest.get("flashable") is not True:
+            fail("OpenVela AP manifest is not backed by L1 validation")
+        expected_components = {
+            "cp": "openvela-cp-ap-launcher",
+            "ap": "openvela-ap-cpu1-single-core",
+        }
+        for label, identity in expected_components.items():
+            component = components.get(label, {})
+            if component.get("source") != "openvela-component":
+                fail(f"OpenVela profile has a non-OpenVela {label} component")
+            validation = component.get("l1_validation")
+            if not isinstance(validation, dict):
+                fail(f"OpenVela profile lacks {label} L1 provenance")
+            report_path = Path(str(validation.get("path", "")))
+            if not report_path.is_file():
+                fail(f"{label} L1 report is missing: {report_path}")
+            if sha256_file(report_path) != validation.get("sha256"):
+                fail(f"{label} L1 report SHA-256 differs from the manifest")
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            if report.get("result") != "pass" or report.get("component") != identity:
+                fail(f"{label} L1 report has the wrong result or identity")
+            if report.get("sha256") != component.get("sha256"):
+                fail(f"{label} L1 report does not identify the packaged raw image")
+            for artifact in ("elf", "config"):
+                artifact_path = Path(str(validation.get(artifact, "")))
+                if not artifact_path.is_file():
+                    fail(f"{label} validated {artifact} is missing: {artifact_path}")
+                if sha256_file(artifact_path) != validation.get(f"{artifact}_sha256"):
+                    fail(f"{label} validated {artifact} SHA-256 differs from manifest")
+
+    return {
+        "path": str(profile_path.resolve()),
+        "sha256": profile_hash,
+        "name": profile["profile"],
+    }
+
+
 def main() -> int:
     args = parse_args()
     try:
         manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
         if manifest.get("container_mode") != "linear-crc-physical-flash":
             fail("manifest is not a linear-CRC physical-flash package")
+
+        profile_details = validate_profile(manifest)
 
         image = args.image.read_bytes()
         image_entry = manifest.get("image", {})
@@ -168,6 +240,16 @@ def main() -> int:
             ap["raw_length_bytes"],
             ap["sha256"],
         )
+        if manifest.get("profile") == "bk7258-devkit-openvela-ap":
+            contract = decoded_ap["raw"][0x200:0x210]
+            expected = (
+                (0x4F564150).to_bytes(4, "little")
+                + (1).to_bytes(4, "little")
+                + (0x4F564131).to_bytes(4, "little")
+                + (0x02160000).to_bytes(4, "little")
+            )
+            if contract != expected:
+                fail("OpenVela AP component lacks the fixed OVAP contract")
         compare_raw("CP", decoded_cp.pop("raw"), args.compare_cp)
         compare_raw("AP", decoded_ap.pop("raw"), args.compare_ap)
         decoded_bootloader.pop("raw")
@@ -213,6 +295,11 @@ def main() -> int:
                 "sha256": sha256_file(args.image),
             },
             "components": [decoded_bootloader, decoded_cp, decoded_ap],
+            "manifest": {
+                "path": str(args.manifest.resolve()),
+                "sha256": sha256_file(args.manifest),
+            },
+            "profile": profile_details,
             "final_alignment_tail_bytes": len(final_suffix),
             "result": "pass",
         }

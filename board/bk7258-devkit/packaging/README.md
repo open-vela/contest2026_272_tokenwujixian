@@ -105,28 +105,58 @@ peripherals, networking, USB, or sustained operation. Record the exact image
 SHA-256, loader command and UART log for every further hardware experiment in
 the CPU0 bring-up contract.
 
-## Four-command loop
+## Recovery four-command loop
 
-The whole build/package/flash/console cycle, using only this repository and an
-OpenVela workspace. No Armino SDK, no `beken_genie` build tree, no local-only
-locator file.
+The no-argument path deliberately remains the known CP + placeholder recovery
+flow. It never releases the placeholder because it lacks the OpenVela AP image
+contract.
 
 ```bash
 # 1. compile the CP component (must run from the workspace root)
 cd <openvela-workspace>
-./build.sh vendor/beken/boards/bk7258/bk7258-devkit/configs/cp/ \
-  --cmake -b cmake_out/bk7258-devkit_cp/ -j12
+./build.sh vendor/beken/boards/bk7258/bk7258-devkit/configs/cp/ --cmake -j12
 
 # 2. package + independently decode; prints the image path and SHA-256
 contest2026_272_tokenwujixian/board/bk7258-devkit/tools/bk7258-package.sh
 
-# 3. flash (paste the --image path step 2 printed)
-sudo contest2026_272_tokenwujixian/board/bk7258-devkit/tools/bk7258-flash.sh \
-  --image cmake_out/bk7258-l2-bundled-<timestamp>/all-app.bin
+# 3. flash
+sudo contest2026_272_tokenwujixian/board/bk7258-devkit/tools/bk7258-flash.sh
 
 # 4. console
 sudo minicom -o -D /dev/ttyUSB0 -b 115200
 ```
+
+## OpenVela AP MVP loop
+
+Build both independent OpenVela components, explicitly select the AP profile,
+then flash the complete image. The packer reruns the ELF-backed AP validator and
+binds the profile, manifest, decode report and image with SHA-256 values.
+
+```bash
+cd <openvela-workspace>
+./build.sh vendor/beken/boards/bk7258/bk7258-devkit/configs/cp/ --cmake -j12
+./build.sh vendor/beken/boards/bk7258/bk7258-devkit/configs/ap/ --cmake -j12
+
+contest2026_272_tokenwujixian/board/bk7258-devkit/tools/bk7258-package.sh \
+  --openvela-ap
+
+sudo contest2026_272_tokenwujixian/board/bk7258-devkit/tools/bk7258-flash.sh \
+  --image cmake_out/bk7258-l2-openvela-ap/all-app.bin
+
+sudo minicom -o -D /dev/ttyUSB0 -b 115200
+```
+
+Expected key UART0 lines are one release line, reset/scheduler stage changes,
+then `alive` at heartbeats 1, 6, 11, ... . Three consecutive unchanged valid
+samples produce one `stalled` alert; AP kernel panic produces a `fault` stage.
+These are acceptance expectations, not hardware evidence until the UART capture
+is saved with the flashed image hash and loader log.
+
+No step needs a path. `build.sh` derives its own binary directory from the config
+as `<board>_<config>`, so `configs/cp/` lands in `cmake_out/bk7258-devkit_cp`
+without `-b`, and both wrappers default to that directory and to one fixed
+package directory. The image that gets flashed is therefore always the one just
+built.
 
 Only `build.sh` needs a specific working directory; both wrappers locate the
 workspace by its `build.sh` + `nuttx/` markers, so they work from anywhere.
@@ -134,9 +164,16 @@ workspace by its `build.sh` + `nuttx/` markers, so they work from anywhere.
 What the wrappers add beyond the raw commands:
 
 - `bk7258-package.sh` runs the independent decoder and refuses to report success
-  unless it passes, so an unverified image never reaches step 3. It defaults to
-  `cmake_out/bk7258-devkit_cp/bk7258/app.bin` and a timestamped output directory;
-  override with `--cp-app-bin` / `--output-dir`.
+  unless it passes, so an unverified image never reaches step 3. It reads
+  `cmake_out/bk7258-devkit_cp/bk7258/app.bin` and writes
+  `cmake_out/bk7258-l2-bundled`, replacing the previous package there together
+  with any loader log left from flashing the older image, so a stale log can never
+  be read as evidence for a new one. Override the input with `--cp-app-bin`.
+- To keep a run as evidence, name its directory:
+  `--output-dir cmake_out/bk7258-l2-<topic>`. A named directory is never replaced
+  unless `--overwrite` is also given, so an image that produced a UART log or a
+  hardware observation stays exactly as it was flashed. Flash a kept directory
+  with an explicit `--image <dir>/all-app.bin`.
 - `bk7258-flash.sh` requires a passing `decode-report.json` beside the image and
   refuses to run while another process holds the serial port. The loader's full
   output goes straight to the terminal, so erase and write progress is visible
@@ -210,8 +247,7 @@ expected to fail.
 ```bash
 cd <openvela-workspace>
 
-./build.sh vendor/beken/boards/bk7258/bk7258-devkit/configs/cp/ \
-  --cmake -b cmake_out/bk7258-devkit_cp/ -j12
+./build.sh vendor/beken/boards/bk7258/bk7258-devkit/configs/cp/ --cmake -j12
 ```
 
 Success requires `bk7258/l1-validation.json` to report `"result": "pass"`.
@@ -340,8 +376,7 @@ Identical to step 2; the CP build never reads vendor assets.
 ```bash
 cd <openvela-workspace>
 
-./build.sh vendor/beken/boards/bk7258/bk7258-devkit/configs/cp/ \
-  --cmake -b cmake_out/bk7258-devkit_cp/ -j12
+./build.sh vendor/beken/boards/bk7258/bk7258-devkit/configs/cp/ --cmake -j12
 ```
 
 `bk7258/l1-validation.json` must report `"result": "pass"`.
