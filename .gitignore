@@ -20,6 +20,7 @@ __pycache__/
 *bk_loader_COM*.log
 AGENTS.md
 research/
+/investigation/
 compile_commands.json
 .mimocode/
 docs/*
