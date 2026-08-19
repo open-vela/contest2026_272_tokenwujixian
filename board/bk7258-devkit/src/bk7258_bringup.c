@@ -56,6 +56,10 @@ void rpmsg_serialinit(void)
 }
 #endif
 
+#if defined(CONFIG_LCD_JD9853) || defined(CONFIG_LCD_GC9D01)
+#  include <nuttx/lcd/lcd_dev.h>
+#endif
+
 void board_late_initialize(void)
 {
   /* UART console registration is chip-owned. Board peripherals are added
@@ -82,6 +86,22 @@ void board_late_initialize(void)
 
 int board_app_initialize(uintptr_t arg)
 {
+#if defined(CONFIG_LCD_JD9853) || defined(CONFIG_LCD_GC9D01)
+  int ret;
+
+  ret = board_lcd_initialize();
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  ret = lcddev_register(0);
+  if (ret < 0)
+    {
+      return ret;
+    }
+#endif
+
   (void)arg;
   return 0;
 }

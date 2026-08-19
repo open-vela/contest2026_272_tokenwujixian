@@ -12,4 +12,170 @@ config ARCH_BOARD_BK7258_DEVKIT_TAG
 
 comment "CP/AP/RPMsg SRAM contract is defined by the BK7258 chip configuration"
 
-endif
+endif # ARCH_BOARD_BK7258_DEVKIT
+
+menuconfig LCD_JD9853
+	bool "JD9853 SPI LCD panel"
+	default n
+	select LCD
+	select SPI
+	select SPI_BITBANG
+	select SPI_CMDDATA
+	---help---
+		Enable the JD9853 (Jadard) 4-wire SPI TFT LCD lower-half driver on
+		the DevKit display FPC.  The SCL/SDA/D/C/CS lines are bit-banged
+		through the QSPI1 GPIO pins and the backlight is driven by GPIO25.
+		Register /dev/lcd0 (CONFIG_LCD_DEV) or /dev/fb0
+		(CONFIG_LCD_FRAMEBUFFER) in board_app_initialize() to expose the
+		display to applications.
+
+if LCD_JD9853
+
+config LCD_JD9853_SPIMODE
+	int "JD9853 SPI mode"
+	default 0
+	range 0 3
+	---help---
+		SPI mode used to talk to the JD9853.  The panel requires Mode 0.
+
+config LCD_JD9853_FREQUENCY
+	int "JD9853 SPI frequency (Hz)"
+	default 1000000
+	---help---
+		SPI clock frequency requested for the JD9853 display.  The actual
+		rate of the GPIO bit-bang interface is approximate.
+
+config LCD_JD9853_XRES
+	int "JD9853 horizontal resolution"
+	default 240
+	---help---
+		Visible horizontal resolution in pixel columns.
+
+config LCD_JD9853_YRES
+	int "JD9853 vertical resolution"
+	default 296
+	---help---
+		Visible vertical resolution in pixel rows.  The JD9853 RAM window is
+		240x320; the T201BM-C12-03 2.01 inch panel exposes 240x296.
+
+config LCD_JD9853_XOFFSET
+	int "JD9853 horizontal offset"
+	default 0
+	---help---
+		Horizontal offset of the visible area inside the JD9853 RAM window.
+
+config LCD_JD9853_YOFFSET
+	int "JD9853 vertical offset"
+	default 0
+	---help---
+		Vertical offset of the visible area inside the JD9853 RAM window.
+
+config LCD_JD9853_BPP
+	int "JD9853 bits-per-pixel"
+	default 16
+	range 16 16
+	---help---
+		Color depth in bits-per-pixel.  Only 16 (RGB565) is supported.
+
+config LCD_JD9853_BGR
+	bool "JD9853 BGR pixel order"
+	default n
+	---help---
+		Set the panel to BGR color order (MADCTL bit 3).
+
+config LCD_JD9853_TE
+	bool "JD9853 tearing effect line"
+	default n
+	---help---
+		Enable the tearing effect output line on the JD9853.
+
+config LCD_JD9853_INVERT
+	bool "JD9853 inverted display"
+	default n
+	---help---
+		Enable display inversion for panels wired with an inverted
+		polarity.
+
+endif # LCD_JD9853
+
+menuconfig LCD_GC9D01
+	bool "GC9D01 SPI LCD panel"
+	default n
+	select LCD
+	select SPI
+	select SPI_BITBANG
+	select SPI_CMDDATA
+	---help---
+		Enable the GC9D01 4-wire SPI TFT LCD lower-half driver for the
+		DevKit's two round 0.71" 160x160 panels.  The SCL/SDA/D/C/CS
+		lines are bit-banged through the QSPI1 GPIO pins and the
+		backlight is driven by GPIO25.  Register /dev/lcd0
+		(CONFIG_LCD_DEV) or /dev/fb0 (CONFIG_LCD_FRAMEBUFFER) in
+		board_app_initialize() to expose the display to applications.
+
+if LCD_GC9D01
+
+config LCD_GC9D01_SPIMODE
+	int "GC9D01 SPI mode"
+	default 0
+	range 0 3
+	---help---
+		SPI mode used to talk to the GC9D01.  The panel requires Mode 0.
+
+config LCD_GC9D01_FREQUENCY
+	int "GC9D01 SPI frequency (Hz)"
+	default 1000000
+	---help---
+		SPI clock frequency requested for the GC9D01 display.
+
+config LCD_GC9D01_XRES
+	int "GC9D01 horizontal resolution"
+	default 160
+	---help---
+		Visible horizontal resolution in pixel columns.
+
+config LCD_GC9D01_YRES
+	int "GC9D01 vertical resolution"
+	default 160
+	---help---
+		Visible vertical resolution in pixel rows.
+
+config LCD_GC9D01_XOFFSET
+	int "GC9D01 horizontal offset"
+	default 0
+	---help---
+		Horizontal offset of the visible area inside the RAM window.
+
+config LCD_GC9D01_YOFFSET
+	int "GC9D01 vertical offset"
+	default 0
+	---help---
+		Vertical offset of the visible area inside the RAM window.
+
+config LCD_GC9D01_BPP
+	int "GC9D01 bits-per-pixel"
+	default 16
+	range 16 16
+	---help---
+		Color depth in bits-per-pixel.  Only 16 (RGB565) is supported.
+
+config LCD_GC9D01_BGR
+	bool "GC9D01 BGR pixel order"
+	default n
+	---help---
+		Set the panel to BGR color order (MADCTL bit 3).
+
+config LCD_GC9D01_TE
+	bool "GC9D01 tearing effect line"
+	default n
+	---help---
+		Enable the tearing effect output line on the GC9D01.
+
+config LCD_GC9D01_INVERT
+	bool "GC9D01 inverted display"
+	default n
+	---help---
+		Enable display inversion for panels wired with an inverted
+		polarity.
+
+endif # LCD_GC9D01

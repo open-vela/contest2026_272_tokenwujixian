@@ -11,6 +11,7 @@
   <project path="contest2026_272_tokenwujixian" name="contest2026_272_tokenwujixian">
     <linkfile src="app/hello_app" dest="packages/demos/contest2026_272_hello_app"/>
     <linkfile src="app/deskmate" dest="packages/demos/contest2026_272_deskmate"/>
+    <linkfile src="app/lvgldemo" dest="packages/demos/contest2026_272_lvgldemo"/>
     <linkfile src="quickapp/hello_quickapp" dest="packages/apps/contest2026_272_hello_quickapp"/>
     <linkfile src="chips/bk7258" dest="vendor/beken/chips/bk7258"/>
     <linkfile src="board/bk7258-devkit" dest="vendor/beken/boards/bk7258/bk7258-devkit"/>

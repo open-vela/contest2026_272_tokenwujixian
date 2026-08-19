@@ -110,7 +110,41 @@
 #define BK7258_SYS_CPU1_PWR_DW_STATE  (UINT32_C(1) << 9)
 
 #define BK7258_GPIO11             11
+
 #define BK7258_GPIO_CFG(index)    (BK7258_AON_GPIO_BASE + ((uint32_t)(index) << 2))
-#define BK7258_GPIO_FUNC_SHIFT(pin) (((uint32_t)(pin) & 7) << 2)
+
+/* AON GPIO per-pin configuration register bit fields.  These match the
+ * Armino SDK gpio_reg.h / gpio_ll.h layout used by the board bring-up:
+ *
+ *   bit 0          input value monitor
+ *   bit 1          GPIO output data value (SDK demo drives it directly)
+ *   bits [3:2]     IO mode: 0=output, 2=I/O disable, 3=input
+ *   bits [5:4]     pull: 0=none, 3=pull-up
+ *   bit 6          second function enable (1=peripheral drives the pad)
+ *   bit 7          output enable, LOW active (0=output enabled)
+ *   bit 8          input enable, HIGH active (1=input enabled)
+ */
+
+#define BK7258_GPIO_CFG_DATA        (UINT32_C(1) << 1)
+#define BK7258_GPIO_CFG_MODE_MASK   (UINT32_C(3) << 2)
+#define BK7258_GPIO_CFG_MODE_OUTPUT (UINT32_C(0) << 2)
+#define BK7258_GPIO_CFG_MODE_INPUT  (UINT32_C(3) << 2)
+#define BK7258_GPIO_CFG_MODE_DIS    (UINT32_C(2) << 2)
+#define BK7258_GPIO_CFG_PULL_MASK   (UINT32_C(3) << 4)
+#define BK7258_GPIO_CFG_PULL_UP     (UINT32_C(3) << 4)
+#define BK7258_GPIO_CFG_SECOND_FUNC (UINT32_C(1) << 6)
+#define BK7258_GPIO_CFG_OUTPUT_EN   (UINT32_C(1) << 7)
+#define BK7258_GPIO_CFG_INPUT_EN    (UINT32_C(1) << 8)
+
+/* SYS_GPIO_FUNC0 registers hold a 4-bit peripheral mux field per pin,
+ * eight pins per register (0x0c0: GPIO0-7, 0x0c4: GPIO8-15,
+ * 0x0c8: GPIO16-23, 0x0cc: GPIO24-31).  A cleared field selects the plain
+ * GPIO function of the pin.
+ */
+
+#define BK7258_SYS_GPIO_FUNC(pin) \
+  (BK7258_SYS_GPIO_FUNC0 + (((uint32_t)(pin) >> 3) << 2))
+#define BK7258_GPIO_FUNC_MASK(pin) \
+  (UINT32_C(0xf) << (((uint32_t)(pin) & 7) << 2))
 
 #endif /* __VENDOR_BEKEN_CHIP_BK7258_MEMORYMAP_H */

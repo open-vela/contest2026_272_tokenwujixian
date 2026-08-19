@@ -26,9 +26,9 @@ static void bk7258_gpio_uart0(unsigned int pin)
   regval |=  (UINT32_C(1) << 6);
   putreg32(regval, BK7258_GPIO_CFG(pin));
 
-  regval  = getreg32(BK7258_SYS_GPIO_FUNC0 + 4);
-  regval &= ~(UINT32_C(0xf) << BK7258_GPIO_FUNC_SHIFT(pin));
-  putreg32(regval, BK7258_SYS_GPIO_FUNC0 + 4);
+  regval  = getreg32(BK7258_SYS_GPIO_FUNC(pin));
+  regval &= ~BK7258_GPIO_FUNC_MASK(pin);
+  putreg32(regval, BK7258_SYS_GPIO_FUNC(pin));
 }
 
 void bk7258_gpio_uart0_tx(void)
@@ -39,4 +39,110 @@ void bk7258_gpio_uart0_tx(void)
 void bk7258_gpio_uart0_rx(void)
 {
   bk7258_gpio_uart0(10);
+}
+
+/****************************************************************************
+ * Name: bk7258_gpio_select_func
+ *
+ * Description:
+ *   Route the pin to its plain GPIO function (peripheral mux field = 0).
+ *
+ ****************************************************************************/
+
+static void bk7258_gpio_select_func(unsigned int pin)
+{
+  uint32_t regval;
+  uint32_t reg  = BK7258_SYS_GPIO_FUNC(pin);
+  uint32_t mask = BK7258_GPIO_FUNC_MASK(pin);
+
+  regval  = getreg32(reg);
+  regval &= ~mask;
+  putreg32(regval, reg);
+}
+
+/****************************************************************************
+ * Name: bk7258_gpio_config_output
+ *
+ * Description:
+ *   Configure the GPIO pin as a push-pull output with no pull resistor.
+ *
+ ****************************************************************************/
+
+void bk7258_gpio_config_output(unsigned int pin)
+{
+  uint32_t regval;
+
+  bk7258_gpio_select_func(pin);
+
+  regval  = getreg32(BK7258_GPIO_CFG(pin));
+  regval &= ~BK7258_GPIO_CFG_MODE_MASK;
+  regval |= BK7258_GPIO_CFG_MODE_OUTPUT;
+  regval &= ~BK7258_GPIO_CFG_PULL_MASK;
+  regval &= ~BK7258_GPIO_CFG_SECOND_FUNC;
+  regval &= ~BK7258_GPIO_CFG_OUTPUT_EN;  /* LOW active: 0 = output enabled */
+  regval &= ~BK7258_GPIO_CFG_INPUT_EN;   /* disable input path */
+  putreg32(regval, BK7258_GPIO_CFG(pin));
+}
+
+/****************************************************************************
+ * Name: bk7258_gpio_config_input
+ *
+ * Description:
+ *   Configure the GPIO pin as an input with optional pull-up.
+ *
+ ****************************************************************************/
+
+void bk7258_gpio_config_input(unsigned int pin)
+{
+  uint32_t regval;
+
+  bk7258_gpio_select_func(pin);
+
+  regval  = getreg32(BK7258_GPIO_CFG(pin));
+  regval &= ~BK7258_GPIO_CFG_MODE_MASK;
+  regval |= BK7258_GPIO_CFG_MODE_INPUT;
+  regval &= ~BK7258_GPIO_CFG_PULL_MASK;
+  regval |= BK7258_GPIO_CFG_PULL_UP;
+  regval &= ~BK7258_GPIO_CFG_SECOND_FUNC;
+  regval |= BK7258_GPIO_CFG_OUTPUT_EN;  /* disable output path */
+  regval |= BK7258_GPIO_CFG_INPUT_EN;   /* HIGH active: 1 = input enabled */
+  putreg32(regval, BK7258_GPIO_CFG(pin));
+}
+
+/****************************************************************************
+ * Name: bk7258_gpio_write
+ *
+ * Description:
+ *   Drive a GPIO output pin to the requested level.
+ *
+ ****************************************************************************/
+
+void bk7258_gpio_write(unsigned int pin, bool high)
+{
+  uint32_t regval;
+
+  regval  = getreg32(BK7258_GPIO_CFG(pin));
+  if (high)
+    {
+      regval |= BK7258_GPIO_CFG_DATA;
+    }
+  else
+    {
+      regval &= ~BK7258_GPIO_CFG_DATA;
+    }
+
+  putreg32(regval, BK7258_GPIO_CFG(pin));
+}
+
+/****************************************************************************
+ * Name: bk7258_gpio_read
+ *
+ * Description:
+ *   Sample the level of a GPIO pin configured as an input.
+ *
+ ****************************************************************************/
+
+bool bk7258_gpio_read(unsigned int pin)
+{
+  return (getreg32(BK7258_GPIO_CFG(pin)) & BK7258_GPIO_CFG_DATA) != 0;
 }
