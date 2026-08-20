@@ -1,0 +1,69 @@
+{
+  "schema_version": "1.0",
+  "team_id": "contest2026_272_tokenwujixian",
+  "github_login": "suoyuan666",
+  "generator": "backfill-sqlite@opencode",
+  "sessions": [
+    {
+      "session_id": "ses_fe2f4fb0dffeOCTERft6QBPogW",
+      "tool": "opencode",
+      "started_at": "2026-08-20T02:40:56.573Z",
+      "last_event_at": "2026-08-20T02:43:07.434Z",
+      "event_count": 17,
+      "file_path": "logs/suoyuan666/2026-08-20/opencode__ses_fe2f4fb0dffeOCTERft6QBPogW.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_fe704de17ffevuYj58DsuSUNGC",
+      "tool": "opencode",
+      "started_at": "2026-08-19T07:45:06.545Z",
+      "last_event_at": "2026-08-20T02:40:12.723Z",
+      "event_count": 61,
+      "file_path": "logs/suoyuan666/2026-08-19/opencode__ses_fe704de17ffevuYj58DsuSUNGC.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_fe7f310bbffecejzptbEWcNYwj",
+      "tool": "opencode",
+      "started_at": "2026-08-19T03:24:56.018Z",
+      "last_event_at": "2026-08-19T03:33:51.906Z",
+      "event_count": 11,
+      "file_path": "logs/suoyuan666/2026-08-19/opencode__ses_fe7f310bbffecejzptbEWcNYwj.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_feb3c2990ffe5qa1IHrBGZ3F2k",
+      "tool": "opencode",
+      "started_at": "2026-08-18T12:06:13.883Z",
+      "last_event_at": "2026-08-19T06:57:44.302Z",
+      "event_count": 121,
+      "file_path": "logs/suoyuan666/2026-08-18/opencode__ses_feb3c2990ffe5qa1IHrBGZ3F2k.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_febdc920affejCiPtfax4XNuoO",
+      "tool": "opencode",
+      "started_at": "2026-08-18T09:11:01.370Z",
+      "last_event_at": "2026-08-18T09:24:17.410Z",
+      "event_count": 64,
+      "file_path": "logs/suoyuan666/2026-08-18/opencode__ses_febdc920affejCiPtfax4XNuoO.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    },
+    {
+      "session_id": "ses_febe9217fffectEQ2PxCgS0Ud5",
+      "tool": "opencode",
+      "started_at": "2026-08-18T09:08:53.529Z",
+      "last_event_at": "2026-08-18T11:23:20.634Z",
+      "event_count": 54,
+      "file_path": "logs/suoyuan666/2026-08-18/opencode__ses_febe9217fffectEQ2PxCgS0Ud5.jsonl",
+      "collection_mode": "backfill-sqlite",
+      "health": "ok"
+    }
+  ],
+  "updated_at": "2026-08-20T07:06:21.704299+00:00"
+}
