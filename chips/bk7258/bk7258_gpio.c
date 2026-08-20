@@ -61,6 +61,36 @@ static void bk7258_gpio_select_func(unsigned int pin)
 }
 
 /****************************************************************************
+ * Name: bk7258_gpio_periph
+ *
+ * Description:
+ *   Route the pin to a peripheral (second) function selected by the 4-bit
+ *   per-pin mux field (see the Armino SDK gpio_map.h table, e.g. option 0
+ *   on GPIO2/4 is the SPI1 SCK/MOSI).  The per-pin GPIO control is set to
+ *   I/O-disable plus second-function so the peripheral owns the pad.
+ *
+ ****************************************************************************/
+
+void bk7258_gpio_periph(unsigned int pin, unsigned int func)
+{
+  uint32_t regval;
+
+  regval  = getreg32(BK7258_GPIO_CFG(pin));
+  regval &= ~(UINT32_C(3) << 2);        /* clear IO mode */
+  regval |=  (UINT32_C(2) << 2);        /* I/O disable: peripheral drives */
+  regval &= ~(UINT32_C(3) << 4);        /* clear pull */
+  regval |=  (UINT32_C(1) << 6);        /* second function enable */
+  regval &= ~BK7258_GPIO_CFG_OUTPUT_EN;
+  regval &= ~BK7258_GPIO_CFG_INPUT_EN;
+  putreg32(regval, BK7258_GPIO_CFG(pin));
+
+  regval  = getreg32(BK7258_SYS_GPIO_FUNC(pin));
+  regval &= ~BK7258_GPIO_FUNC_MASK(pin);
+  regval |=  (func & UINT32_C(0xf)) << (((uint32_t)(pin) & 7) << 2);
+  putreg32(regval, BK7258_SYS_GPIO_FUNC(pin));
+}
+
+/****************************************************************************
  * Name: bk7258_gpio_config_output
  *
  * Description:

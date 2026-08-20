@@ -73,6 +73,12 @@
 
 #define GC9D01_LUT_SIZE    CONFIG_LCD_GC9D01_YRES
 
+/* Scratch buffer used to byte-swap RGB565 pixel data (little-endian in
+ * memory, MSB-first on the wire) before a block SPI transfer.
+ */
+
+#define GC9D01_SWAP_BUFSIZE  2048
+
 #define GC9D01_XRES        CONFIG_LCD_GC9D01_XRES
 #define GC9D01_YRES        CONFIG_LCD_GC9D01_YRES
 #define GC9D01_XOFFSET     CONFIG_LCD_GC9D01_XOFFSET
@@ -96,6 +102,13 @@ struct gc9d01_dev_s
 
   uint16_t runbuffer[GC9D01_LUT_SIZE];
 };
+
+/* Working buffer for byte-swapped pixel data.  Only one panel transfer is
+ * in flight at a time (the SPI bus is locked and the LCD flush path is
+ * single-threaded), so a shared buffer is safe.
+ */
+
+static uint8_t g_gc9d01_swap[GC9D01_SWAP_BUFSIZE];
 
 /****************************************************************************
  * Private Function Protototypes
@@ -123,6 +136,8 @@ static void gc9d01_rdram(FAR struct gc9d01_dev_s *dev,
                          FAR uint16_t *buff, size_t size);
 #endif
 static void gc9d01_fill(FAR struct gc9d01_dev_s *dev, uint16_t color);
+static void gc9d01_wrswap(FAR struct spi_dev_s *spi,
+                          FAR const uint8_t *src, size_t nbytes);
 
 static int gc9d01_putrun(FAR struct lcd_dev_s *dev,
                          fb_coord_t row, fb_coord_t col,
@@ -344,32 +359,57 @@ static void gc9d01_bpp(FAR struct gc9d01_dev_s *dev, int bpp)
     }
 }
 
+/****************************************************************************
+ * Name: gc9d01_wrswap
+ *
+ * Description:
+ *   Byte-swap a run of RGB565 pixels (low byte first in memory, MSB-first
+ *   on the wire) into the scratch buffer and transmit it as SNDBLOCK
+ *   chunks so the SPI lower-half streams the whole run in one CS-low
+ *   window.
+ *
+ ****************************************************************************/
+
+static void gc9d01_wrswap(FAR struct spi_dev_s *spi,
+                          FAR const uint8_t *src, size_t nbytes)
+{
+  while (nbytes > 0)
+    {
+      size_t chunk = nbytes > GC9D01_SWAP_BUFSIZE ?
+                     GC9D01_SWAP_BUFSIZE : nbytes;
+      size_t j;
+
+      for (j = 0; j + 1 < chunk; j += 2)
+        {
+          g_gc9d01_swap[j]     = src[j + 1];
+          g_gc9d01_swap[j + 1] = src[j];
+        }
+
+      SPI_SNDBLOCK(spi, g_gc9d01_swap, chunk);
+      src    += chunk;
+      nbytes -= chunk;
+    }
+}
+
 static void gc9d01_wrram(FAR struct gc9d01_dev_s *dev,
                          FAR const uint8_t *buff, size_t size, size_t skip,
                          size_t count)
 {
   size_t i;
-  size_t j;
 
   gc9d01_sendcmd(dev, GC9D01_RAMWR);
 
   gc9d01_select(dev->spi, 8);
 
   /* RGB565 pixels are stored little-endian in memory (low byte first) but
-   * the panel expects the most-significant byte first.  The bit-bang
-   * lower-half only supports 8-bit transfers, so swap each byte pair in
-   * software before transmission.
+   * the panel expects the most-significant byte first.  size/skip are
+   * always even for 16bpp, which keeps the swap chunk alignment across
+   * row boundaries.
    */
 
   for (i = 0; i < count; i++)
     {
-      FAR const uint8_t *src = buff + (i * (size + skip));
-
-      for (j = 0; j + 1 < size; j += 2)
-        {
-          SPI_SEND(dev->spi, src[j + 1]);
-          SPI_SEND(dev->spi, src[j]);
-        }
+      gc9d01_wrswap(dev->spi, buff + (i * (size + skip)), size);
     }
 
   gc9d01_deselect(dev->spi);
@@ -405,10 +445,21 @@ static void gc9d01_fill(FAR struct gc9d01_dev_s *dev, uint16_t color)
   gc9d01_sendcmd(dev, GC9D01_RAMWR);
   gc9d01_select(dev->spi, 8);
 
-  for (i = 0; i < GC9D01_XRES * GC9D01_YRES; i++)
+  /* RGB565 pixels are transmitted most-significant byte first.  Build one
+   * byte-swapped row in the scratch buffer and stream it once per row.
+   */
+
+  DEBUGASSERT(GC9D01_XRES * 2 <= GC9D01_SWAP_BUFSIZE);
+
+  for (i = 0; i < GC9D01_XRES; i++)
     {
-      SPI_SEND(dev->spi, color >> 8);
-      SPI_SEND(dev->spi, color & 0xff);
+      g_gc9d01_swap[2 * i]     = color & 0xff;
+      g_gc9d01_swap[2 * i + 1] = color >> 8;
+    }
+
+  for (i = 0; i < GC9D01_YRES; i++)
+    {
+      SPI_SNDBLOCK(dev->spi, g_gc9d01_swap, GC9D01_XRES * 2);
     }
 
   gc9d01_deselect(dev->spi);

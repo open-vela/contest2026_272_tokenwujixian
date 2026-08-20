@@ -58,3 +58,28 @@ profile gate、L2 打包、独立 decode、只读下载握手、完整镜像烧�
 外部 SDK/build 资产，实际 profile 仍由受控 SHA-256、分区 JSON 和 manifest 决定。
 
 已从 `AIDK_AI玩具开发板_原理图.pdf` 确认调试 UART0：P11/DL_0TX 连接板级 `TX0`，P10/DL_0RX 连接板级 `RX0`，并通过板载 USB-to-UART 电路引出。当前 26 MHz / 115200、GPIO10/11 mux、UART RX/TX 及 CPU0 中断路径均已有真机 CPU0 控制台证据；完整命令、镜像哈希、故障分析和仍待验证的边界记录在 `chips/bk7258/BK7258_CPU0_BRINGUP_CONTRACT.md`。
+
+## JD9853 显示外设驱动
+
+`src/jd9853.c` 实现了 JD9853（Jadard）4-wire SPI TFT LCD 下半区驱动，挂在 DevKit 12-pin 显示 FPC 上。板端信号与 SoC GPIO 的映射见 `include/board.h`（`BOARD_LCD_*_PIN`）：
+
+- SCL/SDA/D/C/CS 走 LCD_QSPI1_ 网。该 "QSPI1" 网在 SoC 侧对应 **SPI1 控制器** 的四个 pad（GPIO2/3/4/5，Armino SDK `gpio_map.h` mux option 0）。默认仍走 `src/bk7258_spi_bitbang.c` 的 GPIO 位带实现（真机已验证可启动、可点亮）；`src/bk7258_spi_hw.c` 提供了硬件 SPI1 主模式移植（SCK=GPIO2、MOSI=GPIO4 走第二功能；CS=GPIO3、D/C=GPIO5 保持普通 GPIO），可在 "LCD1 display SPI transport" Kconfig 选择里启用，但**尚未在真机验证——若 SPI1 控制器在 CPU0 侧不可达，寄存器访问会导致上电卡死**，启用时 `bk7258_spi_initialize()` 里已埋串口探针用于定位；
+- RESET 默认 GPIO45、背光 `LCD_BL_PWM` 为 GPIO25（原理图 P25/PWM0_5），均可用 `BOARD_LCD_RST_PIN`/`BOARD_LCD_BL_PIN` 调整。
+
+初始化命令序列来自开源 ESP-IDF JD9853 面板驱动（`mydazy/esp_lcd_jd9853`，Apache-2.0），分辨率为 240x296（T201BM-C12-03），可用 `CONFIG_LCD_JD9853_XRES/YRES/XOFFSET/YOFFSET` 调整。`CONFIG_LCD_JD9853=y` 会拉起 LCD/SPI/SPI1 控制器（`CONFIG_BK7258_SPI=y`，同时选择 `SPI_CMDDATA`）；`board_app_initialize()` 在 CP NSH 下注册 `/dev/lcd0`。该驱动当前只在真机 CP UART 路径上验证过构建与链接，尚未做真机点亮验收。
+
+SPI1 控制器的波特率由 XTAL 26 MHz 分频得到：`baud = 26 MHz / (2 * clk_rate)`，因此只能取约 13/6.5/4.33 MHz 等档位。`CONFIG_LCD_JD9853_FREQUENCY` 默认 6.5 MHz（clk_rate=2）；GC9D01 默认 13 MHz。像素数据在 `jd9853_wrram()/gc9d01_wrram()` 中先按 RGB565 大端序字节交换到 2 KB 暂存区，再以 `SPI_SNDBLOCK` 分块发送，避免逐像素两次 8-bit 单发。
+
+## LVGL 图形栈（lvgldemo 与 LVGL 测试用例）
+
+defconfig 已启用 `CONFIG_EXAMPLES_LVGLDEMO=y` + `CONFIG_GRAPHICS_LVGL=y`，LVGL 通过 NuttX LCD 端口（`LV_USE_NUTTX_LCD=y`）直接使用 `/dev/lcd0`（走 `LCDDEVIO_PUTAREA`，非 framebuffer），无需 `CONFIG_LCD_FRAMEBUFFER`。内存受限，采用 `LV_NUTTX_LCD_CUSTOM_BUFFER=y`（40 行局部绘制缓冲，约 19 KB），并让 LVGL 走 C 库堆（`LV_USE_CLIB_MALLOC/STRING/SPRINTF=y`）。
+
+上电进入 NSH 后运行对应 LVGL 测试用例（对应 openvela XTS 用例 4.1.124 / 4.1.123）：
+
+```text
+nsh> lvgldemo widgets      # GUI widgets 基本功能测试
+nsh> lvgldemo stress       # GUI 压力测试
+```
+
+目前固件仅验证到构建/链接与 L1 校验通过；真机点亮、LVGL 渲染与内存占用（栈 32 KB + 绘制缓冲 19 KB + LVGL 对象）需在真机验收。若运行时堆不足，可下调 `CONFIG_LV_NUTTX_LCD_BUFFER_SIZE` 或 `CONFIG_EXAMPLES_LVGLDEMO_STACKSIZE`。
+

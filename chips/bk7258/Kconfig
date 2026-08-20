@@ -105,6 +105,16 @@ config BK7258_UART0_TXBUFSIZE
 	default 128
 	range 16 1024
 
+config BK7258_SPI
+	bool
+	default n
+	select SPI
+	help
+		Enable the BK7258 SPI controller port (bk7258_spi_hw.c board
+		lower-half).  Currently used to drive the LCD1 display FPC through
+		the SPI1 master on GPIO2/3/4/5.  Selected by the board LCD1 SPI
+		transport choice.
+
 endmenu
 
 endif

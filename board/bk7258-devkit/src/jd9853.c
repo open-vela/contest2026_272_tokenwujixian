@@ -119,6 +119,15 @@
 
 #define JD9853_LUT_SIZE    CONFIG_LCD_JD9853_YRES
 
+/* Scratch buffer used to byte-swap RGB565 pixel data (little-endian in
+ * memory, MSB-first on the wire) before a block SPI transfer.  Chunking a
+ * large putarea() through this buffer lets the SPI lower-half stream the
+ * whole RAMWR burst as a handful of SNDBLOCK calls instead of two
+ * per-pixel byte transfers.
+ */
+
+#define JD9853_SWAP_BUFSIZE  2048
+
 #if defined(CONFIG_LCD_LANDSCAPE) || defined(CONFIG_LCD_RLANDSCAPE)
 #  define JD9853_XRES       CONFIG_LCD_JD9853_YRES
 #  define JD9853_YRES       CONFIG_LCD_JD9853_XRES
@@ -179,6 +188,13 @@ struct jd9853_dev_s
   uint16_t runbuffer[JD9853_LUT_SIZE];
 };
 
+/* Working buffer for byte-swapped pixel data.  Only one panel transfer is
+ * in flight at a time (the SPI bus is locked and the LCD flush path is
+ * single-threaded), so a shared buffer is safe.
+ */
+
+static uint8_t g_jd9853_swap[JD9853_SWAP_BUFSIZE];
+
 /****************************************************************************
  * Private Function Protototypes
  ****************************************************************************/
@@ -207,6 +223,8 @@ static void jd9853_rdram(FAR struct jd9853_dev_s *dev,
                          FAR uint16_t *buff, size_t size);
 #endif
 static void jd9853_fill(FAR struct jd9853_dev_s *dev, uint16_t color);
+static void jd9853_wrswap(FAR struct spi_dev_s *spi,
+                          FAR const uint8_t *src, size_t nbytes);
 
 /* LCD Data Transfer Methods */
 
@@ -566,6 +584,38 @@ static void jd9853_bpp(FAR struct jd9853_dev_s *dev, int bpp)
 }
 
 /****************************************************************************
+ * Name: jd9853_wrswap
+ *
+ * Description:
+ *   Byte-swap a run of RGB565 pixels (low byte first in memory, MSB-first
+ *   on the wire) into the scratch buffer and transmit it as SNDBLOCK
+ *   chunks so the SPI lower-half streams the whole run in one CS-low
+ *   window.
+ *
+ ****************************************************************************/
+
+static void jd9853_wrswap(FAR struct spi_dev_s *spi,
+                          FAR const uint8_t *src, size_t nbytes)
+{
+  while (nbytes > 0)
+    {
+      size_t chunk = nbytes > JD9853_SWAP_BUFSIZE ?
+                     JD9853_SWAP_BUFSIZE : nbytes;
+      size_t j;
+
+      for (j = 0; j + 1 < chunk; j += 2)
+        {
+          g_jd9853_swap[j]     = src[j + 1];
+          g_jd9853_swap[j + 1] = src[j];
+        }
+
+      SPI_SNDBLOCK(spi, g_jd9853_swap, chunk);
+      src    += chunk;
+      nbytes -= chunk;
+    }
+}
+
+/****************************************************************************
  * Name: jd9853_wrram
  *
  * Description:
@@ -579,28 +629,20 @@ static void jd9853_wrram(FAR struct jd9853_dev_s *dev,
                          size_t count)
 {
   size_t i;
-  size_t j;
 
   jd9853_sendcmd(dev, JD9853_RAMWR);
 
   jd9853_select(dev->spi, 8);
 
   /* RGB565 pixels are stored little-endian in memory (low byte first) but
-   * the panel expects the most-significant byte first.  The bit-bang
-   * lower-half only supports 8-bit transfers, so swap each byte pair in
-   * software before transmission.  size/skip are always even for 16bpp,
-   * which keeps the pair alignment across chunk boundaries.
+   * the panel expects the most-significant byte first.  size/skip are
+   * always even for 16bpp, which keeps the swap chunk alignment across
+   * row boundaries.
    */
 
   for (i = 0; i < count; i++)
     {
-      FAR const uint8_t *src = buff + (i * (size + skip));
-
-      for (j = 0; j + 1 < size; j += 2)
-        {
-          SPI_SEND(dev->spi, src[j + 1]);
-          SPI_SEND(dev->spi, src[j]);
-        }
+      jd9853_wrswap(dev->spi, buff + (i * (size + skip)), size);
     }
 
   jd9853_deselect(dev->spi);
@@ -658,15 +700,21 @@ static void jd9853_fill(FAR struct jd9853_dev_s *dev, uint16_t color)
   jd9853_sendcmd(dev, JD9853_RAMWR);
   jd9853_select(dev->spi, 8);
 
-  /* RGB565 pixels are transmitted most-significant byte first, so a fill
-   * sends two 8-bit words per pixel.  This works with SPI controllers and
-   * with the GPIO bit-bang lower-half used on the DevKit connector.
+  /* RGB565 pixels are transmitted most-significant byte first.  Build one
+   * byte-swapped row in the scratch buffer and stream it once per row.
    */
 
-  for (i = 0; i < JD9853_XRES * JD9853_YRES; i++)
+  DEBUGASSERT(JD9853_XRES * 2 <= JD9853_SWAP_BUFSIZE);
+
+  for (i = 0; i < JD9853_XRES; i++)
     {
-      SPI_SEND(dev->spi, color >> 8);
-      SPI_SEND(dev->spi, color & 0xff);
+      g_jd9853_swap[2 * i]     = color & 0xff;
+      g_jd9853_swap[2 * i + 1] = color >> 8;
+    }
+
+  for (i = 0; i < JD9853_YRES; i++)
+    {
+      SPI_SNDBLOCK(dev->spi, g_jd9853_swap, JD9853_XRES * 2);
     }
 
   jd9853_deselect(dev->spi);

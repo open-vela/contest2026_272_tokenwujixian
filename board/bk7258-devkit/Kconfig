@@ -14,20 +14,60 @@ comment "CP/AP/RPMsg SRAM contract is defined by the BK7258 chip configuration"
 
 endif # ARCH_BOARD_BK7258_DEVKIT
 
+if LCD_JD9853 || LCD_GC9D01
+
+choice
+	prompt "LCD1 display SPI transport"
+	default BK7258_LCD1_SPI_BITBANG
+	help
+		The LCD1 display FPC ("QSPI1" net, GPIO2/3/4/5) can be driven by
+		the SoC SPI1 controller or by a GPIO bit-bang lower-half.  The
+		bit-bang path is the default: it is the only one verified to boot
+		on hardware so far.  The hardware SPI1 master is much faster but
+		its register access / pinmux is still under bring-up and will hang
+		the board if the SPI1 controller is not reachable from CPU0.
+
+config BK7258_LCD1_SPI_HW
+	bool "SoC SPI1 controller"
+	select BK7258_SPI
+	select SPI_CMDDATA
+	---help---
+		Drive the LCD1 display FPC through the SPI1 master (GPIO2=SCK,
+		GPIO4=MOSI; CS=GPIO3 and D/C=GPIO5 stay plain GPIOs).  This uses
+		the ARMINO-derived SPI1 port in src/bk7258_spi_hw.c.
+
+config BK7258_LCD1_SPI_BITBANG
+	bool "GPIO bit-bang"
+	select SPI_BITBANG
+	select SPI_CMDDATA
+	---help---
+		Fall back to the original GPIO bit-bang lower-half
+		(src/bk7258_spi_bitbang.c).  Only selected for bring-up when the
+		SPI1 controller path misbehaves.
+
+endchoice
+
+# NOTE: the two lower-halves are compiled against the *choice* symbols
+# (BK7258_LCD1_SPI_HW / BK7258_LCD1_SPI_BITBANG) rather than the selected
+# infrastructure symbols.  Kconfig choices can leave a stale "select" from
+# the previously chosen member in .config; guarding on the choice symbol
+# keeps exactly one bk7258_spi_initialize() in the link even in that state.
+
+endif # LCD_JD9853 || LCD_GC9D01
+
 menuconfig LCD_JD9853
 	bool "JD9853 SPI LCD panel"
 	default n
 	select LCD
 	select SPI
-	select SPI_BITBANG
-	select SPI_CMDDATA
 	---help---
 		Enable the JD9853 (Jadard) 4-wire SPI TFT LCD lower-half driver on
-		the DevKit display FPC.  The SCL/SDA/D/C/CS lines are bit-banged
-		through the QSPI1 GPIO pins and the backlight is driven by GPIO25.
-		Register /dev/lcd0 (CONFIG_LCD_DEV) or /dev/fb0
-		(CONFIG_LCD_FRAMEBUFFER) in board_app_initialize() to expose the
-		display to applications.
+		the DevKit display FPC.  The SCL/SDA/D/C/CS lines are driven
+		through the SPI transport selected by the "LCD1 display SPI
+		transport" choice (hardware SPI1 by default) and the backlight is
+		driven by GPIO25.  Register /dev/lcd0 (CONFIG_LCD_DEV) or
+		/dev/fb0 (CONFIG_LCD_FRAMEBUFFER) in board_app_initialize() to
+		expose the display to applications.
 
 if LCD_JD9853
 
@@ -40,10 +80,13 @@ config LCD_JD9853_SPIMODE
 
 config LCD_JD9853_FREQUENCY
 	int "JD9853 SPI frequency (Hz)"
-	default 1000000
+	default 6500000
 	---help---
-		SPI clock frequency requested for the JD9853 display.  The actual
-		rate of the GPIO bit-bang interface is approximate.
+		SPI clock frequency requested for the JD9853 display.  The SPI1
+		controller derives the actual rate as 26 MHz / (2 * clk_rate), so
+		only ~13/6.5/4.33 MHz steps are reachable on the XTAL source.
+		6.5 MHz (clk_rate=2) is the conservative default; raise to
+		13000000 (clk_rate=1) if the panel accepts the faster clock.
 
 config LCD_JD9853_XRES
 	int "JD9853 horizontal resolution"
@@ -103,12 +146,11 @@ menuconfig LCD_GC9D01
 	default n
 	select LCD
 	select SPI
-	select SPI_BITBANG
-	select SPI_CMDDATA
 	---help---
 		Enable the GC9D01 4-wire SPI TFT LCD lower-half driver for the
 		DevKit's two round 0.71" 160x160 panels.  The SCL/SDA/D/C/CS
-		lines are bit-banged through the QSPI1 GPIO pins and the
+		lines are driven through the SPI transport selected by the "LCD1
+		display SPI transport" choice (hardware SPI1 by default) and the
 		backlight is driven by GPIO25.  Register /dev/lcd0
 		(CONFIG_LCD_DEV) or /dev/fb0 (CONFIG_LCD_FRAMEBUFFER) in
 		board_app_initialize() to expose the display to applications.
@@ -124,9 +166,12 @@ config LCD_GC9D01_SPIMODE
 
 config LCD_GC9D01_FREQUENCY
 	int "GC9D01 SPI frequency (Hz)"
-	default 1000000
+	default 13000000
 	---help---
-		SPI clock frequency requested for the GC9D01 display.
+		SPI clock frequency requested for the GC9D01 display.  The SPI1
+		controller derives the actual rate as 26 MHz / (2 * clk_rate), so
+		only ~13/6.5/4.33 MHz steps are reachable on the XTAL source.
+		13 MHz (clk_rate=1) is the default for the round panels.
 
 config LCD_GC9D01_XRES
 	int "GC9D01 horizontal resolution"

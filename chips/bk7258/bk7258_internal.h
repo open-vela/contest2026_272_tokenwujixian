@@ -24,6 +24,7 @@ void bk7258_gpio_config_output(unsigned int pin);
 void bk7258_gpio_config_input(unsigned int pin);
 void bk7258_gpio_write(unsigned int pin, bool high);
 bool bk7258_gpio_read(unsigned int pin);
+void bk7258_gpio_periph(unsigned int pin, unsigned int func);
 
 /* Board display SPI bit-bang lower-half (bk7258_spi_bitbang.c). */
 

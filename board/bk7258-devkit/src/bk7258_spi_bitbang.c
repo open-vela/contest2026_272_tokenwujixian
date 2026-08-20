@@ -37,7 +37,7 @@
 #include "bk7258_internal.h"
 #include "board.h"
 
-#ifdef CONFIG_SPI_BITBANG
+#if defined(CONFIG_SPI_BITBANG) && defined(CONFIG_BK7258_LCD1_SPI_BITBANG)
 
 /* The DevKit display FPC provides no MISO line, so the RX path always
  * reads back zero.
@@ -175,4 +175,4 @@ FAR struct spi_dev_s *bk7258_spi_initialize(void)
   return spi_create_bitbang(&g_spiops, NULL);
 }
 
-#endif /* CONFIG_SPI_BITBANG */
+#endif /* CONFIG_SPI_BITBANG && CONFIG_BK7258_LCD1_SPI_BITBANG */
