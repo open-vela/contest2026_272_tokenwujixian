@@ -145,6 +145,11 @@ is not equivalent evidence.
 
 ## 3. Package and independently decode
 
+The default flow builds and packages the real CP plus OpenVela AP AMP image.
+The bundled AP placeholder is recovery-only and must be selected explicitly
+with `--placeholder`; it is expected to fail CPU1 AP release validation at
+runtime.
+
 For the repository-bundled recovery package, the project wrapper is the
 preferred path:
 
@@ -152,9 +157,9 @@ preferred path:
 <worktree>/board/bk7258-devkit/tools/bk7258-package.sh
 ```
 
-It reads the CP output above, uses the bundled AP placeholder, writes
-`cmake_out/bk7258-l2-bundled`, and runs the independent decoder. The wrapper
-must print `decode       pass` before an image is considered valid.
+It reads the CP/AP outputs, selects the real OpenVela AP profile, and runs the
+independent decoder. The wrapper must print `decode       pass` before an image
+is considered valid.
 
 The default package slot intentionally replaces its previous package after the
 new CP/AP build and L1 validation pass. `all-app.bin`, `manifest.json`, and
@@ -162,13 +167,7 @@ new CP/AP build and L1 validation pass. `all-app.bin`, `manifest.json`, and
 Copy that trio elsewhere explicitly when a run must be preserved as historical
 hardware evidence.
 
-For an OpenVela AP package, build both components and select the AP image:
-
-```bash
-<worktree>/board/bk7258-devkit/tools/bk7258-package.sh --openvela-ap
-```
-
-The package wrapper validates L1 reports, invokes the bundled container packer,
+The package wrapper validates both L1 reports, invokes the container packer,
 and independently decodes the final linear-CRC image. Do not flash `app.bin`
 or `app1.bin` directly.
 

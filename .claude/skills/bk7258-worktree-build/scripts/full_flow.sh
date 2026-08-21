@@ -13,7 +13,7 @@ options:
   --jobs N             build parallelism (default: 12)
   --slot NAME          stable incremental build/package slot name
   --fresh              rebuild this worktree's bound build slot
-  --openvela-ap        build/package CP plus OpenVela AP
+  --placeholder        use bundled AP recovery placeholder
   --flash              flash the verified all-app.bin (destructive)
   --device PATH        serial device (default: /dev/ttyUSB0)
   --port N             bk_loader port number (default: 0)
@@ -26,7 +26,7 @@ WORKTREE=""
 JOBS=12
 SLOT=""
 FRESH=0
-OPENVELA_AP=0
+OPENVELA_AP=1
 FLASH=0
 DEVICE=/dev/ttyUSB0
 PORT=0
@@ -39,7 +39,7 @@ while [[ $# -gt 0 ]]; do
     --jobs) JOBS="$2"; shift 2 ;;
     --slot) SLOT="$2"; shift 2 ;;
     --fresh) FRESH=1; shift ;;
-    --openvela-ap) OPENVELA_AP=1; shift ;;
+    --placeholder) OPENVELA_AP=0; shift ;;
     --flash) FLASH=1; shift ;;
     --device) DEVICE="$2"; shift 2 ;;
     --port) PORT="$2"; shift 2 ;;
