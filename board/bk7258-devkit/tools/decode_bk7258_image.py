@@ -290,7 +290,7 @@ def main() -> int:
 
         report = {
             "image": {
-                "path": str(args.image),
+                "path": str(args.image.resolve()),
                 "length_bytes": len(image),
                 "sha256": sha256_file(args.image),
             },

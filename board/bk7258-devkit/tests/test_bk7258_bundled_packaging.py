@@ -336,6 +336,46 @@ def decode(output_dir: Path, cp_bin: Path, ap_bin: Path) -> None:
     )
 
 
+def check_decoder_report_path_stability(output_dir: Path, temp: Path) -> None:
+    """Relative and absolute inputs must produce the same evidence report."""
+    relative_report = temp / "decode-relative.json"
+    absolute_report = temp / "decode-absolute.json"
+    relative_dir = output_dir.relative_to(temp)
+    base = [sys.executable, str(TOOLS_DIR / "decode_bk7258_image.py")]
+
+    relative = subprocess.run(
+        base
+        + [
+            "--image",
+            str(relative_dir / "all-app.bin"),
+            "--manifest",
+            str(relative_dir / "manifest.json"),
+            "--report",
+            str(relative_report),
+        ],
+        cwd=temp,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if relative.returncode != 0:
+        fail(f"relative-path decoder failed:\n{relative.stdout}\n{relative.stderr}")
+
+    run(
+        base
+        + [
+            "--image",
+            str((output_dir / "all-app.bin").resolve()),
+            "--manifest",
+            str((output_dir / "manifest.json").resolve()),
+            "--report",
+            str(absolute_report),
+        ]
+    )
+    if relative_report.read_bytes() != absolute_report.read_bytes():
+        fail("relative and absolute decoder inputs produced different reports")
+
+
 def main() -> int:
     args = parse_args()
     try:
@@ -366,6 +406,7 @@ def main() -> int:
             first_dir = temp / "first"
             manifest = package(profile_path, cp_fixture, first_dir)
             decode(first_dir, cp_fixture, ap_bin)
+            check_decoder_report_path_stability(first_dir, temp)
 
             staged = profile["bundled_inputs"]["staged_bootloader"]
             if manifest["components"]["bootloader"]["sha256"] != staged["sha256"]:
