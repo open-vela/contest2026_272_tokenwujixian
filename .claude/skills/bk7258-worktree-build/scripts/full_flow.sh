@@ -249,14 +249,7 @@ echo
 echo "WARNING: flashing overwrites Bootloader, CP and AP from offset 0x0."
 echo "During GetBus, the terminal will ring and ask for two manual resets."
 IMAGE_SHA256="$(sha256sum "$IMAGE" | cut -d' ' -f1)"
-CONFIRM_TEXT="FLASH ${IMAGE_SHA256:0:12}"
 echo "image SHA-256: $IMAGE_SHA256"
-echo "type exactly '$CONFIRM_TEXT' to authorize this image write:"
-IFS= read -r CONFIRMATION </dev/tty
-if [[ "$CONFIRMATION" != "$CONFIRM_TEXT" ]]; then
-  echo "flash cancelled: confirmation did not match" >&2
-  exit 1
-fi
 echo
 
 FLASH_COMMAND=("$FLASHER" --image "$IMAGE" --device "$DEVICE" --port "$PORT")

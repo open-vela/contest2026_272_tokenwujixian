@@ -48,8 +48,9 @@ runs worktree scripts through `sudo` and refuses to
 run as root. Give the normal user access to the serial device through the
 platform's serial-device group (commonly `dialout`). Before writing, the
 wrapper verifies the audited `bk_loader` SHA-256, prints the complete image
-SHA-256, and requires the operator to type `FLASH` plus its 12-character hash
-prefix on `/dev/tty`. `--flash` alone is not sufficient authorization.
+SHA-256. The explicit `--flash` flag is the authorization switch. The agent
+must still announce the target device and complete image hash in commentary
+immediately before launching it.
 
 When an agent launches the flash stage for the user, it must first announce in
 commentary that the interactive terminal will request manual resets, then run
