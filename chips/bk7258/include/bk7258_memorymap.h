@@ -61,6 +61,7 @@
 #define BK7258_SYS_BASE          UINT32_C(0x44010000)
 #define BK7258_AON_GPIO_BASE     UINT32_C(0x44000400)
 #define BK7258_UART0_BASE        UINT32_C(0x44820000)
+#define BK7258_TIMER0_BASE       UINT32_C(0x44810000)
 
 #define BK7258_SYS_CLKDIV1       (BK7258_SYS_BASE + UINT32_C(0x20))
 #define BK7258_SYS_DEV_CLK_EN    (BK7258_SYS_BASE + UINT32_C(0x30))
@@ -95,6 +96,23 @@
 #define BK7258_SYS_UART0_CLK_EN   (UINT32_C(1) << 2)
 #define BK7258_SYS_UART0_XTAL     (UINT32_C(1) << 10)
 #define BK7258_SYS_UART0_INT_EN   (UINT32_C(1) << 4)
+#define BK7258_SYS_TIMER0_CLK_EN  (UINT32_C(1) << 4)
+#define BK7258_SYS_TIMER0_XTAL   (UINT32_C(1) << 20)
+#define BK7258_SYS_MAC_CKEN       (UINT32_C(1) << 26)
+#define BK7258_SYS_PHY_CKEN       (UINT32_C(1) << 27)
+#define BK7258_SYS_WIFI_MAC_POWERDOWN (UINT32_C(1) << 9)
+#define BK7258_SYS_WIFI_PHY_POWERDOWN (UINT32_C(1) << 10)
+
+#define BK7258_TIMER0_GLOBAL_CTRL  (BK7258_TIMER0_BASE + UINT32_C(0x08))
+#define BK7258_TIMER0_COUNT0       (BK7258_TIMER0_BASE + UINT32_C(0x10))
+#define BK7258_TIMER0_CTRL         (BK7258_TIMER0_BASE + UINT32_C(0x1c))
+#define BK7258_TIMER0_ENABLE       (UINT32_C(1) << 0)
+#define BK7258_TIMER0_INT_ENABLE   (UINT32_C(1) << 7)
+
+/* ICU group 0/1 enable masks.  ICU 37 shares the group-1 bit with HSU in
+ * Armino's register contract and is intentionally represented by one mask. */
+#define BK7258_SYS_IRQ_GROUP0(source) (UINT32_C(1) << (source))
+#define BK7258_SYS_IRQ_GROUP1(source) (UINT32_C(1) << ((source) - 32))
 #define BK7258_SYS_CPU0_SYSTICK_32K (UINT32_C(1) << 29)
 #define BK7258_SYS_CPU1_SYSTICK_32K (UINT32_C(1) << 30)
 #define BK7258_SYS_SHARE_MEM_CLKGATING_DISABLE (UINT32_C(1) << 28)

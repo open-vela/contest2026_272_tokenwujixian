@@ -4,11 +4,18 @@
 
 #include <nuttx/config.h>
 
+#include <errno.h>
 #include <stdint.h>
+
+#include <nuttx/spinlock.h>
+#include <syslog.h>
 
 #include "arm_internal.h"
 #include "bk7258_internal.h"
+#include "include/bk7258_gpio.h"
 #include "include/bk7258_memorymap.h"
+
+#define BK7258_GPIO_COUNT 56
 
 static void bk7258_gpio_uart0(unsigned int pin)
 {
@@ -175,4 +182,44 @@ void bk7258_gpio_write(unsigned int pin, bool high)
 bool bk7258_gpio_read(unsigned int pin)
 {
   return (getreg32(BK7258_GPIO_CFG(pin)) & BK7258_GPIO_CFG_DATA) != 0;
+}
+
+static int bk7258_gpio_wifi_mux(unsigned int pin)
+{
+  irqstate_t flags;
+  uintptr_t reg;
+  uint32_t mask;
+  int ret;
+
+  if (pin >= BK7258_GPIO_COUNT)
+    {
+      return -EINVAL;
+    }
+
+  reg = BK7258_SYS_GPIO_FUNC(pin);
+  mask = BK7258_GPIO_FUNC_MASK(pin);
+
+  /* GPIO26/TXEN and GPIO28/RXEN are both function slot 0 in Armino's
+   * gpio_map.h. Configure selector and pad ownership as one operation. */
+
+  flags = enter_critical_section();
+  bk7258_gpio_periph(pin, 0);
+  ret = (getreg32(reg) & mask) == 0 &&
+        (getreg32(BK7258_GPIO_CFG(pin)) &
+         BK7258_GPIO_CFG_SECOND_FUNC) != 0 ? OK : -EIO;
+  leave_critical_section(flags);
+  syslog(LOG_INFO, "[BK7258] GPIO mux pin=%u func=0 ret=%d cfg=0x%08lx sel=0x%08lx\n",
+         pin, ret, (unsigned long)getreg32(BK7258_GPIO_CFG(pin)),
+         (unsigned long)getreg32(reg));
+  return ret;
+}
+
+int bk7258_gpio_wifi_txen(void)
+{
+  return bk7258_gpio_wifi_mux(26);
+}
+
+int bk7258_gpio_wifi_rxen(void)
+{
+  return bk7258_gpio_wifi_mux(28);
 }

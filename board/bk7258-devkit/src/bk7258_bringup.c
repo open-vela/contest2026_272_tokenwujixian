@@ -16,6 +16,7 @@
 
 #include <arch/chip/bk7258_ap_boot.h>
 #include <arch/chip/bk7258_memorymap.h>
+#include <arch/chip/bk7258_timer.h>
 #include <arch/board/board.h>
 
 #ifdef CONFIG_RPTUN
@@ -66,6 +67,20 @@ void board_late_initialize(void)
    * only after their pinmux and hardware contracts are verified. */
 
 #ifdef CONFIG_BK7258_COMPONENT_CP
+#ifdef CONFIG_BK7258_TIMER0
+  {
+    int timer_ret = bk7258_timer_initialize();
+    if (timer_ret < 0)
+      {
+        syslog(LOG_ERR, "[BK7258] Timer0 lower-half init failed: %d\n",
+               timer_ret);
+      }
+    else
+      {
+        syslog(LOG_INFO, "[BK7258] Timer0 lower-half registered\n");
+      }
+  }
+#endif
 #ifdef CONFIG_RPTUN
   int ret = bk7258_rptun_initialize();
   if (ret < 0)
