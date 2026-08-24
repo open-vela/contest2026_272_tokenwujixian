@@ -1,0 +1,6 @@
+config LVX_USE_DEMO_CONTEST2026_272_BK7258_PLATFORM_TEST
+  bool "BK7258 platform API test"
+  default n
+  ---help---
+    Enable the manually-invoked BK7258 platform clock, power, IRQ and
+    TXEN/RXEN mux readback test.
