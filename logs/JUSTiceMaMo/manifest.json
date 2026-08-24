@@ -41,6 +41,17 @@
       "collection_mode": "cli",
       "health": "ok",
       "model": "glm-5.2"
+    },
+    {
+      "session_id": "01a01dce-eff3-7912-94b9-0ec0ba4eb0e9",
+      "tool": "codex",
+      "started_at": "2026-08-20T06:15:04.426Z",
+      "last_event_at": "2026-08-24T02:17:54.306Z",
+      "event_count": 1024,
+      "file_path": "logs/JUSTiceMaMo/2026-08-20/codex__01a01dce-eff3-7912-94b9-0ec0ba4eb0e9.jsonl",
+      "collection_mode": "manual-rollout-import",
+      "health": "ok",
+      "model": "claude-opus-4.7"
     }
   ]
 }
