@@ -1019,3 +1019,27 @@ scheduler、Mailbox IRQ、RPMsg 和 SMP 均暂不启用。
 - [V02] 飞书 Wiki《核间通讯框架》，node token
   `Tq2jwu1U2iYwJlk8UQ3cUkhdnYY`，revision 4，“Rpmsg Physical Layer”与
   “Rpmsg Transport Layer”
+
+## 10. A3 实现状态
+
+§6.4 描述的 A3（AP 内 CPU1+CPU2 NuttX SMP）已在团队仓库落地为可构建实现，
+CP↔AP 仍保持 AMP：
+
+- `chips/bk7258/bk7258_smp.c`：`up_cpu_idlestack` / `up_cpu_start` /
+  `up_send_smp_sched` / `up_send_smp_call` / 每核 interrupt stack /
+  `up_get_intstackbase`，以及物理 CPU2 次核启动入口和 `_vectors_core1`
+  次核向量表；
+- `chips/bk7258/bk7258_cpuindex.c`：`up_cpu_index()` 用 MSP 与 link-time
+  常量（每核 intstack top / CPU2 boot stack top）区分逻辑核，无共享可变全局；
+- `chips/bk7258/bk7258_mailbox.c`：Mailbox 本地 channel 改为跟随运行核，
+  ISR 按 `BK7258_MBOX_SMP_MAGIC` 在 RPTUN doorbell 与 AP SMP IPI 之间 demux；
+- `board/bk7258-devkit/scripts/flash_ap.ld`：新增 `.vectors_core1`（512 对齐）
+  与 CPU2 boot stack；`configs/ap/defconfig` 启用 `CONFIG_SMP=y`/
+  `CONFIG_SMP_NCPUS=2`；
+- `configs/ap/README.md` §A3 记录了移植细节与硬件验证边界。
+
+本仓库的 ELF/raw L1 validator 已验证镜像存在 `_vectors_core1`、`up_cpu_start`
+等符号，`app1.bin` 与 ELF PT_LOAD 一致。**硬件寄存器（`SYS_CPU2_CTRL`
+0x44010018、`SYS_CPU2_INT_EN_HI` 0x44010094、CPU2 状态位）按 CPU1 既有位域
+外推，尚未经 BK7258 TRM 交叉核对；真机运行前必须按 README §A3 的说明记录
+寄存器回读与 CPU2 heartbeat，才构成 A3 验收。**

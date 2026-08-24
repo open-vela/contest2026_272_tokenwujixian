@@ -7,6 +7,14 @@ include armv8-m/Make.defs
 CHIP_CSRCS += bk7258_irq.c bk7258_allocateheap.c bk7258_timer.c
 CHIP_CSRCS += bk7258_ap_boot.c bk7258_gpio.c
 
+ifeq ($(CONFIG_ARCH_HAVE_MULTICPU),y)
+CHIP_CSRCS += bk7258_cpuindex.c
+endif
+
+ifeq ($(CONFIG_SMP),y)
+CHIP_CSRCS += bk7258_smp.c
+endif
+
 ifeq ($(CONFIG_BK7258_MAILBOX),y)
 CHIP_CSRCS += bk7258_mailbox.c
 endif

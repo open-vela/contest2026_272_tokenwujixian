@@ -1,8 +1,9 @@
 # BK7258 DevKit OpenVela AP MVP
 
-`configs/ap/defconfig` builds the single-core OpenVela AP component for physical
-CPU1. It has no physical UART and keeps CPU2 in reset, but exposes its standard
-NSH console through RPMsg UART to CP.
+`configs/ap/defconfig` builds the dual-core OpenVela AP component: one NuttX
+SMP image that runs physical CPU1 (logical CPU0) and physical CPU2 (logical
+CPU1). It has no physical UART and keeps its standard NSH console behind the
+RPMsg UART to CP.
 
 The frozen MVP contract is:
 
@@ -10,7 +11,8 @@ The frozen MVP contract is:
 - all-OpenVela AP RAM `0x28010000..0x28064000` (336 KiB);
 - RPMsg shared memory is permanently reserved at
   `0x28064000..0x2806ec00` (43 KiB), even before RPTUN is enabled;
-- physical CPU1 only; CPU2 remains in reset and `CONFIG_SMP=n`;
+- AP-internal SMP: physical CPU1 + CPU2 run one NuttX kernel with
+  `CONFIG_SMP=y` and `CONFIG_SMP_NCPUS=2`; CP↔AP remains AMP;
 - UART0 remains owned by CP;
 - SWAP `0x2809f800..0x280a0000` carries a versioned 64-byte record;
 - reset handler writes `RESET_ENTERED`; board late initialization writes
@@ -47,6 +49,59 @@ Armino's CP-console-plus-`ap_cmd` model, the hardware-Mailbox versus
 software-managed-shared-memory split, the Mailbox adaptation scope required by
 RPTUN, and the `CONFIG_RPMSG_UART` constraints and failure modes. Its evidence
 index is [`sources.tsv`](sources.tsv).
+
+## A3 AP-internal dual-core SMP
+
+A3 brings physical CPU2 online as the second AP NuttX logical CPU while CP↔AP
+stays AMP. The mapping is fixed as:
+
+```text
+AP NuttX logical CPU0 -> BK7258 physical CPU1
+AP NuttX logical CPU1 -> BK7258 physical CPU2
+```
+
+The chip port provides the SoC side of NuttX SMP:
+
+- `up_cpu_index()` maps the running core to a NuttX logical index. BK7258 has
+  no readable hardware core-id register, so the core is identified by its
+  private stack pointer: after `arm_initialize_stack()` the main stack pointer
+  is pinned to the per-CPU interrupt stack, and on the reset path it equals the
+  dedicated CPU2 boot stack. Both are link-time constants, so the mapping is
+  stable from the very first C call on each core and needs no shared mutable
+  state.
+- `up_cpu_idlestack()` allocates the CPU1 idle task stack from the AP heap.
+- `up_cpu_start(1)` releases physical CPU2 at the in-image `_vectors_core1`
+  table (512-byte aligned, AP XIP), using the same CPU1 lifecycle register
+  order, then handshakes on a boot spinlock.
+- `up_send_smp_sched()` / `up_send_smp_call()` drive the SMP IPI through the
+  same hardware Mailbox that RPTUN uses as a doorbell. The Mailbox ISR demuxes
+  by message type: `BK7258_MBOX_SMP_MAGIC` goes to the SMP handler, everything
+  else to RPTUN. A shared per-direction pending latch lets kicks coalesce
+  without ever dropping a wakeup.
+- per-CPU interrupt stacks and `up_get_intstackbase()` replace the single-core
+  `g_intstackalloc` when `CONFIG_SMP` is enabled.
+
+Secondary-core startup (`bk7258_cpu2_boot`) reuses the primary NVIC exception
+setup (`up_irqinitialize()`), enables the Mailbox line on its own NVIC, and
+hands off to `nx_idle_trampoline()`. The single system tick is provided by
+CPU1's SysTick, so CPU2 needs no timer of its own.
+
+**Hardware-validated register note.** The AP SMP lifecycle reuses the
+established CPU1 control bit layout for `SYS_CPU2_CTRL` (`0x44010018`) and the
+per-state CPU2 status bits in `SYS_CPU_STATUS`, and enables the Mailbox IRQ
+via `SYS_CPU2_INT_EN_HI`. These offsets follow the SoC register stride but
+have not yet been cross-checked against the BK7258 TRM; the release path fails
+closed (returns an error and leaves CPU2 in reset) if the programmed control
+bits do not read back, and `up_cpu_start(1)` times out with diagnostics if the
+boot handshake is not reached. Record the register readback and the CPU2
+heartbeat on real hardware before treating A3 as passed.
+
+The board exposes per-core state through the existing `bk7258_ap status`
+record path (heartbeat still proves the whole AP SMP kernel is alive). A3
+completeness is hardware-pass only when both idle tasks run, per-CPU state
+shows logical CPU0/CPU1 online, pinned test threads count up on each AP CPU,
+IPI/smp-call/spinlock paths hold under load, and the CP↔AP RPMsg path survives
+AP SMP traffic. The AP still exposes exactly one NSH.
 
 ## A2-2 RPMsg UART over Mailbox IRQ
 

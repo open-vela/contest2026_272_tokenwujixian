@@ -16,10 +16,12 @@ config BK7258_COMPONENT_CP
 		OpenVela CP component. It owns UART0 and releases physical CPU1.
 
 config BK7258_COMPONENT_AP
-	bool "AP / physical CPU1 component"
+	bool "AP / physical CPU1+CPU2 component"
 	help
-		Single-core OpenVela AP MVP. It has no physical console and reports
-		reset, scheduler progress and heartbeat through SWAP.
+		Dual-core OpenVela AP SMP image. It has no physical console and reports
+		reset, scheduler progress and heartbeat through SWAP.  With
+		CONFIG_SMP=y, physical CPU1 and CPU2 run one NuttX SMP kernel; without
+		it, the image degrades to the single-core CPU1 MVP.
 
 endchoice
 
@@ -51,6 +53,7 @@ config ARCH_CHIP_BK7258
 	default y
 	select ARCH_CORTEXM33
 	select ARCH_HAVE_TRUSTZONE
+	select ARCH_HAVE_MULTICPU
 	select ARMV8M_HAVE_DCACHE
 	select ARMV8M_HAVE_ICACHE
 	select ARM_SYSTICK
@@ -59,7 +62,11 @@ config ARCH_CHIP_BK7258
 	select OTHER_UART_SERIALDRIVER if BK7258_COMPONENT_CP
 	help
 			Secure BK7258 CP/AP support for the locked DevKit profile. CP owns
-			UART0; the first AP image runs on physical CPU1 without a UART.
+			UART0; the AP component is a dual-core NuttX SMP image on physical
+			CPU1 (logical0) and CPU2 (logical1).  CP and the AP SMP domain stay
+			separate AMP images.  ARCH_HAVE_MULTICPU is selected because the SoC
+			exposes three physical cores; the AP defconfig additionally enables
+			CONFIG_SMP, while the CP defconfig remains single-core.
 
 config BK7258_SYSTICK_CLOCK_HZ
 	int "Secure SysTick clock frequency"

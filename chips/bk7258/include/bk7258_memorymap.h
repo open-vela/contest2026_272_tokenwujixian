@@ -80,8 +80,12 @@
 #define BK7258_SYS_GPIO_FUNC0    (BK7258_SYS_BASE + UINT32_C(0x0c0))
 #define BK7258_SYS_CPU0_INT_EN   (BK7258_SYS_BASE + UINT32_C(0x080))
 #define BK7258_SYS_CPU0_INT_EN_HI (BK7258_SYS_BASE + UINT32_C(0x084))
+#define BK7258_SYS_CPU1_INT_EN   (BK7258_SYS_BASE + UINT32_C(0x088))
 #define BK7258_SYS_CPU1_INT_EN_HI (BK7258_SYS_BASE + UINT32_C(0x08c))
+#define BK7258_SYS_CPU2_INT_EN   (BK7258_SYS_BASE + UINT32_C(0x090))
+#define BK7258_SYS_CPU2_INT_EN_HI (BK7258_SYS_BASE + UINT32_C(0x094))
 #define BK7258_SYS_CPU1_CTRL     (BK7258_SYS_BASE + UINT32_C(0x014))
+#define BK7258_SYS_CPU2_CTRL     (BK7258_SYS_BASE + UINT32_C(0x018))
 #define BK7258_SYS_CPU_STATUS    (BK7258_SYS_BASE + UINT32_C(0x00c))
 #define BK7258_MBOX0_BASE        UINT32_C(0x41000000)
 #define BK7258_GDMA0_BASE        UINT32_C(0x45020000)
@@ -168,6 +172,21 @@
 #define BK7258_SYS_CPU1_HALTED_STATE  (UINT32_C(1) << 1)
 #define BK7258_SYS_CPU1_RESET_STATE   (UINT32_C(1) << 5)
 #define BK7258_SYS_CPU1_PWR_DW_STATE  (UINT32_C(1) << 9)
+
+/* Physical CPU2 (AP SMP secondary core) uses the same SYS_CPUx_CTRL bit
+ * layout as CPU1.  SYS_CPU_STATUS groups one state per four bits with one
+ * field per physical core: halted/reset/power-down occupy bits 0-2, 4-6 and
+ * 8-10 respectively, so CPU2 shifts each CPU1 bit by one.
+ */
+
+#define BK7258_SYS_CPU2_RESET_RELEASE (UINT32_C(1) << 0)
+#define BK7258_SYS_CPU2_POWER_DOWN    (UINT32_C(1) << 1)
+#define BK7258_SYS_CPU2_HALT          (UINT32_C(1) << 3)
+#define BK7258_SYS_CPU2_RXEVT_SEL     (UINT32_C(1) << 5)
+#define BK7258_SYS_CPU2_OFFSET_MASK   UINT32_C(0xffffff00)
+#define BK7258_SYS_CPU2_HALTED_STATE  (UINT32_C(1) << 2)
+#define BK7258_SYS_CPU2_RESET_STATE   (UINT32_C(1) << 6)
+#define BK7258_SYS_CPU2_PWR_DW_STATE  (UINT32_C(1) << 10)
 
 #define BK7258_GPIO11             11
 

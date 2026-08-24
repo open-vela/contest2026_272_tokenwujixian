@@ -7,6 +7,14 @@ set(SRCS
     bk7258_ap_boot.c
     bk7258_gpio.c)
 
+if(CONFIG_ARCH_HAVE_MULTICPU)
+  list(APPEND SRCS bk7258_cpuindex.c)
+endif()
+
+if(CONFIG_SMP)
+  list(APPEND SRCS bk7258_smp.c)
+endif()
+
 if(CONFIG_BK7258_MAILBOX)
   list(APPEND SRCS bk7258_mailbox.c)
 endif()

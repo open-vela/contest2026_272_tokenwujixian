@@ -61,13 +61,25 @@ static const struct bk7258_mbox_fifo_s g_bk7258_mbox_fifo[] =
 static spinlock_t g_bk7258_mbox_lock = SP_UNLOCKED;
 static bk7258_mbox_callback_t g_bk7258_mbox_callback;
 static void *g_bk7258_mbox_callback_arg;
+static bk7258_mbox_callback_t g_bk7258_mbox_ipi_callback;
+static void *g_bk7258_mbox_ipi_callback_arg;
 static bool g_bk7258_mbox_initialized;
+static uint32_t g_bk7258_mbox_smp_pending;
 
+/* The BK7258 has three physical cores: CP owns CPU0 and the AP component owns
+ * CPU1 (logical0) plus CPU2 (logical1).  Each core drains the FIFO channel
+ * that carries messages addressed to it, so the local channel index must
+ * follow the running physical core, not a compile-time constant.
+ */
+
+static inline unsigned int bk7258_mbox_local_cpu(void)
+{
 #ifdef CONFIG_BK7258_COMPONENT_CP
-#  define BK7258_MBOX_LOCAL_CPU 0
+  return 0;
 #else
-#  define BK7258_MBOX_LOCAL_CPU 1
+  return (unsigned int)(up_cpu_index() + 1);
 #endif
+}
 
 static void bk7258_mbox_route_irq(void)
 {
@@ -75,12 +87,15 @@ static void bk7258_mbox_route_irq(void)
   modifyreg32(BK7258_SYS_CPU0_INT_EN_HI, 0, BK7258_SYS_MAILBOX_INT_EN);
 #else
   modifyreg32(BK7258_SYS_CPU1_INT_EN_HI, 0, BK7258_SYS_MAILBOX_INT_EN);
+#  ifdef CONFIG_SMP
+  modifyreg32(BK7258_SYS_CPU2_INT_EN_HI, 0, BK7258_SYS_MAILBOX_INT_EN);
+#  endif
 #endif
 }
 
 static void bk7258_mbox_drain(bool dispatch)
 {
-  unsigned int channel = BK7258_MBOX_LOCAL_CPU;
+  unsigned int channel = bk7258_mbox_local_cpu();
 
   while ((getreg32(BK7258_MBOX_CH_FSTAT(channel)) &
           BK7258_MBOX_FIFO_EMPTY) == 0)
@@ -89,7 +104,22 @@ static void bk7258_mbox_drain(bool dispatch)
       uint32_t data0 = getreg32(BK7258_MBOX_CH_RDATA0(channel));
       uint32_t data1 = getreg32(BK7258_MBOX_CH_RDATA1(channel));
 
-      if (dispatch && g_bk7258_mbox_callback != NULL)
+      if (!dispatch)
+        {
+          continue;
+        }
+
+      if (data1 == BK7258_MBOX_SMP_MAGIC &&
+          g_bk7258_mbox_ipi_callback != NULL)
+        {
+          /* AP SMP IPI. The RPTUN doorbell and the AP-internal SMP IPI share
+           * one Mailbox IRQ, so the ISR demuxes by message type. */
+
+          g_bk7258_mbox_smp_pending &= ~(UINT32_C(1) << channel);
+          g_bk7258_mbox_ipi_callback(src, data0, data1,
+                                     g_bk7258_mbox_ipi_callback_arg);
+        }
+      else if (g_bk7258_mbox_callback != NULL)
         {
           g_bk7258_mbox_callback(src, data0, data1,
                                  g_bk7258_mbox_callback_arg);
@@ -106,7 +136,7 @@ static int bk7258_mbox_interrupt(int irq, void *context, void *arg)
   (void)context;
   (void)arg;
 
-  if ((status & (UINT32_C(1) << BK7258_MBOX_LOCAL_CPU)) != 0)
+  if ((status & (UINT32_C(1) << bk7258_mbox_local_cpu())) != 0)
     {
       bk7258_mbox_drain(true);
     }
@@ -124,9 +154,19 @@ int bk7258_mbox_attach(bk7258_mbox_callback_t callback, void *arg)
   return 0;
 }
 
+int bk7258_mbox_attach_ipi(bk7258_mbox_callback_t callback, void *arg)
+{
+  irqstate_t flags = spin_lock_irqsave(&g_bk7258_mbox_lock);
+
+  g_bk7258_mbox_ipi_callback = callback;
+  g_bk7258_mbox_ipi_callback_arg = arg;
+  spin_unlock_irqrestore(&g_bk7258_mbox_lock, flags);
+  return 0;
+}
+
 int bk7258_mbox_init(bool global_owner)
 {
-  unsigned int channel = BK7258_MBOX_LOCAL_CPU;
+  unsigned int channel = bk7258_mbox_local_cpu();
   int ret;
 
   if (g_bk7258_mbox_initialized)
@@ -149,11 +189,25 @@ int bk7258_mbox_init(bool global_owner)
                    BK7258_MBOX_CH_CTRL(channel));
         }
 
-      channel = BK7258_MBOX_LOCAL_CPU;
+      channel = bk7258_mbox_local_cpu();
     }
+
+  /* The AP component owns both physical CPU1 and CPU2.  Enable the FIFO
+   * channel IRQ for every core the local instance can receive on, so the
+   * AP SMP IPI path does not depend on when each core first boots. */
 
   modifyreg32(BK7258_MBOX_CH_CFG(channel), 0,
               BK7258_MBOX_CH_INT_ENABLE);
+#ifdef CONFIG_BK7258_COMPONENT_AP
+#  ifdef CONFIG_SMP
+  /* Enable the sibling AP channel (physical CPU1<->CPU2) as well, so the
+   * SMP IPI path is armed regardless of which core initializes first. */
+
+  modifyreg32(BK7258_MBOX_CH_CFG(bk7258_mbox_local_cpu() == 1 ? 2 : 1),
+              0, BK7258_MBOX_CH_INT_ENABLE);
+#  endif
+#endif
+
   /* Discard stale entries before the IRQ is attached.  They belong to an
    * earlier boot and must not be reported as live Mailbox delivery.
    */
@@ -174,10 +228,9 @@ int bk7258_mbox_init(bool global_owner)
   return 0;
 }
 
-int bk7258_mbox_notify(int dst_cpu, uint32_t token)
+static int bk7258_mbox_send_locked(int dst_cpu, uint32_t data0, uint32_t data1)
 {
-  unsigned int channel = BK7258_MBOX_LOCAL_CPU;
-  irqstate_t flags;
+  unsigned int channel = bk7258_mbox_local_cpu();
 
   if (!g_bk7258_mbox_initialized)
     {
@@ -185,25 +238,75 @@ int bk7258_mbox_notify(int dst_cpu, uint32_t token)
     }
 
   if (dst_cpu < 0 || dst_cpu >= BK7258_MBOX_CHANNELS ||
-      dst_cpu == BK7258_MBOX_LOCAL_CPU)
+      dst_cpu == bk7258_mbox_local_cpu())
     {
       return -EINVAL;
     }
 
-  flags = spin_lock_irqsave(&g_bk7258_mbox_lock);
   if ((getreg32(BK7258_MBOX_CH_FSTAT(dst_cpu)) &
        BK7258_MBOX_FIFO_FULL) != 0)
     {
-      spin_unlock_irqrestore(&g_bk7258_mbox_lock, flags);
       return -EBUSY;
     }
 
   __asm__ volatile ("dmb" : : : "memory");
-  putreg32(token, BK7258_MBOX_CH_TDATA0(channel));
-  putreg32(BK7258_MBOX_RPTUN_MAGIC, BK7258_MBOX_CH_TDATA1(channel));
+  putreg32(data0, BK7258_MBOX_CH_TDATA0(channel));
+  putreg32(data1, BK7258_MBOX_CH_TDATA1(channel));
   putreg32((uint32_t)dst_cpu, BK7258_MBOX_CH_TID(channel));
-  spin_unlock_irqrestore(&g_bk7258_mbox_lock, flags);
   return 0;
+}
+
+int bk7258_mbox_notify(int dst_cpu, uint32_t token)
+{
+  irqstate_t flags;
+  int ret;
+
+  flags = spin_lock_irqsave(&g_bk7258_mbox_lock);
+  ret = bk7258_mbox_send_locked(dst_cpu, token, BK7258_MBOX_RPTUN_MAGIC);
+  spin_unlock_irqrestore(&g_bk7258_mbox_lock, flags);
+  return ret;
+}
+
+int bk7258_mbox_ipi(int dst_cpu)
+{
+  unsigned int attempts = 0;
+  irqstate_t flags;
+  int ret;
+
+  if (dst_cpu == bk7258_mbox_local_cpu())
+    {
+      return -EINVAL;
+    }
+
+  /* Keep at most one outstanding SMP kick in each direction.  The receiver
+   * clears the shared latch before scanning the SMP queues, so a coalesced
+   * kick can never be lost.  A full FIFO is transient: the target core's ISR
+   * drains its channel without taking the send lock, so retry briefly rather
+   * than drop the wakeup. */
+
+  flags = spin_lock_irqsave(&g_bk7258_mbox_lock);
+  if ((g_bk7258_mbox_smp_pending & (UINT32_C(1) << dst_cpu)) != 0)
+    {
+      spin_unlock_irqrestore(&g_bk7258_mbox_lock, flags);
+      return 0;
+    }
+
+  g_bk7258_mbox_smp_pending |= UINT32_C(1) << dst_cpu;
+
+  do
+    {
+      ret = bk7258_mbox_send_locked(dst_cpu, 0, BK7258_MBOX_SMP_MAGIC);
+      attempts++;
+    }
+  while (ret == -EBUSY && attempts < 16);
+
+  if (ret < 0)
+    {
+      g_bk7258_mbox_smp_pending &= ~(UINT32_C(1) << dst_cpu);
+    }
+
+  spin_unlock_irqrestore(&g_bk7258_mbox_lock, flags);
+  return ret;
 }
 
 #endif /* CONFIG_BK7258_MAILBOX */

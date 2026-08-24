@@ -42,6 +42,18 @@ SECTIONS
     _etext = ABSOLUTE(.);
   } > flash
 
+  /* Physical CPU2 (AP SMP secondary core) boot vector table.  It lives in AP
+   * XIP and is programmed into the CPU2 boot-offset field by up_cpu_start().
+   * Only entries [0] (initial MSP) and [1] (reset PC) are consumed at reset;
+   * every other slot points at the shared direct exception handler. */
+
+  .vectors_core1 : ALIGN(512)
+  {
+    _vectors_core1 = ABSOLUTE(.);
+    KEEP(*(.vectors_core1))
+    _evectors_core1 = ABSOLUTE(.);
+  } > flash
+
   .init_section : ALIGN(4)
   {
     _sinit = ABSOLUTE(.);
@@ -95,6 +107,13 @@ SECTIONS
          "BK7258 AP vector table overlaps the image contract")
   ASSERT(g_bk7258_ap_image_contract == ORIGIN(flash) + 0x200,
          "BK7258 AP image contract must remain at offset 0x200")
+  ASSERT((_vectors_core1 & 0x1ff) == 0,
+         "BK7258 AP CPU2 vector table must be 512-byte aligned")
+  ASSERT(_vectors_core1 >= ORIGIN(flash) &&
+         _evectors_core1 <= ORIGIN(flash) + LENGTH(flash),
+         "BK7258 AP CPU2 vector table must stay inside AP XIP")
+  ASSERT(_evectors_core1 <= _etext || _vectors_core1 >= _etext,
+         "BK7258 AP CPU2 vector table must not straddle _etext")
   ASSERT(ORIGIN(sram) == 0x28010000 && LENGTH(sram) == 0x00054000,
          "BK7258 AP must use the all-OpenVela 336 KiB RAM window")
   ASSERT(ORIGIN(sram) + LENGTH(sram) == CONFIG_BK7258_RPMSG_SHM_ADDR,

@@ -1,0 +1,406 @@
+/****************************************************************************
+ * chips/bk7258/bk7258_smp.c
+ *
+ * AP SMP port: physical CPU2 launch, per-CPU interrupt stacks, IPI and
+ * secondary-core boot.  CP stays AMP: this file only affects the AP image.
+ ****************************************************************************/
+
+#include <nuttx/config.h>
+
+#ifdef CONFIG_SMP
+
+#include <stdint.h>
+#include <strings.h>
+
+#include <nuttx/arch.h>
+#include <nuttx/compiler.h>
+#include <nuttx/irq.h>
+#include <nuttx/sched_note.h>
+#include <nuttx/spinlock.h>
+
+#include "init/init.h"
+
+#include "arm_internal.h"
+#include "nvic.h"
+#include "ram_vectors.h"
+#include "chip.h"
+#include "sched/sched.h"
+#include "include/bk7258_mailbox.h"
+#include "include/bk7258_memorymap.h"
+#include "include/bk7258_smp.h"
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+#define BK7258_CPU2_CTRL_LIFECYCLE_MASK \
+  (BK7258_SYS_CPU2_RESET_RELEASE | BK7258_SYS_CPU2_POWER_DOWN | \
+   BK7258_SYS_CPU2_HALT | BK7258_SYS_CPU2_RXEVT_SEL | \
+   BK7258_SYS_CPU2_OFFSET_MASK)
+
+#define BK7258_CPU2_POWER_STABILIZE_LOOPS 1000
+#define BK7258_CPU2_POWER_WAIT_LOOPS      10000
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+/* Per-CPU interrupt stacks.  In an SMP configuration the common ARMv8-M
+ * arm_exception.S does not emit g_intstackalloc, so the chip provides one
+ * aligned stack per logical CPU.  The const tops are link-time constants and
+ * therefore valid from the very first C instruction on each core, which is
+ * exactly what up_cpu_index() relies on. */
+
+#if CONFIG_ARCH_INTERRUPTSTACK > 7
+static uint64_t g_bk7258_intstack_alloc[(CONFIG_SMP_NCPUS * INTSTACK_SIZE) >> 3];
+
+const uint32_t g_bk7258_cpu_intstack_top[CONFIG_SMP_NCPUS] =
+{
+  (uint32_t)g_bk7258_intstack_alloc + INTSTACK_SIZE,
+#if CONFIG_SMP_NCPUS > 1
+  (uint32_t)g_bk7258_intstack_alloc + (2 * INTSTACK_SIZE),
+#endif
+};
+#endif
+
+/* Boot handshake spinlock: up_cpu_start() holds it while CPU2 boots and only
+ * reacquires it after CPU2 has reached its idle trampoline. */
+
+static spinlock_t g_bk7258_cpu1_boot = SP_UNLOCKED;
+
+/* Secondary boot stack.  .noinit keeps it out of the zeroed .bss so the CPU2
+ * reset path (before .bss is ready on CPU2) can push onto it. */
+
+uint8_t g_bk7258_cpu2_boot_stack[BK7258_CPU2_BOOT_STACK_SIZE]
+  __attribute__((section(".noinit"), aligned(8)));
+
+/****************************************************************************
+ * Private Function Prototypes
+ ****************************************************************************/
+
+extern void exception_common(void);
+extern void exception_direct(void);
+
+static void bk7258_cpu2_boot(void) __attribute__((noreturn));
+
+/****************************************************************************
+ * Public Data
+ ****************************************************************************/
+
+/* Secondary (physical CPU2) vector table.  The hardware reads only the first
+ * two entries at reset; every other slot is filled with the shared direct
+ * handler so a spurious exception on CPU2 before VTOR is reprogrammed still
+ * lands in NuttX code.  It must stay 512-byte aligned in AP XIP. */
+
+const void *const _vectors_core1[]
+  locate_data(".vectors_core1") aligned_data(VECTAB_ALIGN) =
+{
+  /* Initial stack: dedicated CPU2 boot stack, distinct from every CPU1 stack
+   * so up_cpu_index() can identify this core from the reset MSP. */
+
+  (const void *)BK7258_CPU2_BOOT_STACK_TOP,
+
+  /* Reset handler: CPU2 secondary boot entry. */
+
+  (const void *)bk7258_cpu2_boot,
+
+  /* Vectors 2 - n point directly at the generic handler. */
+
+  [2 ... NVIC_IRQ_PENDSV] = &exception_common,
+  [(NVIC_IRQ_PENDSV + 1) ... (15 + ARMV8M_PERIPHERAL_INTERRUPTS)]
+                          = &exception_direct
+};
+
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: bk7258_cpu2_boot
+ *
+ * Description:
+ *   Secondary (physical CPU2) reset entry.  .bss/.data are already
+ *   initialized by CPU1; this core only needs its own stacks, NVIC, VTOR
+ *   and IPI doorbell before handing over to the NuttX idle trampoline.
+ *
+ ****************************************************************************/
+
+static void bk7258_cpu2_boot(void)
+{
+  __asm__ volatile ("cpsid i" : : : "memory");
+
+  /* CPU2 may inherit cache state from the Bootloader/vendor AP lifecycle.
+   * Match the CPU1 policy: deterministic uncached shared-SRAM path. */
+
+  if ((getreg32(NVIC_CFGCON) & NVIC_CFGCON_DC) != 0)
+    {
+      up_disable_dcache();
+    }
+
+  up_enable_icache();
+
+  /* Set up the per-CPU interrupt stack and select PSP for thread mode.  This
+   * uses this_cpu() == 1, resolved from the CPU2 boot-stack MSP. */
+
+#if CONFIG_ARCH_INTERRUPTSTACK > 7
+  arm_initialize_stack();
+#endif
+
+  /* Reuse the primary-core NVIC exception setup: the vector table and the
+   * shared irq_attach() table are valid on every AP core, and the NVIC
+   * itself is core-local so this does not disturb CPU1. */
+
+  up_irqinitialize();
+
+#ifdef CONFIG_BK7258_MAILBOX
+  /* Match the CPU1 Mailbox priority and enable CPU2's own NVIC line so SMP
+   * IPIs and the CP doorbell can interrupt this core. */
+
+  up_prioritize_irq(BK7258_IRQ_MAILBOX,
+                    CONFIG_BK7258_MAILBOX_IRQ_PRIORITY);
+  up_enable_irq(BK7258_IRQ_MAILBOX);
+#endif
+
+  /* Release the boot handshake held by up_cpu_start(). */
+
+  spin_unlock(&g_bk7258_cpu1_boot);
+
+#ifdef CONFIG_SCHED_INSTRUMENTATION
+  /* Notify that this CPU has started */
+
+  sched_note_cpu_started(this_task());
+#endif
+
+  /* Then transfer control to the IDLE task */
+
+  nx_idle_trampoline();
+
+  for (; ; )
+    {
+    }
+}
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: bk7258_smp_ipi_handler
+ *
+ * Description:
+ *   Mailbox IPI callback.  The Mailbox ISR demuxed an AP SMP kick (not an
+ *   RPTUN doorbell) and already cleared the shared pending latch.  Service
+ *   queued cross-CPU calls and tasks delivered to this core.
+ *
+ ****************************************************************************/
+
+static void bk7258_smp_ipi_handler(uint8_t src_cpu, uint32_t data0,
+                                   uint32_t data1, void *arg)
+{
+  (void)src_cpu;
+  (void)data0;
+  (void)data1;
+  (void)arg;
+
+  nxsched_smp_call_handler(BK7258_IRQ_MAILBOX, NULL, NULL);
+  nxsched_process_delivered(this_cpu());
+}
+
+/****************************************************************************
+ * Name: bk7258_smp_initialize
+ *
+ * Description:
+ *   Arm the AP SMP doorbell before the first IPI can be issued.  Must run on
+ *   the primary AP core before up_cpu_start() releases physical CPU2; the
+ *   RPTUN path later calls bk7258_mbox_attach()/bk7258_mbox_init() again,
+ *   which are idempotent and only fill in the RPTUN callback slot.
+ *
+ ****************************************************************************/
+
+void bk7258_smp_initialize(void)
+{
+#ifdef CONFIG_BK7258_MAILBOX
+  bk7258_mbox_attach_ipi(bk7258_smp_ipi_handler, NULL);
+  (void)bk7258_mbox_init(false);
+#endif
+}
+
+/****************************************************************************
+ * Name: up_cpu_idlestack
+ ****************************************************************************/
+
+int up_cpu_idlestack(int cpu, FAR struct tcb_s *tcb, size_t stack_size)
+{
+#if CONFIG_SMP_NCPUS > 1
+  up_create_stack(tcb, stack_size, TCB_FLAG_TTYPE_KERNEL);
+#endif
+  return OK;
+}
+
+/****************************************************************************
+ * Name: up_cpu_start
+ ****************************************************************************/
+
+int up_cpu_start(int cpu)
+{
+  irqstate_t flags;
+  uint32_t control;
+  uint32_t expected;
+  uint32_t status;
+  unsigned int count;
+  int ret = OK;
+
+  if (cpu != 1)
+    {
+      return -EINVAL;
+    }
+
+#ifdef CONFIG_SCHED_INSTRUMENTATION
+  /* Notify of the start event */
+
+  sched_note_cpu_start(this_task(), cpu);
+#endif
+
+  /* Ensure the SMP doorbell and IPI handler are live before CPU2 exists. */
+
+  bk7258_smp_initialize();
+
+  /* Acquire the boot handshake spinlock before CPU2 is released.  CPU2's
+   * bk7258_cpu2_boot() releases it when it reaches its idle trampoline, so
+   * the matching spin_lock() below blocks until CPU2 is actually running.
+   */
+
+  spin_lock(&g_bk7258_cpu1_boot);
+
+  flags = up_irq_save();
+
+  /* Follow the CPU1 lifecycle order from bk7258_ap_control.c: power up and
+   * unhalt CPU2 with reset asserted, program the boot vector, then release
+   * reset.  The boot vector is the in-image _vectors_core1 table. */
+
+  control = getreg32(BK7258_SYS_CPU2_CTRL);
+  control &= ~(BK7258_SYS_CPU2_RESET_RELEASE |
+               BK7258_SYS_CPU2_POWER_DOWN |
+               BK7258_SYS_CPU2_HALT |
+               BK7258_SYS_CPU2_OFFSET_MASK);
+  control |= BK7258_SYS_CPU2_RXEVT_SEL;
+  putreg32(control, BK7258_SYS_CPU2_CTRL);
+  __asm__ volatile ("dsb\n\tisb" : : : "memory");
+  expected = control & BK7258_CPU2_CTRL_LIFECYCLE_MASK;
+  if ((getreg32(BK7258_SYS_CPU2_CTRL) &
+       BK7258_CPU2_CTRL_LIFECYCLE_MASK) != expected)
+    {
+      ret = -EIO;
+      goto out;
+    }
+
+  for (count = 0; count < BK7258_CPU2_POWER_STABILIZE_LOOPS; count++)
+    {
+      __asm__ volatile ("nop");
+    }
+
+  for (count = 0; count < BK7258_CPU2_POWER_WAIT_LOOPS; count++)
+    {
+      status = getreg32(BK7258_SYS_CPU_STATUS);
+      if ((status & (BK7258_SYS_CPU2_PWR_DW_STATE |
+                     BK7258_SYS_CPU2_HALTED_STATE |
+                     BK7258_SYS_CPU2_RESET_STATE)) == 0)
+        {
+          break;
+        }
+    }
+
+  if (count == BK7258_CPU2_POWER_WAIT_LOOPS)
+    {
+      ret = -ETIMEDOUT;
+      goto out;
+    }
+
+  control = getreg32(BK7258_SYS_CPU2_CTRL);
+  control &= ~(BK7258_SYS_CPU2_OFFSET_MASK |
+               BK7258_SYS_CPU2_RESET_RELEASE);
+  control |= (uint32_t)(uintptr_t)_vectors_core1 &
+             BK7258_SYS_CPU2_OFFSET_MASK;
+  control |= BK7258_SYS_CPU2_RXEVT_SEL;
+  putreg32(control, BK7258_SYS_CPU2_CTRL);
+  __asm__ volatile ("dsb\n\tisb" : : : "memory");
+  expected = control & BK7258_CPU2_CTRL_LIFECYCLE_MASK;
+  if ((getreg32(BK7258_SYS_CPU2_CTRL) &
+       BK7258_CPU2_CTRL_LIFECYCLE_MASK) != expected)
+    {
+      ret = -EIO;
+      goto out;
+    }
+
+  putreg32(control | BK7258_SYS_CPU2_RESET_RELEASE,
+           BK7258_SYS_CPU2_CTRL);
+  __asm__ volatile ("dsb\n\tisb" : : : "memory");
+
+  for (count = 0; count < BK7258_CPU2_POWER_WAIT_LOOPS; count++)
+    {
+      status = getreg32(BK7258_SYS_CPU_STATUS);
+      if ((status & BK7258_SYS_CPU2_RESET_STATE) != 0)
+        {
+          break;
+        }
+    }
+
+  if (count == BK7258_CPU2_POWER_WAIT_LOOPS)
+    {
+      ret = -ETIMEDOUT;
+      goto out;
+    }
+
+out:
+  up_irq_restore(flags);
+  if (ret < 0)
+    {
+      spin_unlock(&g_bk7258_cpu1_boot);
+      return ret;
+    }
+
+  /* Handshake: CPU2 releases g_bk7258_cpu1_boot once it reaches its idle
+   * trampoline, so the spin_lock() below blocks until CPU2 is running. */
+
+  spin_lock(&g_bk7258_cpu1_boot);
+  spin_unlock(&g_bk7258_cpu1_boot);
+
+  return OK;
+}
+
+/****************************************************************************
+ * Name: up_send_smp_sched
+ ****************************************************************************/
+
+int up_send_smp_sched(int cpu)
+{
+  return bk7258_mbox_ipi(BK7258_AP_LOGICAL2PHYS(cpu));
+}
+
+/****************************************************************************
+ * Name: up_send_smp_call
+ ****************************************************************************/
+
+void up_send_smp_call(cpu_set_t cpuset)
+{
+  int cpu;
+
+  for (; cpuset != 0; cpuset &= ~(UINT32_C(1) << cpu))
+    {
+      cpu = ffs(cpuset) - 1;
+      up_send_smp_sched(cpu);
+    }
+}
+
+/****************************************************************************
+ * Name: up_get_intstackbase
+ ****************************************************************************/
+
+#if CONFIG_ARCH_INTERRUPTSTACK > 7
+uintptr_t up_get_intstackbase(int cpu)
+{
+  return (uintptr_t)g_bk7258_cpu_intstack_top[cpu] - INTSTACK_SIZE;
+}
+#endif
+
+#endif /* CONFIG_SMP */

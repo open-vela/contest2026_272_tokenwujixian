@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the single-core OpenVela BK7258 AP ELF and app1.bin."""
+"""Validate the dual-core OpenVela BK7258 AP ELF and app1.bin."""
 
 from __future__ import annotations
 
@@ -72,6 +72,8 @@ def main() -> int:
             "CONFIG_RPTUN_PRIORITY=90",
             "CONFIG_RPTUN_STACKSIZE=4096",
             "CONFIG_SERIAL=y",
+            "CONFIG_SMP=y",
+            "CONFIG_SMP_NCPUS=2",
             "CONFIG_SYSTEM_NSH=y",
         )
         for setting in required_config:
@@ -79,7 +81,6 @@ def main() -> int:
                 fail(f"AP build config lacks required setting: {setting}")
         forbidden_config = (
             "CONFIG_BK7258_COMPONENT_CP=y",
-            "CONFIG_SMP=y",
         )
         for setting in forbidden_config:
             if setting in config_lines:
@@ -100,12 +101,21 @@ def main() -> int:
             "bk7258_rptun_initialize",
             "bk7258_mbox_init",
             "bk7258_mbox_notify",
+            "bk7258_mbox_ipi",
             "board_reset",
             "up_systemreset",
             "rpmsg_serialinit",
             "uart_rpmsg_init",
             "up_enable_icache",
             "up_disable_dcache",
+            "up_cpu_index",
+            "up_cpu_start",
+            "up_cpu_idlestack",
+            "up_send_smp_sched",
+            "up_send_smp_call",
+            "up_get_intstackbase",
+            "_vectors_core1",
+            "g_bk7258_cpu2_boot_stack",
             "_sdata",
             "_edata",
             "_sbss",
@@ -133,6 +143,13 @@ def main() -> int:
             fail("nsh_main is outside AP XIP")
         if symbols["g_bk7258_ap_image_contract"] != FLASH_BASE + IMAGE_CONTRACT_OFFSET:
             fail("OpenVela AP image contract is not at fixed XIP offset 0x200")
+        vectors_core1 = symbols["_vectors_core1"]
+        if not (FLASH_BASE <= vectors_core1 < flash_end):
+            fail("AP CPU2 vector table is outside AP XIP")
+        if vectors_core1 % 512:
+            fail("AP CPU2 vector table is not 512-byte aligned")
+        if not (RAM_BASE <= symbols["g_bk7258_cpu2_boot_stack"] < ram_end):
+            fail("AP CPU2 boot stack is outside the locked RAM window")
         if data.addr != RAM_BASE or symbols["_sdata"] != RAM_BASE:
             fail("AP .data does not begin at 0x28010000")
         if not (RAM_BASE <= symbols["_sdata"] <= symbols["_edata"] <= ram_end):
@@ -187,7 +204,7 @@ def main() -> int:
 
         report = {
             "result": "pass",
-            "component": "openvela-ap-cpu1-single-core",
+            "component": "openvela-ap-dual-core-smp",
             "elf": str(args.elf),
             "raw": str(args.raw),
             "sha256": hashlib.sha256(raw).hexdigest(),
@@ -199,6 +216,10 @@ def main() -> int:
             "ram": {"start": "0x28010000", "end": "0x28064000"},
             "rpmsg_shm": {"start": "0x28064000", "end": "0x2806ec00"},
             "vectors": {"msp": f"0x{msp:08x}", "reset": f"0x{reset:08x}"},
+            "cpu2_vectors": {
+                "base": f"0x{vectors_core1:08x}",
+                "msp": f"0x{symbols['g_bk7258_cpu2_boot_stack'] + 2048:08x}",
+            },
             "sections": {
                 "text": f"0x{text.addr:08x}",
                 "data": f"0x{data.addr:08x}",
