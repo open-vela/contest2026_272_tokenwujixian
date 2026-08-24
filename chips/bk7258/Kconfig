@@ -70,6 +70,16 @@ config BK7258_SYSTICK_CLOCK_HZ
 		The first Flash cold-boot test must validate the frequency and time
 		base behavior before any timing acceptance claim.
 
+config BK7258_TIMER0
+	bool "BK7258 Timer0 lower-half"
+	depends on BK7258_COMPONENT_CP
+	depends on TIMER
+	default y
+	help
+		Register the CP-owned BK7258 Timer0 channel as the standard NuttX
+		/dev/timer0 lower-half. Timer0 is a shared SoC resource and must not
+		be enabled independently by the AP image.
+
 config BK7258_MAILBOX
 	bool "BK7258 Mailbox v2 doorbell"
 	depends on RPTUN

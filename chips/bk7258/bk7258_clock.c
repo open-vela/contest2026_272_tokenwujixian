@@ -4,9 +4,43 @@
 
 #include <nuttx/config.h>
 
+#include <errno.h>
+#include <stdbool.h>
+#include <stdint.h>
+
+#include <nuttx/spinlock.h>
+#include <syslog.h>
+
 #include "arm_internal.h"
 #include "bk7258_internal.h"
+#include "include/bk7258_clock.h"
 #include "include/bk7258_memorymap.h"
+
+static int bk7258_clock_gate(uint32_t mask, bool enable)
+{
+  irqstate_t flags;
+  int ret;
+
+  flags = enter_critical_section();
+  modifyreg32(BK7258_SYS_DEV_CLK_EN, mask, enable ? mask : 0);
+  ret = ((getreg32(BK7258_SYS_DEV_CLK_EN) & mask) != 0) == enable ?
+        OK : -EIO;
+  leave_critical_section(flags);
+  syslog(LOG_INFO, "[BK7258] clock gate mask=0x%08lx enable=%d ret=%d reg=0x%08lx\n",
+         (unsigned long)mask, enable, ret,
+         (unsigned long)getreg32(BK7258_SYS_DEV_CLK_EN));
+  return ret;
+}
+
+int bk7258_mac_clock(bool enable)
+{
+  return bk7258_clock_gate(BK7258_SYS_MAC_CKEN, enable);
+}
+
+int bk7258_phy_clock(bool enable)
+{
+  return bk7258_clock_gate(BK7258_SYS_PHY_CKEN, enable);
+}
 
 void bk7258_clock_uart0(void)
 {
