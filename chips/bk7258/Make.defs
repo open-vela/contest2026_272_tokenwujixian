@@ -11,6 +11,10 @@ ifeq ($(CONFIG_BK7258_MAILBOX),y)
 CHIP_CSRCS += bk7258_mailbox.c
 endif
 
+ifeq ($(CONFIG_BK7258_GDMA),y)
+CHIP_CSRCS += bk7258_dma.c
+endif
+
 ifeq ($(CONFIG_BK7258_COMPONENT_AP),y)
 CHIP_CSRCS += bk7258_ap_start.c
 else

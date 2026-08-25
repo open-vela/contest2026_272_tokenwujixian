@@ -125,6 +125,21 @@ config BK7258_SPI
 		the SPI1 master on GPIO2/3/4/5.  Selected by the board LCD1 SPI
 		transport choice.
 
+config BK7258_GDMA
+	bool "BK7258 GDMA0 controller"
+	depends on BK7258_COMPONENT_CP
+	select ARCH_DMA
+	help
+		Enable the CPU0/CP GDMA0 controller.  The initial implementation
+		supports only one-shot memory-to-memory transfers on channels 0..7.
+		It does not change the SPI/LCD transfer path.
+
+config BK7258_GDMA_TEST
+	bool
+	depends on BK7258_GDMA
+	help
+		Internal marker selected by the Kconfig-gated SRAM validation command.
+
 endmenu
 
 endif

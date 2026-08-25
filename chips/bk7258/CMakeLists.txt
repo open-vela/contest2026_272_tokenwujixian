@@ -10,6 +10,10 @@ if(CONFIG_BK7258_MAILBOX)
   list(APPEND SRCS bk7258_mailbox.c)
 endif()
 
+if(CONFIG_BK7258_GDMA)
+  list(APPEND SRCS bk7258_dma.c)
+endif()
+
 if(CONFIG_BK7258_COMPONENT_AP)
   list(APPEND SRCS bk7258_ap_start.c)
 else()

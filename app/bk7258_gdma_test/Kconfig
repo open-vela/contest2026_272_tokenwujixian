@@ -1,0 +1,8 @@
+config LVX_USE_DEMO_CONTEST2026_272_BK7258_GDMA_TEST
+  bool "BK7258 GDMA SRAM validation command"
+  depends on ARCH_CHIP_BK7258 && BK7258_GDMA
+  select BK7258_GDMA_TEST
+  default n
+  ---help---
+    Enable the manually-invoked bk7258_gdma_test NSH command.  The command
+    validates one GDMA0 memory-to-memory transfer using static SRAM buffers.

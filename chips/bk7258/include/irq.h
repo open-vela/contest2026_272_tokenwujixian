@@ -11,6 +11,7 @@
 
 #define BK7258_IRQ_TIMER0  (16 + 3)
 #define BK7258_IRQ_UART0   (16 + 4)
+#define BK7258_IRQ_GDMA0   (16 + 11)
 #define BK7258_IRQ_TIMER1  (16 + 13)
 #define BK7258_IRQ_MODEM          (16 + 29)
 #define BK7258_IRQ_MODEM_RC       (16 + 30)
