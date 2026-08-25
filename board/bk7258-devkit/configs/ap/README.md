@@ -64,6 +64,13 @@ BK7258 Mailbox v2 IRQ79 is the only runtime doorbell. There is no periodic vring
 poll or fallback thread. Each direction keeps one shared outstanding latch so
 equivalent all-virtqueue notifications can coalesce without filling the FIFO.
 
+The CP enables the RPTUN reboot notifier, so a CP-side NSH `reboot` publishes
+the reset reason and the AP enters its own `BOARDIOC_RESET` path before the CP
+continues to its local Cortex-M `SYSRESETREQ`. The AP deliberately disables
+the automatic reboot notifier: an AP-side `reboot` resets only AP and does not
+ask CP to treat a normal remote reset as a fatal CP event. This asymmetric
+policy matches the AMP ownership model, where CP owns AP lifecycle control.
+
 `drivers_initialize()` registers the two symmetric RPMsg UART endpoints before
 the RPMsg device exists. `board_late_initialize()` then starts RPTUN; endpoint
 creation follows automatically when the VirtIO RPMsg device appears. AP uses

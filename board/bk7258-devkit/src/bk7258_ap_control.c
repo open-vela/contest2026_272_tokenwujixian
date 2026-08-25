@@ -16,6 +16,7 @@
 #include <nuttx/irq.h>
 #include <nuttx/kthread.h>
 #include <nuttx/mutex.h>
+#include <nuttx/rptun/rptun.h>
 #include <nuttx/signal.h>
 
 #include <arch/irq.h>
@@ -29,6 +30,8 @@
 #define BK7258_AP_POWER_WAIT_LOOPS       10000
 #define BK7258_AP_RESET_WAIT_ATTEMPTS    50
 #define BK7258_AP_RESET_WAIT_USEC        (10 * 1000)
+#define BK7258_AP_RPTUN_STOP_ATTEMPTS    50
+#define BK7258_AP_RPTUN_STOP_WAIT_USEC   (10 * 1000)
 
 #define BK7258_AP_CPU1_CTRL_LIFECYCLE_MASK \
   (BK7258_SYS_CPU1_RESET_RELEASE | BK7258_SYS_CPU1_POWER_DOWN | \
@@ -38,6 +41,8 @@
 static uint32_t g_ap_boot_sequence;
 static mutex_t g_ap_start_lock = NXMUTEX_INITIALIZER;
 static bool g_ap_started;
+static bool g_ap_recovering;
+static bool g_ap_monitor_started;
 
 static inline uint32_t bk7258_ap_reg_read(uintptr_t address)
 {
@@ -102,6 +107,26 @@ static int bk7258_ap_force_reset(void)
 
   up_irq_restore(flags);
   return -ETIMEDOUT;
+}
+
+int bk7258_ap_reset_for_rptun(void)
+{
+  int ret;
+
+  ret = nxmutex_lock(&g_ap_start_lock);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  ret = bk7258_ap_force_reset();
+  if (ret >= 0)
+    {
+      g_ap_started = false;
+    }
+
+  nxmutex_unlock(&g_ap_start_lock);
+  return ret;
 }
 
 int board_start_cpu(int cpuid)
@@ -326,6 +351,67 @@ out_unlock:
   return ret;
 }
 
+static int bk7258_ap_recover_transport(void)
+{
+  unsigned int attempt;
+  int ret;
+
+  if (g_ap_recovering)
+    {
+      return -EALREADY;
+    }
+
+  g_ap_recovering = true;
+  g_ap_started = false;
+
+  /* The generic RPTUN stop path destroys the remoteproc VirtIO device and
+   * broadcasts RPMsg device-destroy callbacks before returning the transport
+   * to OFFLINE.  Do this before board_start_cpu() resets AP again, otherwise
+   * the old vrings and uart_rpmsg endpoint can survive into the new AP
+   * generation. */
+
+  /* remoteproc_stop() rejects CONFIGURED/READY while the RPTUN worker is
+   * still completing its start transaction.  AP can reboot exactly during
+   * that window, so treat -EBUSY as a transient state and retry in this
+   * task context.  Do not call rptun_initialize() here: the /dev/rptun/ap
+   * instance is already registered and initialization is one-shot. */
+
+  ret = -EBUSY;
+  for (attempt = 0; attempt < BK7258_AP_RPTUN_STOP_ATTEMPTS; attempt++)
+    {
+      ret = rptun_poweroff("ap");
+      if (ret != -EBUSY)
+        {
+          break;
+        }
+
+      nxsig_usleep(BK7258_AP_RPTUN_STOP_WAIT_USEC);
+    }
+
+  if (ret == -EBUSY)
+    {
+      syslog(LOG_ERR,
+             "[AP] RPTUN teardown remained busy after %u attempts\n",
+             BK7258_AP_RPTUN_STOP_ATTEMPTS);
+    }
+
+  if (ret < 0 && ret != -ENODEV)
+    {
+      syslog(LOG_ERR, "[AP] RPTUN teardown failed: %d\n", ret);
+      goto out;
+    }
+
+  ret = rptun_boot("ap");
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "[AP] RPTUN restart failed: %d\n", ret);
+    }
+
+out:
+  g_ap_recovering = false;
+  return ret;
+}
+
 static int bk7258_ap_monitor(int argc, char *argv[])
 {
   struct bk7258_ap_boot_record_s record;
@@ -343,8 +429,22 @@ static int bk7258_ap_monitor(int argc, char *argv[])
   for (; ; )
     {
       if (!bk7258_ap_record_read(&record) ||
-          record.boot_sequence != g_ap_boot_sequence)
+          (record.boot_sequence != g_ap_boot_sequence &&
+           !g_ap_recovering))
         {
+          if (bk7258_ap_record_read(&record) &&
+              record.boot_sequence != g_ap_boot_sequence &&
+              record.stage == BK7258_AP_STAGE_SCHEDULER_RUNNING)
+            {
+              syslog(LOG_INFO,
+                     "[AP] peer generation changed old=%u new=%u; rebuilding RPTUN\n",
+                     (unsigned int)g_ap_boot_sequence,
+                     (unsigned int)record.boot_sequence);
+              (void)bk7258_ap_recover_transport();
+              nxsig_usleep(1000 * 1000);
+              continue;
+            }
+
           invalid_samples++;
           stagnant_samples = 0;
           if (invalid_samples >= BK7258_AP_STALL_SAMPLES && !invalid_reported)
@@ -417,6 +517,14 @@ int bk7258_ap_start_monitor(void)
   syslog(LOG_INFO, "[AP] release seq=%u vector=0x%08x\n",
          (unsigned int)g_ap_boot_sequence,
          (unsigned int)BK7258_AP_XIP_VECTOR_BASE);
+
+  /* RPTUN restart reuses the long-lived CP monitor. Do not create a second
+   * monitor thread when the generic RPTUN start path rebuilds a transport. */
+
+  if (g_ap_monitor_started)
+    {
+      return 0;
+    }
 
   ret = kthread_create("ap-monitor", BK7258_AP_MONITOR_PRIORITY,
                        BK7258_AP_MONITOR_STACK_SIZE,

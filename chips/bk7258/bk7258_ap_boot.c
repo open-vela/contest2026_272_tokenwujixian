@@ -242,6 +242,21 @@ void bk7258_ap_record_mark_reset(uint32_t vector_base, uint32_t reset_pc)
     {
       return;
     }
+
+  /* A reset observed while the record still describes a running AP was
+   * initiated by AP itself (or by hardware), rather than by CP's
+   * board_start_cpu() transaction.  Allocate a new generation so CP can
+   * distinguish an AP-only reboot from an ordinary stage transition without
+   * depending on the RPMsg transport that is about to disappear.  CP writes
+   * CP_PREPARED before releasing CPU1, so CP-managed resets retain the
+   * sequence prepared by the owner. */
+
+  if (record.stage == BK7258_AP_STAGE_SCHEDULER_RUNNING)
+    {
+      record.boot_sequence = bk7258_ap_next_sequence();
+      record.stage = BK7258_AP_STAGE_CP_PREPARED;
+    }
+
   record.stage = BK7258_AP_STAGE_RESET_ENTERED;
   record.heartbeat = 0;
   record.fault = 0;

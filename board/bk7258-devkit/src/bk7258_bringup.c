@@ -205,6 +205,14 @@ static int bk7258_ap_amp_initialize(int argc, char *argv[])
       return ret;
     }
 
+  /* Publish scheduler-running only after the AP-side RPTUN/RPMsg instance is
+   * initialized.  CP uses the SWAP generation transition as the trigger to
+   * tear down and rebuild its stale remote transport, so advertising this
+   * stage earlier would let CP restart AP while its new RPTUN instance was
+   * still coming up. */
+
+  bk7258_ap_record_mark_scheduler();
+
   return 0;
 }
 #endif
@@ -247,7 +255,6 @@ static void bk7258_ap_initialize(void)
   panic_notifier_chain_register(&g_bk7258_ap_panic_notifier);
   bk7258_ap_heartbeat_led_initialize();
   bk7258_ap_heartbeat_led_write(true);
-  bk7258_ap_record_mark_scheduler();
 
 #ifdef CONFIG_RPTUN
   ret = kthread_create("bk7258-amp-init", 95, 4096,

@@ -8,6 +8,8 @@ Run it from the team repository root:
 
     python3 board/bk7258-devkit/tests/test_bk7258_bundled_packaging.py
 
+Pass --build-root to validate artifacts from an isolated worktree build slot.
+
 The companion test_bk7258_packaging.py covers the vendor-input profile and
 additionally proves the repository container encoder matches the SDK packer
 byte-for-byte; that one needs the machine-local vendor tree.
@@ -40,6 +42,11 @@ def parse_args() -> argparse.Namespace:
         description="Run BK7258 bundled-input packaging regressions."
     )
     parser.add_argument("--profile", type=Path, default=DEFAULT_PROFILE)
+    parser.add_argument(
+        "--build-root",
+        type=Path,
+        help="Isolated worktree build directory containing cp/ and ap/",
+    )
     return parser.parse_args()
 
 
@@ -429,22 +436,33 @@ def main() -> int:
             wrapper_checked = False
             openvela_cp = None
             openvela_cp_report = None
-            if workspace is not None:
+            if workspace is not None or args.build_root is not None:
+                build_root = (
+                    args.build_root.resolve()
+                    if args.build_root is not None
+                    else workspace / "cmake_out"
+                )
+                cp_dir = (
+                    build_root / "cp"
+                    if args.build_root is not None
+                    else build_root / "bk7258-devkit_cp"
+                )
+                ap_dir = (
+                    build_root / "ap"
+                    if args.build_root is not None
+                    else build_root / "bk7258-devkit_ap"
+                )
                 openvela_cp = (
-                    workspace
-                    / "cmake_out/bk7258-devkit_cp/bk7258/app.bin"
+                    cp_dir / "bk7258/app.bin"
                 )
                 openvela_cp_report = (
-                    workspace
-                    / "cmake_out/bk7258-devkit_cp/bk7258/l1-validation.json"
+                    cp_dir / "bk7258/l1-validation.json"
                 )
                 openvela_ap = (
-                    workspace
-                    / "cmake_out/bk7258-devkit_ap/bk7258_ap/app1.bin"
+                    ap_dir / "bk7258_ap/app1.bin"
                 )
                 openvela_report = (
-                    workspace
-                    / "cmake_out/bk7258-devkit_ap/bk7258_ap/l1-validation.json"
+                    ap_dir / "bk7258_ap/l1-validation.json"
                 )
                 if all(
                     path.is_file()
@@ -471,7 +489,11 @@ def main() -> int:
                         fail("OpenVela profile did not record an OpenVela AP component")
                     openvela_checked = True
 
-                if openvela_cp.is_file() and openvela_cp_report.is_file():
+                if (
+                    args.build_root is None
+                    and openvela_cp.is_file()
+                    and openvela_cp_report.is_file()
+                ):
                     check_wrapper_replaces_scratch_and_keeps_evidence(
                         openvela_cp, openvela_cp_report, temp
                     )

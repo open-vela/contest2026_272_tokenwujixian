@@ -3,6 +3,10 @@ target_sources(board PRIVATE
                bk7258_bringup.c
                bk7258_ap_control.c)
 
+if(CONFIG_BOARDCTL_RESET)
+  target_sources(board PRIVATE bk7258_reset.c)
+endif()
+
 if(CONFIG_RPTUN)
   target_sources(board PRIVATE bk7258_rptun.c)
 endif()

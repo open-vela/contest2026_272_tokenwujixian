@@ -64,6 +64,8 @@ static bool bk7258_rptun_is_autostart(struct rptun_dev_s *dev);
 static bool bk7258_rptun_is_master(struct rptun_dev_s *dev);
 static int bk7258_rptun_start(struct rptun_dev_s *dev);
 static int bk7258_rptun_stop(struct rptun_dev_s *dev);
+static int bk7258_rptun_reset(struct rptun_dev_s *dev,
+                              unsigned long value);
 static int bk7258_rptun_notify(struct rptun_dev_s *dev, uint32_t vqid);
 static int bk7258_rptun_register_callback(struct rptun_dev_s *dev,
                                           rptun_callback_t callback,
@@ -77,6 +79,7 @@ static const struct rptun_ops_s g_bk7258_rptun_ops =
   .is_master         = bk7258_rptun_is_master,
   .start             = bk7258_rptun_start,
   .stop              = bk7258_rptun_stop,
+  .reset             = bk7258_rptun_reset,
   .notify            = bk7258_rptun_notify,
   .register_callback = bk7258_rptun_register_callback,
 };
@@ -238,8 +241,37 @@ static int bk7258_rptun_start(struct rptun_dev_s *dev)
 
 static int bk7258_rptun_stop(struct rptun_dev_s *dev)
 {
+  struct bk7258_rptun_dev_s *priv =
+    container_of(dev, struct bk7258_rptun_dev_s, rptun);
+  irqstate_t flags;
+
+  /* The generic RPTUN layer owns VirtIO/RPMsg destruction.  The board layer
+   * only owns the Mailbox coalescing state, so make both directions eligible
+   * for the next generation before remoteproc_shutdown() removes devices. */
+
+  flags = enter_critical_section();
+  priv->shmem->mbox_pending[0] = 0;
+  priv->shmem->mbox_pending[1] = 0;
+  bk7258_rptun_barrier();
+  leave_critical_section(flags);
+  return 0;
+}
+
+static int bk7258_rptun_reset(struct rptun_dev_s *dev,
+                              unsigned long value)
+{
   (void)dev;
+  (void)value;
+
+#ifdef CONFIG_BK7258_COMPONENT_CP
+  /* CP owns the CPU1 lifecycle.  A successful callback means the remote AP
+   * has been asserted; CP's own board_reset() will reset CPU0 immediately
+   * afterwards and its normal bring-up will release AP again. */
+  return bk7258_ap_reset_for_rptun();
+#else
+  /* AP must never reset CP as a side effect of an AP-local reboot. */
   return -ENOTSUP;
+#endif
 }
 
 static int bk7258_rptun_notify(struct rptun_dev_s *dev, uint32_t vqid)
