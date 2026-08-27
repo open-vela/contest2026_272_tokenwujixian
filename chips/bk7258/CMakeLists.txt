@@ -24,6 +24,10 @@ else()
        bk7258_lowputc.c
        bk7258_uart.c
        bk7258_gpio.c)
+
+  if(CONFIG_BK7258_PSRAM)
+    list(APPEND SRCS bk7258_psram.c)
+  endif()
 endif()
 
 target_sources(arch PRIVATE ${SRCS})

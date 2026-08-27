@@ -25,6 +25,27 @@ RPMsg UART + AP NSH 已通过双侧 L1 和 L2 decode，仍需以 `/dev/ttyAP` �
 会话补齐真机验收。Wi-Fi/BLE、USB、LCD/按键、AP restart/reconnect、Flash 运行时
 访问和长期稳定性仍不在当前已验证范围。
 
+## PSRAM（CP 额外堆）
+
+CP 默认启用 `CONFIG_BK7258_PSRAM=y` 和 `CONFIG_MM_REGIONS=2`。启动时，芯片层
+先在内部 SRAM 上完成启动，再以 Armino BK7258 CP 的序列使能 PSRAM 电源/时钟：80 MHz
+完成设备配置，随后切换到推荐的 120 MHz。驱动只接受已在参考实现中具备完整命令序列的
+APS6408L（8 MiB，ID `0x8d09`）或 APS128XXO-OB9（16 MiB，ID `0x8d08`）。它必须通过
+`CONFIG_BK7258_PSRAM_PROBE_SIZE`（默认 10 KiB）的映射读写探测，才会将
+`0x60000000` 开始的实际容量作为第二个 NuttX user-heap region 加入；失败时会记录
+日志并安全地仅使用现有 SRAM heap。
+
+该首版不把 PSRAM 放入 linker 的 `.data/.bss`、启动代码、可执行代码、RPMsg 或 CP/AP
+共享区。它加入的是普通 NuttX heap，因此系统并不按对象类型保证 SRAM/PSRAM 放置：任何需要
+内部 SRAM 或 DMA-safe 内存的调用方，必须在具备专用 allocator 后显式选择它；缓存/DMA 一致性
+尚未验证。每块板仍需通过冷启动 UART 日志和应用实际分配验证供电、器件型号、容量与长期稳定性；
+构建/打包通过不构成硬件验收。
+
+固件在 `CONFIG_BK7258_PSRAM=y` 时还提供 board-owned NSH 命令
+`bk7258_psram_test [KiB]`。默认申请 8 MiB，确认分配地址位于 PSRAM 映射窗口后，对整块
+执行三个模式的写入/回读校验并释放。示例：`bk7258_psram_test` 或
+`bk7258_psram_test 12288`。命令不验证 DMA/cache 一致性。
+
 完整镜像始终从物理 Flash `0x0` 写入。无参数打包仍生成安全的 CP + 66 字节
 placeholder 恢复包；OpenVela AP 必须显式使用 `--openvela-ap`，并携带能由打包器
 现场重放的 L1 validation report。CP 启核前还会验证 AP 向量和固定 `OVAP` 契约，
@@ -82,4 +103,3 @@ nsh> lvgldemo stress       # GUI 压力测试
 ```
 
 目前固件仅验证到构建/链接与 L1 校验通过；真机点亮、LVGL 渲染与内存占用（栈 32 KB + 绘制缓冲 19 KB + LVGL 对象）需在真机验收。若运行时堆不足，可下调 `CONFIG_LV_NUTTX_LCD_BUFFER_SIZE` 或 `CONFIG_EXAMPLES_LVGLDEMO_STACKSIZE`。
-

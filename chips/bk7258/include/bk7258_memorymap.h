@@ -24,6 +24,13 @@
 #define BK7258_SRAM_CAPACITY_END  (BK7258_SRAM_CAPACITY_BASE + \
                                    BK7258_SRAM_CAPACITY_SIZE)
 
+/* External PSRAM is a CPU-visible data window. The controller can map up to
+ * 64 MiB, but the fitted-device size is discovered before any portion is
+ * offered to the allocator. */
+
+#define BK7258_PSRAM_BASE          UINT32_C(0x60000000)
+#define BK7258_PSRAM_WINDOW_SIZE   UINT32_C(0x04000000)
+
 /* Cross-domain regions. They belong to the CP/AP contract rather than to either
  * image, so no component may place .data, .bss, a stack or a heap over them.
  *
@@ -64,8 +71,10 @@
 #define BK7258_TIMER0_BASE       UINT32_C(0x44810000)
 
 #define BK7258_SYS_CLKDIV1       (BK7258_SYS_BASE + UINT32_C(0x20))
+#define BK7258_SYS_CLKDIV2       (BK7258_SYS_BASE + UINT32_C(0x24))
 #define BK7258_SYS_DEV_CLK_EN    (BK7258_SYS_BASE + UINT32_C(0x30))
 #define BK7258_SYS_POWER_WAKEUP  (BK7258_SYS_BASE + UINT32_C(0x40))
+#define BK7258_SYS_ANA_REG13     (BK7258_SYS_BASE + UINT32_C(0x134))
 #define BK7258_SYS_GPIO_FUNC0    (BK7258_SYS_BASE + UINT32_C(0x0c0))
 #define BK7258_SYS_CPU0_INT_EN   (BK7258_SYS_BASE + UINT32_C(0x080))
 #define BK7258_SYS_CPU0_INT_EN_HI (BK7258_SYS_BASE + UINT32_C(0x084))
@@ -74,6 +83,7 @@
 #define BK7258_SYS_CPU_STATUS    (BK7258_SYS_BASE + UINT32_C(0x00c))
 #define BK7258_MBOX0_BASE        UINT32_C(0x41000000)
 #define BK7258_GDMA0_BASE        UINT32_C(0x45020000)
+#define BK7258_PSRAM_CTRL_BASE   UINT32_C(0x46080000)
 
 #define BK7258_UART_GLOBAL_CTRL  (BK7258_UART0_BASE + UINT32_C(0x08))
 #define BK7258_UART_CONFIG       (BK7258_UART0_BASE + UINT32_C(0x10))
@@ -99,6 +109,7 @@
 #define BK7258_SYS_UART0_INT_EN   (UINT32_C(1) << 4)
 #define BK7258_SYS_GDMA0_INT_EN   (UINT32_C(1) << 11)
 #define BK7258_SYS_TIMER0_CLK_EN  (UINT32_C(1) << 4)
+#define BK7258_SYS_PSRAM_CLK_EN   (UINT32_C(1) << 19)
 #define BK7258_SYS_TIMER0_XTAL   (UINT32_C(1) << 20)
 #define BK7258_SYS_MAC_CKEN       (UINT32_C(1) << 26)
 #define BK7258_SYS_PHY_CKEN       (UINT32_C(1) << 27)
@@ -110,6 +121,30 @@
 #define BK7258_TIMER0_CTRL         (BK7258_TIMER0_BASE + UINT32_C(0x1c))
 #define BK7258_TIMER0_ENABLE       (UINT32_C(1) << 0)
 #define BK7258_TIMER0_INT_ENABLE   (UINT32_C(1) << 7)
+
+/* BK7258 PSRAM controller registers and system control fields. These values
+ * are from Armino's BK7258 CP register definitions and are used only by the
+ * hardware initialization sequence in bk7258_psram.c. */
+
+#define BK7258_PSRAM_REG2          (BK7258_PSRAM_CTRL_BASE + UINT32_C(0x08))
+#define BK7258_PSRAM_REG4          (BK7258_PSRAM_CTRL_BASE + UINT32_C(0x10))
+#define BK7258_PSRAM_REG5          (BK7258_PSRAM_CTRL_BASE + UINT32_C(0x14))
+#define BK7258_PSRAM_REG8          (BK7258_PSRAM_CTRL_BASE + UINT32_C(0x20))
+#define BK7258_PSRAM_REG9          (BK7258_PSRAM_CTRL_BASE + UINT32_C(0x24))
+#define BK7258_PSRAM_REGA          (BK7258_PSRAM_CTRL_BASE + UINT32_C(0x28))
+#define BK7258_PSRAM_REGB          (BK7258_PSRAM_CTRL_BASE + UINT32_C(0x2c))
+
+#define BK7258_PSRAM_REG2_SF_RESET (UINT32_C(1) << 0)
+#define BK7258_PSRAM_REG2_BYPASS   (UINT32_C(1) << 1)
+#define BK7258_PSRAM_REG8_WRITE    UINT32_C(0x1)
+#define BK7258_PSRAM_REG8_READ     UINT32_C(0x2)
+#define BK7258_PSRAM_REG8_RESET    UINT32_C(0x4)
+
+#define BK7258_SYS_CLKDIV2_PSRAM_DIV (UINT32_C(1) << 4)
+#define BK7258_SYS_CLKDIV2_PSRAM_SEL (UINT32_C(1) << 5)
+#define BK7258_SYS_ANA_REG13_PSLDO_SWB (UINT32_C(1) << 28)
+#define BK7258_SYS_ANA_REG13_VPSRAMSEL_MASK (UINT32_C(3) << 29)
+#define BK7258_SYS_ANA_REG13_ENPSRAM (UINT32_C(1) << 31)
 
 /* ICU group 0/1 enable masks.  ICU 37 shares the group-1 bit with HSU in
  * Armino's register contract and is intentionally represented by one mask. */

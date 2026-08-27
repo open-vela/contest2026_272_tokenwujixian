@@ -80,6 +80,36 @@ config BK7258_TIMER0
 		/dev/timer0 lower-half. Timer0 is a shared SoC resource and must not
 		be enabled independently by the AP image.
 
+config BK7258_PSRAM
+	bool "Initialize DevKit PSRAM as an additional heap"
+	depends on BK7258_COMPONENT_CP && MM_REGIONS > 1
+	default y
+	help
+		Initialize the PSRAM fitted to the BK7258 DevKit and add the detected
+		memory window to the ordinary NuttX user heap as a second region.
+
+		The driver probes only the APS6408L (8 MiB) and APS128XXO-OB9 (16 MiB)
+		command sequences verified in Armino's BK7258 CP implementation. It
+		uses internal SRAM until initialization and a mapped-memory probe
+		succeed. A missing, unsupported, or failing device leaves the system
+		running on its internal-SRAM heap.
+
+		PSRAM is not used for startup, linker sections, executable code, RPMsg,
+		or shared-memory regions. It is added to the ordinary NuttX heap, so
+		allocation placement is not type-aware: callers requiring internal SRAM
+		or DMA-safe memory must use a dedicated allocator when one is available.
+
+config BK7258_PSRAM_PROBE_SIZE
+	int "PSRAM mapped-memory probe size"
+	depends on BK7258_PSRAM
+	default 10240
+	range 64 65536
+	help
+		Number of bytes tested at the beginning of the mapped PSRAM window
+		before that window is exposed to the NuttX allocator. The probe checks
+		word access and three distinct data patterns, then restores its saved
+		contents.
+
 config BK7258_MAILBOX
 	bool "BK7258 Mailbox v2 doorbell"
 	depends on RPTUN

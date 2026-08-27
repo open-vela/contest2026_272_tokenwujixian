@@ -8,8 +8,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <nuttx/kmalloc.h>
+#include <syslog.h>
+
 #include "arm_internal.h"
 #include "include/bk7258_memorymap.h"
+#include "include/bk7258_psram.h"
 
 /* Guard this component's RAM window against the cross-domain regions. The
  * linker script cannot do this: including the chip header there would drag in
@@ -60,3 +64,27 @@ void up_allocate_heap(void **heap_start, size_t *heap_size)
   *heap_start = (void *)g_idle_topstack;
   *heap_size = CONFIG_RAM_END - g_idle_topstack;
 }
+
+#if CONFIG_MM_REGIONS > 1
+void arm_addregion(void)
+{
+#ifdef CONFIG_BK7258_PSRAM
+  size_t psram_size;
+  uint16_t device_id;
+  int ret;
+
+  ret = bk7258_psram_initialize(&psram_size, &device_id);
+  if (ret < 0)
+    {
+      syslog(LOG_WARNING,
+             "[BK7258] PSRAM unavailable (%d); using internal SRAM heap only\n",
+             ret);
+      return;
+    }
+
+  kumm_addregion((void *)BK7258_PSRAM_BASE, psram_size);
+  syslog(LOG_INFO, "[BK7258] PSRAM id=0x%04x size=%lu added to heap\n",
+         device_id, (unsigned long)psram_size);
+#endif
+}
+#endif
