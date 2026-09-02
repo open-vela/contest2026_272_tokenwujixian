@@ -38,10 +38,10 @@ extern uint8_t g_bk7258_cpu2_boot_stack[];
   ((uint32_t)((uintptr_t)g_bk7258_cpu2_boot_stack + \
               BK7258_CPU2_BOOT_STACK_SIZE))
 
-/* CPU1 (AP logical0) detects itself without a hardware core-id register:
- * the running MSP equals either the CPU2 interrupt-stack top (after
- * arm_initialize_stack()) or the CPU2 reset boot-stack top (reset path).
- * Both are link-time constants distinct from every CPU1 stack. */
+/* CPU1 (AP logical0) detects CPU2 without a hardware core-id register from
+ * the running MSP's membership in the CPU2 interrupt or reset boot stack.
+ * Ranges are required because C function prologues consume stack before
+ * up_cpu_index() executes. */
 
 extern const uint32_t g_bk7258_cpu_intstack_top[];
 

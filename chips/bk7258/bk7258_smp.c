@@ -16,7 +16,6 @@
 #include <nuttx/compiler.h>
 #include <nuttx/irq.h>
 #include <nuttx/sched_note.h>
-#include <nuttx/spinlock.h>
 
 #include "init/init.h"
 
@@ -25,6 +24,7 @@
 #include "ram_vectors.h"
 #include "chip.h"
 #include "sched/sched.h"
+#include "include/bk7258_ap_boot.h"
 #include "include/bk7258_mailbox.h"
 #include "include/bk7258_memorymap.h"
 #include "include/bk7258_smp.h"
@@ -40,6 +40,13 @@
 
 #define BK7258_CPU2_POWER_STABILIZE_LOOPS 1000
 #define BK7258_CPU2_POWER_WAIT_LOOPS      10000
+
+/* SWAP handshake poll bound.  The loop body is one SRAM read from XIP code,
+ * so this is on the order of a second -- long enough for CPU2 to leave
+ * reset and finish its early boot, short enough to fail visibly instead of
+ * hanging the AP primary core. */
+
+#define BK7258_CPU2_HANDSHAKE_LOOPS       20000000
 
 /****************************************************************************
  * Private Data
@@ -62,11 +69,6 @@ const uint32_t g_bk7258_cpu_intstack_top[CONFIG_SMP_NCPUS] =
 #endif
 };
 #endif
-
-/* Boot handshake spinlock: up_cpu_start() holds it while CPU2 boots and only
- * reacquires it after CPU2 has reached its idle trampoline. */
-
-static spinlock_t g_bk7258_cpu1_boot = SP_UNLOCKED;
 
 /* Secondary boot stack.  .noinit keeps it out of the zeroed .bss so the CPU2
  * reset path (before .bss is ready on CPU2) can push onto it. */
@@ -152,23 +154,39 @@ static void bk7258_cpu2_boot(void)
 
   up_irqinitialize();
 
-#ifdef CONFIG_BK7258_MAILBOX
-  /* Match the CPU1 Mailbox priority and enable CPU2's own NVIC line so SMP
-   * IPIs and the CP doorbell can interrupt this core. */
+  /* up_irqinitialize() ends by enabling interrupts.  Do not let any pending
+   * NVIC line (Mailbox doorbell, or a stale shared interrupt) fire on this
+   * core before the scheduler owns it: re-mask everything and let the
+   * scheduler re-enable interrupts in nx_idle_trampoline() -> sched_unlock().
+   */
 
-  up_prioritize_irq(BK7258_IRQ_MAILBOX,
-                    CONFIG_BK7258_MAILBOX_IRQ_PRIORITY);
-  up_enable_irq(BK7258_IRQ_MAILBOX);
-#endif
+  __asm__ volatile ("cpsid i" : : : "memory");
 
-  /* Release the boot handshake held by up_cpu_start(). */
+  /* Release the boot handshake held by up_cpu_start(): the SWAP flag word is
+   * what CPU1 polls instead of a cross-core spinlock, so bring-up does not
+   * depend on exclusive-monitor semantics. */
 
-  spin_unlock(&g_bk7258_cpu1_boot);
+  bk7258_ap_c2flag_set();
 
 #ifdef CONFIG_SCHED_INSTRUMENTATION
   /* Notify that this CPU has started */
 
   sched_note_cpu_started(this_task());
+#endif
+
+#ifdef CONFIG_BK7258_MAILBOX
+  /* Enable CPU2's Mailbox line only after the boot handshake is released.
+   * The Mailbox IRQ is a shared line: enabling it too early lets the CP->AP
+   * RPTUN doorbell (channel 1) keep interrupting this core before the idle
+   * trampoline owns it, starving the boot path.  Discard this core's stale
+   * FIFO entries first: a warm reset keeps Mailbox state alive, and an old
+   * SMP_MAGIC entry dispatched here would run the SMP-call path before the
+   * scheduler exists. */
+
+  bk7258_mbox_discard_local();
+  up_prioritize_irq(BK7258_IRQ_MAILBOX,
+                    CONFIG_BK7258_MAILBOX_IRQ_PRIORITY);
+  up_enable_irq(BK7258_IRQ_MAILBOX);
 #endif
 
   /* Then transfer control to the IDLE task */
@@ -265,13 +283,6 @@ int up_cpu_start(int cpu)
 
   bk7258_smp_initialize();
 
-  /* Acquire the boot handshake spinlock before CPU2 is released.  CPU2's
-   * bk7258_cpu2_boot() releases it when it reaches its idle trampoline, so
-   * the matching spin_lock() below blocks until CPU2 is actually running.
-   */
-
-  spin_lock(&g_bk7258_cpu1_boot);
-
   flags = up_irq_save();
 
   /* Follow the CPU1 lifecycle order from bk7258_ap_control.c: power up and
@@ -319,8 +330,10 @@ int up_cpu_start(int cpu)
   control = getreg32(BK7258_SYS_CPU2_CTRL);
   control &= ~(BK7258_SYS_CPU2_OFFSET_MASK |
                BK7258_SYS_CPU2_RESET_RELEASE);
-  control |= (uint32_t)(uintptr_t)_vectors_core1 &
-             BK7258_SYS_CPU2_OFFSET_MASK;
+
+  /* CPU2 uses the same 256-byte boot-offset field as CPU1. */
+
+  control |= BK7258_SYS_CPU_BOOT_OFFSET((uintptr_t)_vectors_core1);
   control |= BK7258_SYS_CPU2_RXEVT_SEL;
   putreg32(control, BK7258_SYS_CPU2_CTRL);
   __asm__ volatile ("dsb\n\tisb" : : : "memory");
@@ -332,40 +345,50 @@ int up_cpu_start(int cpu)
       goto out;
     }
 
+  /* Clear the SWAP handshake flag while CPU2 is still held in reset, so a
+   * stale value from an earlier CPU2 life can never satisfy the poll. */
+
+  bk7258_ap_c2flag_clear();
+
   putreg32(control | BK7258_SYS_CPU2_RESET_RELEASE,
            BK7258_SYS_CPU2_CTRL);
   __asm__ volatile ("dsb\n\tisb" : : : "memory");
 
-  for (count = 0; count < BK7258_CPU2_POWER_WAIT_LOOPS; count++)
+out:
+  up_irq_restore(flags);
+
+  if (ret < 0)
     {
-      status = getreg32(BK7258_SYS_CPU_STATUS);
-      if ((status & BK7258_SYS_CPU2_RESET_STATE) != 0)
+      return ret;
+    }
+
+  /* Handshake on the dedicated SWAP flag word instead of a cross-core
+   * spinlock: CPU1 cleared it before the release and CPU2 sets it once its
+   * early boot completed.  Polling a plain SRAM word keeps bring-up
+   * independent of the exclusive-monitor semantics that the runtime
+   * scheduler spinlocks still need verified. */
+
+  for (count = 0; count < BK7258_CPU2_HANDSHAKE_LOOPS; count++)
+    {
+      if (bk7258_ap_c2flag_test())
         {
           break;
         }
     }
 
-  if (count == BK7258_CPU2_POWER_WAIT_LOOPS)
+  if (count == BK7258_CPU2_HANDSHAKE_LOOPS)
     {
+      /* Fail loudly but stay diagnosable: the fault word carries the raw
+       * CPU status and the CP monitor reports stage=fault, while nx_smp_start
+       * turns -ETIMEDOUT into a recorded panic instead of a silent stall. */
+
+      status = getreg32(BK7258_SYS_CPU_STATUS);
+      bk7258_ap_record_fault(BK7258_AP_FAULT_C2START_BASE |
+                             (status & UINT32_C(0xff)));
       ret = -ETIMEDOUT;
-      goto out;
     }
 
-out:
-  up_irq_restore(flags);
-  if (ret < 0)
-    {
-      spin_unlock(&g_bk7258_cpu1_boot);
-      return ret;
-    }
-
-  /* Handshake: CPU2 releases g_bk7258_cpu1_boot once it reaches its idle
-   * trampoline, so the spin_lock() below blocks until CPU2 is running. */
-
-  spin_lock(&g_bk7258_cpu1_boot);
-  spin_unlock(&g_bk7258_cpu1_boot);
-
-  return OK;
+  return ret;
 }
 
 /****************************************************************************

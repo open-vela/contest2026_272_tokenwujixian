@@ -158,10 +158,10 @@ def validate_profile(manifest: dict[str, object]) -> dict[str, object]:
         if manifest.get("flashable") is not True:
             fail("OpenVela AP manifest is not backed by L1 validation")
         expected_components = {
-            "cp": "openvela-cp-ap-launcher",
-            "ap": "openvela-ap-cpu1-single-core",
+            "cp": ("openvela-cp-ap-launcher",),
+            "ap": ("openvela-ap-dual-core-smp", "openvela-ap-single-core"),
         }
-        for label, identity in expected_components.items():
+        for label, identities in expected_components.items():
             component = components.get(label, {})
             if component.get("source") != "openvela-component":
                 fail(f"OpenVela profile has a non-OpenVela {label} component")
@@ -174,7 +174,8 @@ def validate_profile(manifest: dict[str, object]) -> dict[str, object]:
             if sha256_file(report_path) != validation.get("sha256"):
                 fail(f"{label} L1 report SHA-256 differs from the manifest")
             report = json.loads(report_path.read_text(encoding="utf-8"))
-            if report.get("result") != "pass" or report.get("component") != identity:
+            if report.get("result") != "pass" or \
+               report.get("component") not in identities:
                 fail(f"{label} L1 report has the wrong result or identity")
             if report.get("sha256") != component.get("sha256"):
                 fail(f"{label} L1 report does not identify the packaged raw image")

@@ -70,6 +70,19 @@ static uint32_t g_bk7258_mbox_smp_pending;
  * CPU1 (logical0) plus CPU2 (logical1).  Each core drains the FIFO channel
  * that carries messages addressed to it, so the local channel index must
  * follow the running physical core, not a compile-time constant.
+ *
+ * Channel wiring:
+ *
+ *   channel 0: CPU0 (CP)            - RPTUN peer of channel 1
+ *   channel 1: CPU1 (AP logical0)   - RPTUN peer of channel 0, and SMP IPI
+ *                                     source/target for CPU2
+ *   channel 2: CPU2 (AP logical1)   - SMP IPI source/target for CPU1 only
+ *
+ * A sender always transmits from its OWN core channel and sets TID to the
+ * target core channel.  The receiver drains its own channel.  This is why the
+ * SMP IPI send channel follows the running core (CPU1 -> ch1, CPU2 -> ch2),
+ * while the RPTUN doorbell to CP must ALWAYS use channel 1 regardless of which
+ * AP core the RPTUN worker happens to run on.
  */
 
 static inline unsigned int bk7258_mbox_local_cpu(void)
@@ -78,6 +91,20 @@ static inline unsigned int bk7258_mbox_local_cpu(void)
   return 0;
 #else
   return (unsigned int)(up_cpu_index() + 1);
+#endif
+}
+
+/* The RPTUN (CP <-> AP) doorbell is physically bound to channel 1 on the AP
+ * side and channel 0 on the CP side.  It must not follow the running core:
+ * channel 2 only connects CPU1 and CPU2 inside the AP SMP domain.
+ */
+
+static inline unsigned int bk7258_mbox_rptun_local_channel(void)
+{
+#ifdef CONFIG_BK7258_COMPONENT_CP
+  return 0;
+#else
+  return 1;
 #endif
 }
 
@@ -154,6 +181,35 @@ int bk7258_mbox_attach(bk7258_mbox_callback_t callback, void *arg)
   return 0;
 }
 
+void bk7258_mbox_discard(unsigned int channel)
+{
+  /* Warm reset clears SRAM but not the Mailbox peripheral: FIFO entries of a
+   * previous life survive.  A stale SMP_MAGIC entry read by the ISR would run
+   * the SMP-call path on a core whose scheduler does not exist yet, so every
+   * channel must be emptied without dispatch before its interrupt is armed. */
+
+  while ((getreg32(BK7258_MBOX_CH_FSTAT(channel)) &
+          BK7258_MBOX_FIFO_EMPTY) == 0)
+    {
+      getreg32(BK7258_MBOX_CH_SID(channel));
+      getreg32(BK7258_MBOX_CH_RDATA0(channel));
+      getreg32(BK7258_MBOX_CH_RDATA1(channel));
+    }
+}
+
+void bk7258_mbox_discard_local(void)
+{
+  /* Discard the running core's stale FIFO entries and clear the NVIC pending
+   * bit: the SYS-level route of a previous life may have kept the mailbox
+   * line asserted, and a pending interrupt that fires on the next
+   * up_enable_irq() must not find anything to dispatch. */
+
+  unsigned int external = BK7258_IRQ_MAILBOX - NVIC_IRQ_FIRST;
+
+  bk7258_mbox_discard(bk7258_mbox_local_cpu());
+  putreg32(UINT32_C(1) << (external & 31), NVIC_IRQ_CLRPEND(external));
+}
+
 int bk7258_mbox_attach_ipi(bk7258_mbox_callback_t callback, void *arg)
 {
   irqstate_t flags = spin_lock_irqsave(&g_bk7258_mbox_lock);
@@ -200,9 +256,12 @@ int bk7258_mbox_init(bool global_owner)
               BK7258_MBOX_CH_INT_ENABLE);
 #ifdef CONFIG_BK7258_COMPONENT_AP
 #  ifdef CONFIG_SMP
-  /* Enable the sibling AP channel (physical CPU1<->CPU2) as well, so the
-   * SMP IPI path is armed regardless of which core initializes first. */
+  /* Empty the sibling AP channel (physical CPU1<->CPU2) BEFORE arming its
+   * FIFO interrupt: a stale entry from a previous boot would otherwise
+   * assert the mailbox line to that core and run the SMP-call path there
+   * before its scheduler exists. */
 
+  bk7258_mbox_discard(bk7258_mbox_local_cpu() == 1 ? 2 : 1);
   modifyreg32(BK7258_MBOX_CH_CFG(bk7258_mbox_local_cpu() == 1 ? 2 : 1),
               0, BK7258_MBOX_CH_INT_ENABLE);
 #  endif
@@ -228,17 +287,16 @@ int bk7258_mbox_init(bool global_owner)
   return 0;
 }
 
-static int bk7258_mbox_send_locked(int dst_cpu, uint32_t data0, uint32_t data1)
+static int bk7258_mbox_send_locked(unsigned int channel, int dst_cpu,
+                                   uint32_t data0, uint32_t data1)
 {
-  unsigned int channel = bk7258_mbox_local_cpu();
-
   if (!g_bk7258_mbox_initialized)
     {
       return -ENODEV;
     }
 
   if (dst_cpu < 0 || dst_cpu >= BK7258_MBOX_CHANNELS ||
-      dst_cpu == bk7258_mbox_local_cpu())
+      dst_cpu == channel)
     {
       return -EINVAL;
     }
@@ -262,7 +320,8 @@ int bk7258_mbox_notify(int dst_cpu, uint32_t token)
   int ret;
 
   flags = spin_lock_irqsave(&g_bk7258_mbox_lock);
-  ret = bk7258_mbox_send_locked(dst_cpu, token, BK7258_MBOX_RPTUN_MAGIC);
+  ret = bk7258_mbox_send_locked(bk7258_mbox_rptun_local_channel(),
+                                dst_cpu, token, BK7258_MBOX_RPTUN_MAGIC);
   spin_unlock_irqrestore(&g_bk7258_mbox_lock, flags);
   return ret;
 }
@@ -295,7 +354,8 @@ int bk7258_mbox_ipi(int dst_cpu)
 
   do
     {
-      ret = bk7258_mbox_send_locked(dst_cpu, 0, BK7258_MBOX_SMP_MAGIC);
+      ret = bk7258_mbox_send_locked(bk7258_mbox_local_cpu(), dst_cpu, 0,
+                                    BK7258_MBOX_SMP_MAGIC);
       attempts++;
     }
   while (ret == -EBUSY && attempts < 16);

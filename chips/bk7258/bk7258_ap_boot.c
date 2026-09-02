@@ -31,6 +31,9 @@ static_assert(sizeof(struct bk7258_ap_boot_record_s) +
               sizeof(struct bk7258_ap_generation_s) *
                 BK7258_AP_GENERATION_SLOTS <= BK7258_SWAP_SIZE,
               "BK7258 AP records exceed the locked SWAP region");
+static_assert((BK7258_AP_SWAP_C2_WORD + 1) * sizeof(uint32_t) <=
+                BK7258_SWAP_SIZE,
+              "BK7258 AP CPU2 flag word exceeds the locked SWAP region");
 
 static volatile struct bk7258_ap_boot_record_s *const g_ap_record =
   (volatile struct bk7258_ap_boot_record_s *)BK7258_SWAP_BASE;
@@ -304,4 +307,27 @@ void bk7258_ap_record_fault(uint32_t fault)
   record.stage = BK7258_AP_STAGE_FAULT;
   record.fault = fault;
   bk7258_ap_write(&record);
+}
+
+void bk7258_ap_c2flag_clear(void)
+{
+  volatile uint32_t *flag = (volatile uint32_t *)g_ap_record;
+
+  flag[BK7258_AP_SWAP_C2_WORD] = 0;
+  bk7258_ap_barrier();
+}
+
+void bk7258_ap_c2flag_set(void)
+{
+  volatile uint32_t *flag = (volatile uint32_t *)g_ap_record;
+
+  flag[BK7258_AP_SWAP_C2_WORD] = BK7258_AP_SWAP_C2_MAGIC;
+  bk7258_ap_barrier();
+}
+
+bool bk7258_ap_c2flag_test(void)
+{
+  volatile uint32_t *flag = (volatile uint32_t *)g_ap_record;
+
+  return flag[BK7258_AP_SWAP_C2_WORD] == BK7258_AP_SWAP_C2_MAGIC;
 }

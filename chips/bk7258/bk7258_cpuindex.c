@@ -25,12 +25,10 @@
  *   Return the AP logical core number for the running core.
  *
  *   The AP component maps physical CPU1/CPU2 to NuttX logical CPU0/CPU1.
- *   BK7258 has no readable hardware core-id register, so the running core is
- *   identified by its private stack pointer instead: after
- *   arm_initialize_stack() the main stack pointer is pinned to the per-CPU
- *   interrupt stack, and on the reset path it equals the CPU2 boot stack.
- *   Both addresses are link-time constants distinct from every CPU1 stack,
- *   so the mapping is stable from the first C call on each core.
+   *   BK7258 has no readable hardware core-id register, so CPU2 is identified
+   *   by its private boot or interrupt-stack range. The reset handler's C
+   *   prologue consumes stack before this function can run, so an exact
+   *   stack-top test would classify CPU2 as CPU1.
  *
  ****************************************************************************/
 
@@ -46,14 +44,23 @@ int up_cpu_index(void)
 
   __asm__ volatile ("mrs %0, msp" : "=r"(msp) : : "memory");
 
+  /* CPU1 (logical0) runs with its MSP pinned to its own per-CPU interrupt
+   * stack by arm_initialize_stack(); the task stacks live on PSP.  CPU2
+   * (logical1) owns one contiguous stack region: its reset boot stack
+   * followed by its per-CPU interrupt stack.  Test CPU1's interrupt stack
+   * first so its top (which borders CPU2's intstack) can never be mistaken
+   * for a CPU2 value, then test the whole CPU2 region. */
+
 #    if CONFIG_ARCH_INTERRUPTSTACK > 7
-  if (msp == g_bk7258_cpu_intstack_top[1])
+  if (msp > g_bk7258_cpu_intstack_top[0] - INTSTACK_SIZE &&
+      msp <= g_bk7258_cpu_intstack_top[0])
     {
-      return 1;
+      return 0;
     }
 #    endif
 
-  if (msp == BK7258_CPU2_BOOT_STACK_TOP)
+  if (msp > BK7258_CPU2_BOOT_STACK_TOP - BK7258_CPU2_BOOT_STACK_SIZE &&
+      msp <= g_bk7258_cpu_intstack_top[1])
     {
       return 1;
     }

@@ -299,18 +299,23 @@ static int bk7258_rptun_notify(struct rptun_dev_s *dev, uint32_t vqid)
 
   priv->shmem->mbox_pending[peer] = 1;
   bk7258_rptun_barrier();
-  ret = bk7258_mbox_notify(peer, RPTUN_NOTIFY_ALL);
-  if (ret == -EBUSY)
-    {
-      /* One outstanding RPTUN doorbell cannot fill its dedicated FIFO.
-       * Treat this as an ownership/hardware invariant failure instead of
-       * hiding it behind a timer or an assumed notification.
-       */
 
-      priv->shmem->mbox_pending[peer] = 0;
-      bk7258_rptun_barrier();
-      leave_critical_section(flags);
-      return ret;
+  /* A doorbell that returns -EBUSY means the peer FIFO was momentarily full
+   * (the peer had not yet drained a previous kick).  Losing this kick would
+   * leave data in the vring with no scan and deadlock the uart_rpmsg ACK
+   * round-trip, so spin-retry while holding the latch until the kick lands. */
+
+  ret = bk7258_mbox_notify(peer, RPTUN_NOTIFY_ALL);
+  while (ret == -EBUSY)
+    {
+      volatile unsigned int spin;
+
+      for (spin = 0; spin < 200; spin++)
+        {
+          __asm__ volatile ("nop");
+        }
+
+      ret = bk7258_mbox_notify(peer, RPTUN_NOTIFY_ALL);
     }
 
   if (ret < 0)
@@ -414,6 +419,7 @@ int bk7258_rptun_initialize(void)
     {
       return ret;
     }
+
   ret = rptun_boot(bk7258_rptun_get_cpuname(&g_bk7258_rptun.rptun));
   if (ret < 0)
     {

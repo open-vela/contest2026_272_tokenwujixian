@@ -23,6 +23,8 @@ int bk7258_mbox_attach(bk7258_mbox_callback_t callback, void *arg);
 int bk7258_mbox_attach_ipi(bk7258_mbox_callback_t callback, void *arg);
 int bk7258_mbox_notify(int dst_cpu, uint32_t token);
 int bk7258_mbox_ipi(int dst_cpu);
+void bk7258_mbox_discard(unsigned int channel);
+void bk7258_mbox_discard_local(void);
 
 #endif /* CONFIG_BK7258_MAILBOX */
 #endif /* __VENDOR_BEKEN_CHIP_BK7258_MAILBOX_H */

@@ -216,7 +216,8 @@ def require_ap_validation(
     report = json.loads(report_path.read_text(encoding="utf-8"))
     if report.get("result") != "pass":
         fail("AP L1 validation report does not pass")
-    if report.get("component") != "openvela-ap-cpu1-single-core":
+    if report.get("component") not in ("openvela-ap-dual-core-smp",
+                                       "openvela-ap-single-core"):
         fail("AP L1 validation report has the wrong component identity")
     if Path(str(report.get("raw", ""))).resolve() != ap_path:
         fail("AP L1 validation report names a different raw image")

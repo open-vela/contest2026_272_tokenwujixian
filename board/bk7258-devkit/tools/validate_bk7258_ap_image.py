@@ -19,7 +19,7 @@ RAM_SIZE = 0x00054000
 RPMSG_BASE = 0x28064000
 RPMSG_SIZE = 0x0000AC00
 CP_RAM_BASE = 0x2806EC00
-IDLE_STACK_SIZE = 2048
+IDLE_STACK_SIZE = None  # resolved from the build config below
 IMAGE_CONTRACT_OFFSET = 0x200
 IMAGE_CONTRACT = (
     (0x4F564150).to_bytes(4, "little")
@@ -55,7 +55,6 @@ def main() -> int:
             "CONFIG_DEV_CONSOLE=y",
             "CONFIG_DEV_SIMPLE_ADDRENV=y",
             'CONFIG_INIT_ENTRYPOINT="nsh_main"',
-            "CONFIG_INIT_STACKSIZE=4096",
             "CONFIG_NSH_CONSOLE=y",
             "CONFIG_NSH_BUILTIN_APPS=y",
             "CONFIG_RAM_START=0x28010000",
@@ -70,21 +69,29 @@ def main() -> int:
             "CONFIG_RPTUN=y",
             "CONFIG_RPTUN_AUTO_RESET_DISABLE=y",
             "CONFIG_RPTUN_PRIORITY=90",
-            "CONFIG_RPTUN_STACKSIZE=4096",
             "CONFIG_SERIAL=y",
-            "CONFIG_SMP=y",
-            "CONFIG_SMP_NCPUS=2",
             "CONFIG_SYSTEM_NSH=y",
         )
         for setting in required_config:
             if setting not in config_lines:
                 fail(f"AP build config lacks required setting: {setting}")
+        if "CONFIG_SMP=y" in config_lines:
+            for setting in ("CONFIG_SMP_NCPUS=2",):
+                if setting not in config_lines:
+                    fail(f"AP SMP build config lacks required setting: {setting}")
+        idle_size = 2048
+        for line in config_lines:
+            if line.startswith("CONFIG_IDLETHREAD_STACKSIZE="):
+                idle_size = int(line.split("=", 1)[1])
+        IDLE_STACK_SIZE = idle_size
         forbidden_config = (
             "CONFIG_BK7258_COMPONENT_CP=y",
         )
         for setting in forbidden_config:
             if setting in config_lines:
                 fail(f"AP build config enables forbidden setting: {setting}")
+
+        dual_core = "CONFIG_SMP=y" in config_lines
 
         elf_data, sections, segments, entry = elf.parse_elf(args.elf)
         symbols = elf.symbol_values(elf_data, sections)
@@ -101,7 +108,6 @@ def main() -> int:
             "bk7258_rptun_initialize",
             "bk7258_mbox_init",
             "bk7258_mbox_notify",
-            "bk7258_mbox_ipi",
             "board_reset",
             "up_systemreset",
             "rpmsg_serialinit",
@@ -109,13 +115,6 @@ def main() -> int:
             "up_enable_icache",
             "up_disable_dcache",
             "up_cpu_index",
-            "up_cpu_start",
-            "up_cpu_idlestack",
-            "up_send_smp_sched",
-            "up_send_smp_call",
-            "up_get_intstackbase",
-            "_vectors_core1",
-            "g_bk7258_cpu2_boot_stack",
             "_sdata",
             "_edata",
             "_sbss",
@@ -123,6 +122,17 @@ def main() -> int:
             "_enoinit",
             "_eronly",
         )
+        if dual_core:
+            required += (
+                "up_cpu_start",
+                "up_cpu_idlestack",
+                "up_send_smp_sched",
+                "up_send_smp_call",
+                "up_get_intstackbase",
+                "_vectors_core1",
+                "g_bk7258_cpu2_boot_stack",
+                "bk7258_mbox_ipi",
+            )
         for name in required:
             if name not in symbols:
                 fail(f"ELF lacks required symbol {name}")
@@ -143,13 +153,15 @@ def main() -> int:
             fail("nsh_main is outside AP XIP")
         if symbols["g_bk7258_ap_image_contract"] != FLASH_BASE + IMAGE_CONTRACT_OFFSET:
             fail("OpenVela AP image contract is not at fixed XIP offset 0x200")
-        vectors_core1 = symbols["_vectors_core1"]
-        if not (FLASH_BASE <= vectors_core1 < flash_end):
-            fail("AP CPU2 vector table is outside AP XIP")
-        if vectors_core1 % 512:
-            fail("AP CPU2 vector table is not 512-byte aligned")
-        if not (RAM_BASE <= symbols["g_bk7258_cpu2_boot_stack"] < ram_end):
-            fail("AP CPU2 boot stack is outside the locked RAM window")
+        vectors_core1 = None
+        if dual_core:
+            vectors_core1 = symbols["_vectors_core1"]
+            if not (FLASH_BASE <= vectors_core1 < flash_end):
+                fail("AP CPU2 vector table is outside AP XIP")
+            if vectors_core1 % 512:
+                fail("AP CPU2 vector table is not 512-byte aligned")
+            if not (RAM_BASE <= symbols["g_bk7258_cpu2_boot_stack"] < ram_end):
+                fail("AP CPU2 boot stack is outside the locked RAM window")
         if data.addr != RAM_BASE or symbols["_sdata"] != RAM_BASE:
             fail("AP .data does not begin at 0x28010000")
         if not (RAM_BASE <= symbols["_sdata"] <= symbols["_edata"] <= ram_end):
@@ -204,7 +216,8 @@ def main() -> int:
 
         report = {
             "result": "pass",
-            "component": "openvela-ap-dual-core-smp",
+            "component": "openvela-ap-dual-core-smp" if dual_core
+            else "openvela-ap-single-core",
             "elf": str(args.elf),
             "raw": str(args.raw),
             "sha256": hashlib.sha256(raw).hexdigest(),
@@ -216,16 +229,17 @@ def main() -> int:
             "ram": {"start": "0x28010000", "end": "0x28064000"},
             "rpmsg_shm": {"start": "0x28064000", "end": "0x2806ec00"},
             "vectors": {"msp": f"0x{msp:08x}", "reset": f"0x{reset:08x}"},
-            "cpu2_vectors": {
-                "base": f"0x{vectors_core1:08x}",
-                "msp": f"0x{symbols['g_bk7258_cpu2_boot_stack'] + 2048:08x}",
-            },
             "sections": {
                 "text": f"0x{text.addr:08x}",
                 "data": f"0x{data.addr:08x}",
                 "bss": f"0x{bss.addr:08x}",
             },
         }
+        if dual_core:
+            report["cpu2_vectors"] = {
+                "base": f"0x{vectors_core1:08x}",
+                "msp": f"0x{symbols['g_bk7258_cpu2_boot_stack'] + 2048:08x}",
+            }
         args.report.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         print(json.dumps(report, indent=2))
         return 0

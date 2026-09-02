@@ -63,16 +63,24 @@ AP NuttX logical CPU1 -> BK7258 physical CPU2
 The chip port provides the SoC side of NuttX SMP:
 
 - `up_cpu_index()` maps the running core to a NuttX logical index. BK7258 has
-  no readable hardware core-id register, so the core is identified by its
-  private stack pointer: after `arm_initialize_stack()` the main stack pointer
-  is pinned to the per-CPU interrupt stack, and on the reset path it equals the
-  dedicated CPU2 boot stack. Both are link-time constants, so the mapping is
-  stable from the very first C call on each core and needs no shared mutable
-  state.
+  no readable hardware core-id register, so CPU2 is identified by whether its
+  stack pointer lies in its dedicated boot-stack or interrupt-stack range. A
+  range test is required because a C-function prologue consumes stack before
+  the first core-index query. The ranges are link-time constants and need no
+  shared mutable state.
 - `up_cpu_idlestack()` allocates the CPU1 idle task stack from the AP heap.
 - `up_cpu_start(1)` releases physical CPU2 at the in-image `_vectors_core1`
   table (512-byte aligned, AP XIP), using the same CPU1 lifecycle register
-  order, then handshakes on a boot spinlock.
+  order, then handshakes on a dedicated SWAP flag word (word 44): CPU1 clears
+  it before the release and polls it with a bounded loop (about one second)
+  while CPU2 sets it after its early boot. The flag word sits behind the two
+  generation slots (words 16..23), so a handshake write can never destroy the
+  boot-sequence history. The boot path deliberately avoids cross-core
+  spinlocks; the exclusive-monitor semantics of the BK7258 SRAM remain an
+  unverified A3 item for the runtime scheduler spinlocks.
+- a handshake timeout writes a `C2T` fault record (low byte = raw CPU
+  status) before returning `-ETIMEDOUT`, so `DEBUGVERIFY(nx_smp_start())`
+  turns into a recorded panic instead of a silent stall;
 - `up_send_smp_sched()` / `up_send_smp_call()` drive the SMP IPI through the
   same hardware Mailbox that RPTUN uses as a doorbell. The Mailbox ISR demuxes
   by message type: `BK7258_MBOX_SMP_MAGIC` goes to the SMP handler, everything
@@ -86,18 +94,19 @@ setup (`up_irqinitialize()`), enables the Mailbox line on its own NVIC, and
 hands off to `nx_idle_trampoline()`. The single system tick is provided by
 CPU1's SysTick, so CPU2 needs no timer of its own.
 
-**Hardware-validated register note.** The AP SMP lifecycle reuses the
-established CPU1 control bit layout for `SYS_CPU2_CTRL` (`0x44010018`) and the
-per-state CPU2 status bits in `SYS_CPU_STATUS`, and enables the Mailbox IRQ
-via `SYS_CPU2_INT_EN_HI`. These offsets follow the SoC register stride but
-have not yet been cross-checked against the BK7258 TRM; the release path fails
-closed (returns an error and leaves CPU2 in reset) if the programmed control
-bits do not read back, and `up_cpu_start(1)` times out with diagnostics if the
-boot handshake is not reached. Record the register readback and the CPU2
-heartbeat on real hardware before treating A3 as passed.
+**Hardware validation note.** Armino's BK7258 source confirms that CPU2 uses
+`SYS_CPU2_CTRL` (`0x44010018`), with its boot-address field encoded as
+`vector_address >> 8`; the port follows that encoding and enables the Mailbox
+IRQ via `SYS_CPU2_INT_EN_HI`. The release path fails closed (returns an error
+and leaves CPU2 in reset) if programmed control bits do not read back, and
+`up_cpu_start(1)` times out with diagnostics if the boot handshake is not
+reached. Record the register readback and CPU2 heartbeat on real hardware
+before treating A3 as passed.
 
 The board exposes per-core state through the existing `bk7258_ap status`
-record path (heartbeat still proves the whole AP SMP kernel is alive). A3
+record path (heartbeat still proves the whole AP SMP kernel is alive), and the
+AP panic notifier encodes the assertion file hash and line number into the
+fault word so the CP-side monitor can point at the failing source. A3
 completeness is hardware-pass only when both idle tasks run, per-CPU state
 shows logical CPU0/CPU1 online, pinned test threads count up on each AP CPU,
 IPI/smp-call/spinlock paths hold under load, and the CP↔AP RPMsg path survives

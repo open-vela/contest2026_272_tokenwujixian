@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "profile": "bk7258-devkit-openvela-ap",
-  "purpose": "BK7258 Flash image containing independently built OpenVela CP and single-core OpenVela AP components",
+  "purpose": "BK7258 Flash image containing independently built OpenVela CP and dual-core OpenVela AP components",
   "container": {
     "mode": "linear-crc-physical-flash",
     "crc": {
@@ -40,7 +40,7 @@
     }
   },
   "ap_execution": {
-    "component": "openvela-ap-cpu1-single-core",
+    "component": "openvela-ap-dual-core-smp",
     "security_domain": "secure-spe",
     "vector_alignment_bytes": 512,
     "sram_start": "0x28010000",
@@ -49,11 +49,11 @@
     "rpmsg_shm_start": "0x28064000",
     "rpmsg_shm_size": "0x0000ac00",
     "rpmsg_shm_end": "0x2806ec00",
-    "cpu2": "not-started-by-mvp; reset state requires hardware observation",
+    "cpu2": "released by AP NuttX SMP after CPU1 reset entry; hardware heartbeat and per-core validation still required",
     "console": "AP nsh_main over RPMsg UART /dev/console; CP enters through /dev/ttyAP with cu; SWAP heartbeat remains the independent health channel",
     "deferred": [
       "AP physical UART",
-      "CPU2 and SMP",
+      "hardware validation of CPU2 and SMP",
       "AP peripheral ownership",
       "AP stop/reset/start and transparent RPMsg UART session reconnection",
       "cross-core syslog, coredump and panic/reboot propagation"

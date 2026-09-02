@@ -134,8 +134,6 @@ static int bk7258_ap_force_reset(void)
 {
   irqstate_t flags;
   uint32_t control;
-  uint32_t status;
-  unsigned int count;
 
   flags = up_irq_save();
   control = bk7258_ap_reg_read(BK7258_SYS_CPU1_CTRL);
@@ -149,18 +147,8 @@ static int bk7258_ap_force_reset(void)
       return -EIO;
     }
 
-  for (count = 0; count < BK7258_AP_POWER_WAIT_LOOPS; count++)
-    {
-      status = bk7258_ap_reg_read(BK7258_SYS_CPU_STATUS);
-      if ((status & BK7258_SYS_CPU1_RESET_STATE) == 0)
-        {
-          up_irq_restore(flags);
-          return 0;
-        }
-    }
-
   up_irq_restore(flags);
-  return -ETIMEDOUT;
+  return 0;
 }
 
 int bk7258_ap_reset_for_rptun(void)
@@ -276,10 +264,8 @@ int board_start_cpu(int cpuid)
 
   flags = up_irq_save();
 
-  /* Follow the source-backed BK7258 lifecycle order while making the reset
-   * boundary explicit: power up and unhalt CPU1 with reset asserted, wait for
-   * the observable state to settle, program the vector offset, then release
-   * reset.  CPU2 is never touched by this MVP. */
+  /* Follow Armino's BK7258 lifecycle order. CPU_CURRENT_RUN_STATUS is
+   * diagnostic only; its transient values are not a launch precondition. */
 
   control = bk7258_ap_reg_read(BK7258_SYS_CPU1_CTRL);
   syslog(LOG_INFO, "[AP] start: cpu1_ctrl before=%08lx\n",
@@ -305,8 +291,7 @@ int board_start_cpu(int cpuid)
     }
 
   /* Keep the vendor power-domain settling window explicit and
-   * non-optimizable. The bounded state poll below remains the completion
-   * check; this delay is not itself treated as proof of power-up. */
+   * non-optimizable. */
 
   for (count = 0; count < BK7258_AP_POWER_STABILIZE_LOOPS; count++)
     {
@@ -362,7 +347,10 @@ int board_start_cpu(int cpuid)
   control = bk7258_ap_reg_read(BK7258_SYS_CPU1_CTRL);
   control &= ~(BK7258_SYS_CPU1_OFFSET_MASK |
                BK7258_SYS_CPU1_RESET_RELEASE);
-  control |= BK7258_AP_XIP_VECTOR_BASE & BK7258_SYS_CPU1_OFFSET_MASK;
+  /* The Armino setter takes address >> 8 as a bitfield value. This direct
+   * register write must place that value back into bits [31:8]. */
+
+  control |= BK7258_SYS_CPU_BOOT_OFFSET(BK7258_AP_XIP_VECTOR_BASE);
   control |= BK7258_SYS_CPU1_RXEVT_SEL;
   bk7258_ap_reg_write(BK7258_SYS_CPU1_CTRL, control);
   bk7258_ap_lifecycle_barrier();
@@ -610,11 +598,29 @@ static int bk7258_ap_monitor(int argc, char *argv[])
 
       if (record.stage != last_stage)
         {
-          syslog(record.stage == BK7258_AP_STAGE_FAULT ? LOG_ERR : LOG_INFO,
-                 "[AP] stage=%s seq=%u fault=0x%08x\n",
-                 bk7258_ap_stage_name(record.stage),
-                 (unsigned int)record.boot_sequence,
-                 (unsigned int)record.fault);
+          if (record.stage == BK7258_AP_STAGE_FAULT &&
+              (record.fault & UINT32_C(0xffff0000)) ==
+              (BK7258_AP_FAULT_PANIC_BASE & UINT32_C(0xffff0000)))
+            {
+              /* The AP panic notifier encodes the assertion location:
+               * high byte = a short hash of the filename, low byte = line
+               * number. */
+
+              syslog(LOG_ERR,
+                     "[AP] stage=fault seq=%u panic filehash=0x%02x line=%u\n",
+                     (unsigned int)record.boot_sequence,
+                     (unsigned int)((record.fault >> 8) & UINT32_C(0xff)),
+                     (unsigned int)(record.fault & UINT32_C(0xff)));
+            }
+          else
+            {
+              syslog(record.stage == BK7258_AP_STAGE_FAULT ? LOG_ERR : LOG_INFO,
+                     "[AP] stage=%s seq=%u fault=0x%08x\n",
+                     bk7258_ap_stage_name(record.stage),
+                     (unsigned int)record.boot_sequence,
+                     (unsigned int)record.fault);
+            }
+
           last_stage = record.stage;
         }
 
@@ -656,7 +662,8 @@ int bk7258_ap_start_monitor(void)
   ret = boardctl(BOARDIOC_START_CPU, 1);
   if (ret < 0)
     {
-      syslog(LOG_ERR, "[AP] CPU1 release failed: %d errno=%d\n", ret, errno);
+      syslog(LOG_ERR, "[AP] CPU1 release failed: %d errno=%d\n",
+             ret, get_errno());
       return ret;
     }
 

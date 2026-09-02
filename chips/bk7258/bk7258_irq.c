@@ -102,6 +102,10 @@ int bk7258_icu_disable(unsigned int source)
   return ret;
 }
 
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
+
 static int bk7258_irqinfo(int irq, uintptr_t *regaddr, uint32_t *bit,
                           uintptr_t offset)
 {

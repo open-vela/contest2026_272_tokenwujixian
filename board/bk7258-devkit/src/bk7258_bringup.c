@@ -4,9 +4,12 @@
 
 #include <nuttx/config.h>
 
+#include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <syslog.h>
+
+#include <sys/mount.h>
 
 #include <nuttx/board.h>
 #include <nuttx/kthread.h>
@@ -110,6 +113,18 @@ void board_late_initialize(void)
 
 int board_app_initialize(uintptr_t arg)
 {
+#if defined(CONFIG_BK7258_COMPONENT_AP) && defined(CONFIG_FS_PROCFS)
+  /* nshlib does not mount procfs by itself, and the AP has no startup
+   * script: mount it here so `ps` and the per-task affinity view work in
+   * the RPMsg-backed AP NSH. */
+
+  if (mount(NULL, CONFIG_NSH_PROC_MOUNTPOINT, "procfs", 0, NULL) < 0 &&
+      get_errno() != EEXIST)
+    {
+      syslog(LOG_ERR, "[AP] procfs mount failed: %d\n", get_errno());
+    }
+#endif
+
 #if defined(CONFIG_LCD_JD9853) || defined(CONFIG_LCD_GC9D01)
   int ret;
 
@@ -190,16 +205,41 @@ static void bk7258_ap_heartbeat_led_initialize(void)
 static int bk7258_ap_panic_notify(struct notifier_block *block,
                                   unsigned long action, void *data)
 {
+  FAR struct panic_notifier_s *info = data;
+  uint32_t fault;
+
   (void)block;
-  (void)data;
 
   /* PANIC_TASK can describe a task-local assertion. Only kernel panic stages
    * are fatal evidence for this AP instance. */
 
   if (action != PANIC_TASK)
     {
-      bk7258_ap_record_fault(BK7258_AP_FAULT_PANIC_BASE |
-                             ((uint32_t)action & UINT32_C(0xff)));
+      /* Encode the assertion location into the fault word so the CP-side
+       * monitor can point at the failing source: high byte = a short hash of
+       * the filename, low byte = line number. */
+
+      if (info != NULL && info->filename != NULL)
+        {
+          uint32_t hash = 0;
+          FAR const char *p;
+
+          for (p = info->filename; *p != '\0'; p++)
+            {
+              hash = (hash << 1) ^ (hash >> 31) ^ (uint32_t)*p;
+            }
+
+          fault = BK7258_AP_FAULT_PANIC_BASE |
+                  ((hash & UINT32_C(0xff)) << 8) |
+                  ((uint32_t)(info->linenum & UINT32_C(0xff)));
+        }
+      else
+        {
+          fault = BK7258_AP_FAULT_PANIC_BASE |
+                  ((uint32_t)action & UINT32_C(0xff));
+        }
+
+      bk7258_ap_record_fault(fault);
     }
 
   return 0;
@@ -222,9 +262,9 @@ static int bk7258_ap_amp_initialize(int argc, char *argv[])
   ret = bk7258_rptun_initialize();
   if (ret < 0)
     {
-      /* Keep the heartbeat task alive: absence of /dev/rpmsg/ap then isolates
-       * the failure to AMP without losing the already verified AP liveness
-       * channel. */
+      /* Keep the heartbeat task alive so the SWAP record still proves AP
+       * liveness even when AMP initialization fails.
+       */
 
       return ret;
     }
@@ -274,6 +314,8 @@ static void bk7258_ap_initialize(void)
 
   /* board_late_initialize() runs before nsh_main. Keep board health and AMP
    * setup in kernel workers so the standard NSH entry can own /dev/console.
+   * The notifier is registered here, after tasklist_initialize(): earlier
+   * registration would dereference a NULL TCB inside sched_lock().
    */
 
   syslog(LOG_INFO, "BK7258: bk7258_ap_initialize called\n");
@@ -338,7 +380,7 @@ static void bk7258_ap_initialize(void)
 #endif
 
 #ifdef CONFIG_RPTUN
-  ret = kthread_create("bk7258-amp-init", 95, 4096,
+  ret = kthread_create("bk7258-amp-init", 95, 8192,
                        bk7258_ap_amp_initialize, NULL);
   if (ret < 0)
     {

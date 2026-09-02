@@ -59,8 +59,11 @@ AP_VALIDATION_REPORT="$WORKSPACE/cmake_out/bk7258-devkit_ap/bk7258_ap/l1-validat
 DEFAULT_OUTPUT_DIR="$WORKSPACE/cmake_out/bk7258-l2-bundled"
 OPENVELA_OUTPUT_DIR="$WORKSPACE/cmake_out/bk7258-l2-openvela-ap"
 OUTPUT_DIR=""
-OVERWRITE=0
-USE_PLACEHOLDER=1
+
+# The default daily-loop image is the real OpenVela AP component, not the
+# bundled recovery placeholder.  The placeholder stays available through the
+# explicit --placeholder flag.
+USE_PLACEHOLDER=0
 AP_ARGUMENT_SEEN=0
 
 while [[ $# -gt 0 ]]; do
@@ -112,10 +115,13 @@ fi
 # forcing a new directory on every run. Only the packager's own artifacts are
 # removed, never the directory itself or anything else inside it.
 if [[ -z "$OUTPUT_DIR" ]]; then
+  # The daily loop flashes the same fixed directory bk7258-flash.sh reads by
+  # default, so the real OpenVela AP image lands there unless the user asks
+  # for the recovery placeholder or an explicit evidence directory.
   if [[ "$USE_PLACEHOLDER" -eq 1 ]]; then
-    OUTPUT_DIR="$DEFAULT_OUTPUT_DIR"
-  else
     OUTPUT_DIR="$OPENVELA_OUTPUT_DIR"
+  else
+    OUTPUT_DIR="$DEFAULT_OUTPUT_DIR"
   fi
   OVERWRITE=1
 fi

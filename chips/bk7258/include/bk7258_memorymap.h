@@ -169,6 +169,8 @@
 #define BK7258_SYS_CPU1_HALT          (UINT32_C(1) << 3)
 #define BK7258_SYS_CPU1_RXEVT_SEL     (UINT32_C(1) << 5)
 #define BK7258_SYS_CPU1_OFFSET_MASK   UINT32_C(0xffffff00)
+#define BK7258_SYS_CPU_BOOT_OFFSET(address) \
+  (((uint32_t)(address) >> 8) << 8)
 #define BK7258_SYS_CPU1_HALTED_STATE  (UINT32_C(1) << 1)
 #define BK7258_SYS_CPU1_RESET_STATE   (UINT32_C(1) << 5)
 #define BK7258_SYS_CPU1_PWR_DW_STATE  (UINT32_C(1) << 9)
