@@ -73,6 +73,8 @@
 #define BK7258_SYS_CLKDIV1       (BK7258_SYS_BASE + UINT32_C(0x20))
 #define BK7258_SYS_CLKDIV2       (BK7258_SYS_BASE + UINT32_C(0x24))
 #define BK7258_SYS_DEV_CLK_EN    (BK7258_SYS_BASE + UINT32_C(0x30))
+#define BK7258_SYS_DEV_MEM_CTRL1 (BK7258_SYS_BASE + UINT32_C(0x38))
+#define BK7258_SYS_DEV_MEM_CTRL2 (BK7258_SYS_BASE + UINT32_C(0x3c))
 #define BK7258_SYS_POWER_WAKEUP  (BK7258_SYS_BASE + UINT32_C(0x40))
 #define BK7258_SYS_ANA_REG13     (BK7258_SYS_BASE + UINT32_C(0x134))
 #define BK7258_SYS_GPIO_FUNC0    (BK7258_SYS_BASE + UINT32_C(0x0c0))
@@ -153,6 +155,9 @@
 #define BK7258_SYS_CPU0_SYSTICK_32K (UINT32_C(1) << 29)
 #define BK7258_SYS_CPU1_SYSTICK_32K (UINT32_C(1) << 30)
 #define BK7258_SYS_SHARE_MEM_CLKGATING_DISABLE (UINT32_C(1) << 28)
+#define BK7258_SYS_AUD_MEM_LOW_POWER (UINT32_C(1) << 11)
+#define BK7258_SYS_AUDP_POWER_DOWN (UINT32_C(1) << 6)
+#define BK7258_SYS_GPIO_INT_EN   (UINT32_C(1) << 23)
 #define BK7258_SYS_MAILBOX_INT_EN (UINT32_C(1) << 31)
 
 #define BK7258_SYS_CPU1_RESET_RELEASE (UINT32_C(1) << 0)
@@ -169,32 +174,41 @@
 #define BK7258_GPIO_CFG(index)    (BK7258_AON_GPIO_BASE + ((uint32_t)(index) << 2))
 
 /* AON GPIO per-pin configuration register bit fields.  These match the
- * Armino SDK gpio_reg.h / gpio_ll.h layout used by the board bring-up:
+ * Armino SDK gpio_struct.h / gpio_ll.h layout used by the board bring-up:
  *
- *   bit 0          input value monitor
- *   bit 1          GPIO output data value (SDK demo drives it directly)
+ *   bit 0          sampled input value
+ *   bit 1          output latch value
  *   bits [3:2]     IO mode: 0=output, 2=I/O disable, 3=input
- *   bits [5:4]     pull: 0=none, 3=pull-up
+ *   bits [5:4]     pull: 0=none, 2=pull-down, 3=pull-up
  *   bit 6          second function enable (1=peripheral drives the pad)
- *   bit 7          output enable, LOW active (0=output enabled)
- *   bit 8          input enable, HIGH active (1=input enabled)
+ *   bit 7          input monitor control
+ *   bits [9:8]     drive capacity
+ *   bits [11:10]   interrupt type: low/high/rising/falling = 0/1/2/3
+ *   bit 12         interrupt enable
+ *   bit 13         interrupt clear
  */
 
-#define BK7258_GPIO_CFG_DATA        (UINT32_C(1) << 1)
+#define BK7258_GPIO_CFG_INPUT       (UINT32_C(1) << 0)
+#define BK7258_GPIO_CFG_OUTPUT      (UINT32_C(1) << 1)
 #define BK7258_GPIO_CFG_MODE_MASK   (UINT32_C(3) << 2)
 #define BK7258_GPIO_CFG_MODE_OUTPUT (UINT32_C(0) << 2)
 #define BK7258_GPIO_CFG_MODE_INPUT  (UINT32_C(3) << 2)
 #define BK7258_GPIO_CFG_MODE_DIS    (UINT32_C(2) << 2)
 #define BK7258_GPIO_CFG_PULL_MASK   (UINT32_C(3) << 4)
+#define BK7258_GPIO_CFG_PULL_DOWN   (UINT32_C(2) << 4)
 #define BK7258_GPIO_CFG_PULL_UP     (UINT32_C(3) << 4)
 #define BK7258_GPIO_CFG_SECOND_FUNC (UINT32_C(1) << 6)
-#define BK7258_GPIO_CFG_OUTPUT_EN   (UINT32_C(1) << 7)
-#define BK7258_GPIO_CFG_INPUT_EN    (UINT32_C(1) << 8)
+#define BK7258_GPIO_INT_TYPE_MASK   (UINT32_C(3) << 10)
+#define BK7258_GPIO_INT_LOW_LEVEL   (UINT32_C(0) << 10)
+#define BK7258_GPIO_INT_HIGH_LEVEL  (UINT32_C(1) << 10)
+#define BK7258_GPIO_INT_RISING_EDGE (UINT32_C(2) << 10)
+#define BK7258_GPIO_INT_FALLING_EDGE (UINT32_C(3) << 10)
+#define BK7258_GPIO_INT_ENABLE      (UINT32_C(1) << 12)
+#define BK7258_GPIO_INT_CLEAR       (UINT32_C(1) << 13)
 
 /* SYS_GPIO_FUNC0 registers hold a 4-bit peripheral mux field per pin,
- * eight pins per register (0x0c0: GPIO0-7, 0x0c4: GPIO8-15,
- * 0x0c8: GPIO16-23, 0x0cc: GPIO24-31).  A cleared field selects the plain
- * GPIO function of the pin.
+ * eight pins per register, covering GPIO0 through GPIO55.  A cleared field
+ * selects the plain GPIO function of the pin.
  */
 
 #define BK7258_SYS_GPIO_FUNC(pin) \

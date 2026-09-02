@@ -14,6 +14,10 @@
 #include <nuttx/serial/uart_rpmsg.h>
 #include <nuttx/signal.h>
 
+#ifdef CONFIG_INPUT_BUTTONS_LOWER
+#  include <nuttx/input/buttons.h>
+#endif
+
 #include <arch/chip/bk7258_ap_boot.h>
 #include <arch/chip/bk7258_memorymap.h>
 #include <arch/chip/bk7258_timer.h>
@@ -21,6 +25,11 @@
 
 #ifdef CONFIG_RPTUN
 #  include "bk7258_rptun.h"
+#endif
+
+#ifdef CONFIG_AUDIO_BK7258
+#  include <nuttx/audio/bk7258_audio.h>
+int bk7258_devkit_audio_pa_register(void);
 #endif
 
 #ifdef CONFIG_BK7258_COMPONENT_CP
@@ -267,9 +276,66 @@ static void bk7258_ap_initialize(void)
    * setup in kernel workers so the standard NSH entry can own /dev/console.
    */
 
+  syslog(LOG_INFO, "BK7258: bk7258_ap_initialize called\n");
+
   panic_notifier_chain_register(&g_bk7258_ap_panic_notifier);
   bk7258_ap_heartbeat_led_initialize();
   bk7258_ap_heartbeat_led_write(true);
+
+  /* Initialize audio devices first (before RPTUN which may return early) */
+
+#ifdef CONFIG_AUDIO_BK7258
+  syslog(LOG_INFO, "BK7258: Initializing audio devices...\n");
+
+  /* Register the DevKit PA control ops before the playback device is
+   * created so the driver never runs with an unknown PA state.
+   */
+
+  ret = bk7258_devkit_audio_pa_register();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "BK7258 PA registration failed: %d; "
+                      "playback device disabled\n", ret);
+    }
+  else
+    {
+      ret = bk7258_audio_playback_initialize();
+      if (ret < 0)
+        {
+          syslog(LOG_ERR, "BK7258 playback audio init failed: %d\n", ret);
+        }
+      else
+        {
+          syslog(LOG_INFO, "BK7258: Playback device registered OK\n");
+        }
+    }
+
+#ifdef CONFIG_AUDIO_BK7258_CAPTURE
+  ret = bk7258_audio_capture_initialize();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "BK7258 capture audio init failed: %d\n", ret);
+    }
+  else
+    {
+      syslog(LOG_INFO, "BK7258: Capture device registered OK\n");
+    }
+#endif
+#endif
+
+  /* Initialize buttons (non-fatal if it fails) */
+
+#ifdef CONFIG_INPUT_BUTTONS_LOWER
+  ret = btn_lower_initialize("/dev/btn0");
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "BK7258 button init failed: %d\n", ret);
+    }
+  else
+    {
+      syslog(LOG_INFO, "BK7258: /dev/btn0 registered OK\n");
+    }
+#endif
 
 #ifdef CONFIG_RPTUN
   ret = kthread_create("bk7258-amp-init", 95, 4096,
@@ -279,7 +345,6 @@ static void bk7258_ap_initialize(void)
       bk7258_ap_record_fault(UINT32_C(0x52505400) |
                              ((uint32_t)-ret & UINT32_C(0xff)));
       bk7258_ap_heartbeat_led_write(false);
-      return;
     }
 #endif
 

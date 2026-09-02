@@ -23,6 +23,12 @@
 #define BK7258_IRQ_MAC_GENERAL    (16 + 36)
 #define BK7258_IRQ_MAC_HSU        (16 + 37)
 #define BK7258_IRQ_MAC_WAKEUP     (16 + 38)
+#define BK7258_IRQ_GDMA    (16 + 11)
+#define BK7258_IRQ_AUDIO   (16 + 23)
+
+/* GPIO source 55 and its aggregate pending registers are AP-owned. */
+
+#define BK7258_IRQ_GPIO    (16 + 55)
 #define BK7258_IRQ_MAILBOX (16 + 63)
 
 #define NR_IRQS            (16 + 64)

@@ -159,10 +159,10 @@ FAR struct spi_dev_s *bk7258_spi_initialize(void)
 {
   /* Configure the bit-bang GPIO pins */
 
-  bk7258_gpio_config_output(BOARD_LCD_SCL_PIN);
-  bk7258_gpio_config_output(BOARD_LCD_SDA_PIN);
-  bk7258_gpio_config_output(BOARD_LCD_CS_PIN);
-  bk7258_gpio_config_output(BOARD_LCD_DC_PIN);
+  bk7258_gpio_config_output(BOARD_LCD_SCL_PIN, false);
+  bk7258_gpio_config_output(BOARD_LCD_SDA_PIN, false);
+  bk7258_gpio_config_output(BOARD_LCD_CS_PIN, true);
+  bk7258_gpio_config_output(BOARD_LCD_DC_PIN, false);
 
   /* Idle levels: CS de-asserted high, D/C driven low until a command or
    * data transfer begins.

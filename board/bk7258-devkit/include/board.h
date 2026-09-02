@@ -17,6 +17,40 @@
 #define BOARD_AP_HEARTBEAT_LED_PIN         40
 #define BOARD_AP_HEARTBEAT_LED_ACTIVE_HIGH 1
 
+/* Audio Power Amplifier (HT6873) on GPIO50
+ *
+ * The PA enable pin is active-high.  Safe sequencing:
+ *   Enable:  DAC mute 20ms → GPIO50 high → wait 20ms
+ *   Disable: DAC mute 10ms → GPIO50 low  → wait 10ms
+ */
+
+#define BOARD_AUDIO_PA_PIN                 50
+#define BOARD_AUDIO_PA_ACTIVE_HIGH         1
+#define BOARD_AUDIO_PA_PRE_ENABLE_MS       20
+#define BOARD_AUDIO_PA_POST_ENABLE_MS      20
+#define BOARD_AUDIO_PA_PRE_DISABLE_MS      10
+#define BOARD_AUDIO_PA_POST_DISABLE_MS     10
+
+/* Buttons (active-low, internal pull-up)
+ *
+ * KEY1 = GPIO13, KEY2 = GPIO12, KEY3 = GPIO8
+ * Each button ID maps to a bit in the NuttX button bitmask.
+ */
+
+#define BUTTON_KEY1      0
+#define BUTTON_KEY2      1
+#define BUTTON_KEY3      2
+#define NUM_BUTTONS      3
+
+#define BUTTON_KEY1_BIT  (1u << BUTTON_KEY1)
+#define BUTTON_KEY2_BIT  (1u << BUTTON_KEY2)
+#define BUTTON_KEY3_BIT  (1u << BUTTON_KEY3)
+
+#define BOARD_KEY1_PIN   13
+#define BOARD_KEY2_PIN   12
+#define BOARD_KEY3_PIN   8
+#define BOARD_KEYS_ACTIVE_LOW 1
+
 /* Round GC9D01 160x160 SPI LCDs on the DevKit display FPC (schematic
  * sheet 5).  The two round panels are driven by the SoC LCD QSPI
  * hardware: LCD0 on QSPI0 (CLK/CS/IO0 = GPIO22/23/24, D/C=GPIO7,

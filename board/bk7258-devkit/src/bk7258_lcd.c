@@ -85,7 +85,7 @@ static void bk7258_backlight(bool on)
 
 static void bk7258_lcd_hw_reset(void)
 {
-  bk7258_gpio_config_output(BOARD_LCD_RST_PIN);
+  bk7258_gpio_config_output(BOARD_LCD_RST_PIN, false);
 
   bk7258_gpio_write(BOARD_LCD_RST_PIN, false);
   up_mdelay(20);
@@ -140,14 +140,14 @@ int board_lcd_initialize(void)
    * drives GPIO52 high for this).  Do this first so the panel has power.
    */
 
-  bk7258_gpio_config_output(BOARD_LCD_LDO_PIN);
+  bk7258_gpio_config_output(BOARD_LCD_LDO_PIN, false);
   bk7258_gpio_write(BOARD_LCD_LDO_PIN, true);
 
   /* Backlight switch is driven by GPIO25 (LCD_BL_PWM).  Keep it off until
    * the panel is initialized and powered on.
    */
 
-  bk7258_gpio_config_output(BOARD_LCD_BL_PIN);
+  bk7258_gpio_config_output(BOARD_LCD_BL_PIN, false);
   bk7258_backlight(false);
 
   /* Hold the panel in reset while the SPI lines are brought up */

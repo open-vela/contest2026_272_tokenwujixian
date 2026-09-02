@@ -4,7 +4,8 @@ set(SRCS
     bk7258_irq.c
     bk7258_allocateheap.c
     bk7258_timer.c
-    bk7258_ap_boot.c)
+    bk7258_ap_boot.c
+    bk7258_gpio.c)
 
 if(CONFIG_BK7258_MAILBOX)
   list(APPEND SRCS bk7258_mailbox.c)
@@ -22,8 +23,7 @@ else()
        bk7258_sysctrl.c
        bk7258_clock.c
        bk7258_lowputc.c
-       bk7258_uart.c
-       bk7258_gpio.c)
+       bk7258_uart.c)
 
   if(CONFIG_BK7258_PSRAM)
     list(APPEND SRCS bk7258_psram.c)
@@ -32,3 +32,7 @@ endif()
 
 target_sources(arch PRIVATE ${SRCS})
 target_include_directories(arch PRIVATE ${NUTTX_CHIP_ABS_DIR}/include)
+
+if(CONFIG_AUDIO_BK7258)
+  add_subdirectory(audio)
+endif()

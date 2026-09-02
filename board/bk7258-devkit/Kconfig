@@ -1,8 +1,8 @@
-# BK7258 DevKit board placeholder.
-#
-# This is a naming and layout skeleton only. Its symbol is not connected to a
-# selectable BK7258 chip target until the actual architecture, chip support,
-# and board hardware facts have been verified.
+# BK7258 DevKit board configuration.
+
+config ARCH_BOARD_BK7258_DEVKIT
+	bool
+	default y
 
 if ARCH_BOARD_BK7258_DEVKIT
 
@@ -11,6 +11,17 @@ config ARCH_BOARD_BK7258_DEVKIT_TAG
 	default "bk7258-devkit"
 
 comment "CP/AP/RPMsg SRAM contract is defined by the BK7258 chip configuration"
+
+config ARCH_BOARD_BK7258_DEVKIT_BUTTONS
+	bool "Enable board button support"
+	depends on BK7258_COMPONENT_AP
+	default y
+	select ARCH_HAVE_BUTTONS
+	select ARCH_HAVE_IRQBUTTONS
+	---help---
+		Enable the three buttons (KEY1/KEY2/KEY3) on the BK7258 DevKit.
+		KEY1=GPIO13, KEY2=GPIO12, KEY3=GPIO8, all active-low with
+		internal pull-up.
 
 endif # ARCH_BOARD_BK7258_DEVKIT
 

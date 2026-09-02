@@ -18,13 +18,21 @@ void bk7258_gpio_uart0_tx(void);
 void bk7258_gpio_uart0_rx(void);
 void bk7258_clock_uart0(void);
 
-/* Generic GPIO primitives used by board peripheral drivers. */
+/* Extended GPIO primitives from bk7258_gpio.h */
 
-void bk7258_gpio_config_output(unsigned int pin);
-void bk7258_gpio_config_input(unsigned int pin);
-void bk7258_gpio_write(unsigned int pin, bool high);
-bool bk7258_gpio_read(unsigned int pin);
+#include "include/bk7258_gpio.h"
+
+/* Peripheral pin-mux helper retained for existing board users. */
+
 void bk7258_gpio_periph(unsigned int pin, unsigned int func);
+
+/* GPIO ICU source 55 and the aggregate AON pending registers are exclusively
+ * AP-owned.  CP initialization returns -ENOSYS and CP dispatch does nothing,
+ * preventing either routing or clearing AP interrupt state.
+ */
+
+int  bk7258_gpio_irq_initialize(void);
+void bk7258_gpio_dispatch(void *context);
 
 /* Board display SPI bit-bang lower-half (bk7258_spi_bitbang.c). */
 

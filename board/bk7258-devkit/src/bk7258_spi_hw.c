@@ -390,8 +390,8 @@ FAR struct spi_dev_s *bk7258_spi_initialize(void)
 
   bk7258_gpio_periph(BOARD_LCD_SCL_PIN, BK7258_SPI1_FUNC_SCK);
   bk7258_gpio_periph(BOARD_LCD_SDA_PIN, BK7258_SPI1_FUNC_MOSI);
-  bk7258_gpio_config_output(BOARD_LCD_CS_PIN);
-  bk7258_gpio_config_output(BOARD_LCD_DC_PIN);
+  bk7258_gpio_config_output(BOARD_LCD_CS_PIN, false);
+  bk7258_gpio_config_output(BOARD_LCD_DC_PIN, false);
 
   /* Idle levels: CS de-asserted high, D/C low until a transfer begins. */
 

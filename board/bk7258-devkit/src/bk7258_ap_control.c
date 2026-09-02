@@ -59,6 +59,60 @@ static inline void bk7258_ap_lifecycle_barrier(void)
   __asm__ volatile ("dsb\n\tisb" : : : "memory");
 }
 
+struct bk7258_ap_audio_wake_s
+{
+  uint32_t power_before;
+  uint32_t power_after;
+  uint32_t mem_ctrl1_before;
+  uint32_t mem_ctrl1_after;
+  uint32_t mem_ctrl2_before;
+  uint32_t mem_ctrl2_after;
+};
+
+/* CP owns these shared SYS controls while CPU1 is held in reset.  Keep the
+ * three whole-word RMW operations in that exclusive window, then verify the
+ * hardware-visible values before AP can execute any audio initialization.
+ */
+
+static int bk7258_ap_audio_wake(
+  struct bk7258_ap_audio_wake_s *state)
+{
+  state->power_before =
+    bk7258_ap_reg_read(BK7258_SYS_POWER_WAKEUP);
+  state->mem_ctrl1_before =
+    bk7258_ap_reg_read(BK7258_SYS_DEV_MEM_CTRL1);
+  state->mem_ctrl2_before =
+    bk7258_ap_reg_read(BK7258_SYS_DEV_MEM_CTRL2);
+
+  bk7258_ap_reg_write(BK7258_SYS_POWER_WAKEUP,
+                      state->power_before &
+                      ~BK7258_SYS_AUDP_POWER_DOWN);
+  bk7258_ap_reg_write(BK7258_SYS_DEV_MEM_CTRL1,
+                      state->mem_ctrl1_before &
+                      ~BK7258_SYS_AUD_MEM_LOW_POWER);
+  bk7258_ap_reg_write(BK7258_SYS_DEV_MEM_CTRL2,
+                      state->mem_ctrl2_before &
+                      ~BK7258_SYS_AUD_MEM_LOW_POWER);
+  bk7258_ap_lifecycle_barrier();
+  up_udelay(10);
+
+  state->power_after =
+    bk7258_ap_reg_read(BK7258_SYS_POWER_WAKEUP);
+  state->mem_ctrl1_after =
+    bk7258_ap_reg_read(BK7258_SYS_DEV_MEM_CTRL1);
+  state->mem_ctrl2_after =
+    bk7258_ap_reg_read(BK7258_SYS_DEV_MEM_CTRL2);
+
+  if ((state->power_after & BK7258_SYS_AUDP_POWER_DOWN) != 0 ||
+      (state->mem_ctrl1_after & BK7258_SYS_AUD_MEM_LOW_POWER) != 0 ||
+      (state->mem_ctrl2_after & BK7258_SYS_AUD_MEM_LOW_POWER) != 0)
+    {
+      return -EIO;
+    }
+
+  return 0;
+}
+
 static const char *bk7258_ap_stage_name(uint32_t stage)
 {
   switch (stage)
@@ -131,6 +185,7 @@ int bk7258_ap_reset_for_rptun(void)
 
 int board_start_cpu(int cpuid)
 {
+  struct bk7258_ap_audio_wake_s audio_wake = {0};
   struct bk7258_ap_boot_record_s record;
   irqstate_t flags;
   uint32_t control;
@@ -141,7 +196,9 @@ int board_start_cpu(int cpuid)
   const volatile struct bk7258_ap_image_contract_s *image_contract;
   uint32_t boot_sequence = 0;
   unsigned int count;
+  bool audio_wake_attempted = false;
   bool released = false;
+  int audio_wake_ret = 0;
   int ret;
 
   if (cpuid != 1)
@@ -168,23 +225,42 @@ int board_start_cpu(int cpuid)
   ret = bk7258_ap_force_reset();
   if (ret < 0)
     {
+      syslog(LOG_ERR, "[AP] start: force_reset failed ret=%d\n", ret);
       goto out_unlock;
     }
 
   image_contract =
     (const volatile struct bk7258_ap_image_contract_s *)
       (BK7258_AP_XIP_VECTOR_BASE + BK7258_AP_IMAGE_CONTRACT_OFFSET);
+  syslog(LOG_INFO,
+         "[AP] start: contract@%p magic=%08lx abi=%lu build=%08lx "
+         "vbase=%08lx (want magic=%08lx vbase=%08lx)\n",
+         (const void *)image_contract,
+         (unsigned long)image_contract->magic,
+         (unsigned long)image_contract->abi_version,
+         (unsigned long)image_contract->build_id,
+         (unsigned long)image_contract->vector_base,
+         (unsigned long)BK7258_AP_IMAGE_MAGIC,
+         (unsigned long)BK7258_AP_XIP_VECTOR_BASE);
   if (image_contract->magic != BK7258_AP_IMAGE_MAGIC ||
       image_contract->abi_version != BK7258_AP_BOOT_ABI_VERSION ||
       image_contract->build_id != BK7258_AP_BUILD_ID ||
       image_contract->vector_base != BK7258_AP_XIP_VECTOR_BASE)
     {
+      syslog(LOG_ERR, "[AP] start: contract mismatch -> ENOEXEC\n");
       ret = -ENOEXEC;
       goto out_unlock;
     }
 
   initial_msp = bk7258_ap_reg_read(BK7258_AP_XIP_VECTOR_BASE);
   reset_pc = bk7258_ap_reg_read(BK7258_AP_XIP_VECTOR_BASE + sizeof(uint32_t));
+  syslog(LOG_INFO,
+         "[AP] start: vbase=%08lx msp=%08lx reset_pc=%08lx "
+         "(ram=[%08lx..%08lx] xip_end=%08lx)\n",
+         (unsigned long)BK7258_AP_XIP_VECTOR_BASE,
+         (unsigned long)initial_msp, (unsigned long)reset_pc,
+         (unsigned long)BK7258_AP_RAM_BASE, (unsigned long)BK7258_AP_RAM_END,
+         (unsigned long)(BK7258_AP_XIP_VECTOR_BASE + BK7258_AP_XIP_SIZE));
   if (initial_msp <= BK7258_AP_RAM_BASE ||
       initial_msp > BK7258_AP_RAM_END ||
       (initial_msp & 7) != 0 ||
@@ -193,6 +269,7 @@ int board_start_cpu(int cpuid)
       (reset_pc & ~UINT32_C(1)) >=
         BK7258_AP_XIP_VECTOR_BASE + BK7258_AP_XIP_SIZE)
     {
+      syslog(LOG_ERR, "[AP] start: vector bounds check failed -> ENOEXEC\n");
       ret = -ENOEXEC;
       goto out_unlock;
     }
@@ -205,6 +282,8 @@ int board_start_cpu(int cpuid)
    * reset.  CPU2 is never touched by this MVP. */
 
   control = bk7258_ap_reg_read(BK7258_SYS_CPU1_CTRL);
+  syslog(LOG_INFO, "[AP] start: cpu1_ctrl before=%08lx\n",
+         (unsigned long)control);
   control &= ~(BK7258_SYS_CPU1_RESET_RELEASE |
                BK7258_SYS_CPU1_POWER_DOWN |
                BK7258_SYS_CPU1_HALT |
@@ -216,6 +295,10 @@ int board_start_cpu(int cpuid)
   if ((bk7258_ap_reg_read(BK7258_SYS_CPU1_CTRL) &
        BK7258_AP_CPU1_CTRL_LIFECYCLE_MASK) != expected)
     {
+      syslog(LOG_ERR,
+             "[AP] start: cpu1_ctrl readback=%08lx expected=%08lx -> EIO\n",
+             (unsigned long)bk7258_ap_reg_read(BK7258_SYS_CPU1_CTRL),
+             (unsigned long)expected);
       up_irq_restore(flags);
       ret = -EIO;
       goto out_unlock;
@@ -243,8 +326,30 @@ int board_start_cpu(int cpuid)
 
   if (count == BK7258_AP_POWER_WAIT_LOOPS)
     {
+      syslog(LOG_ERR,
+             "[AP] start: power-wait timeout cpu_status=%08lx -> ETIMEDOUT\n",
+             (unsigned long)bk7258_ap_reg_read(BK7258_SYS_CPU_STATUS));
       up_irq_restore(flags);
       ret = -ETIMEDOUT;
+      goto out_unlock;
+    }
+
+  syslog(LOG_INFO, "[AP] start: cpu1 powered up, cpu_status=%08lx after %u\n",
+         (unsigned long)bk7258_ap_reg_read(BK7258_SYS_CPU_STATUS),
+         (unsigned int)count);
+
+  /* CPU1 is still held in reset and CP interrupts remain disabled, so this
+   * is the exclusive ownership window for the shared audio power/SRAM RMWs.
+   * A failed readback keeps AP in reset and prevents an unusable audio
+   * subsystem from being published.
+   */
+
+  audio_wake_attempted = true;
+  audio_wake_ret = bk7258_ap_audio_wake(&audio_wake);
+  if (audio_wake_ret < 0)
+    {
+      up_irq_restore(flags);
+      ret = audio_wake_ret;
       goto out_unlock;
     }
 
@@ -265,11 +370,17 @@ int board_start_cpu(int cpuid)
   if ((bk7258_ap_reg_read(BK7258_SYS_CPU1_CTRL) &
        BK7258_AP_CPU1_CTRL_LIFECYCLE_MASK) != expected)
     {
+      syslog(LOG_ERR,
+             "[AP] start: vec-offset readback=%08lx expected=%08lx -> EIO\n",
+             (unsigned long)bk7258_ap_reg_read(BK7258_SYS_CPU1_CTRL),
+             (unsigned long)expected);
       up_irq_restore(flags);
       ret = -EIO;
       goto out_unlock;
     }
 
+  syslog(LOG_INFO, "[AP] start: releasing CPU1 reset (seq=%u)\n",
+         (unsigned int)boot_sequence);
   bk7258_ap_reg_write(BK7258_SYS_CPU1_CTRL,
                       control | BK7258_SYS_CPU1_RESET_RELEASE);
   released = true;
@@ -279,6 +390,10 @@ int board_start_cpu(int cpuid)
   if ((bk7258_ap_reg_read(BK7258_SYS_CPU1_CTRL) &
        BK7258_AP_CPU1_CTRL_LIFECYCLE_MASK) != expected)
     {
+      syslog(LOG_ERR,
+             "[AP] start: release readback=%08lx expected=%08lx -> EIO\n",
+             (unsigned long)bk7258_ap_reg_read(BK7258_SYS_CPU1_CTRL),
+             (unsigned long)expected);
       up_irq_restore(flags);
       ret = -EIO;
       goto out_rollback;
@@ -295,6 +410,10 @@ int board_start_cpu(int cpuid)
 
   if (count == BK7258_AP_POWER_WAIT_LOOPS)
     {
+      syslog(LOG_ERR,
+             "[AP] start: post-release reset-state timeout "
+             "cpu_status=%08lx -> ETIMEDOUT\n",
+             (unsigned long)bk7258_ap_reg_read(BK7258_SYS_CPU_STATUS));
       up_irq_restore(flags);
       ret = -ETIMEDOUT;
       goto out_rollback;
@@ -316,6 +435,11 @@ int board_start_cpu(int cpuid)
             {
               g_ap_boot_sequence = boot_sequence;
               g_ap_started = true;
+              syslog(LOG_INFO,
+                     "[AP] start: OK stage=%s seq=%u after %u\n",
+                     bk7258_ap_stage_name(record.stage),
+                     (unsigned int)boot_sequence,
+                     (unsigned int)count);
               ret = 0;
               goto out_unlock;
             }
@@ -334,6 +458,14 @@ int board_start_cpu(int cpuid)
       nxsig_usleep(BK7258_AP_RESET_WAIT_USEC);
     }
 
+  syslog(LOG_ERR,
+         "[AP] start: boot-record wait timeout seq=%u attempts=%u "
+         "(last valid=%d seq=%u stage=%u) -> ETIMEDOUT\n",
+         (unsigned int)boot_sequence,
+         (unsigned int)BK7258_AP_RESET_WAIT_ATTEMPTS,
+         (int)bk7258_ap_record_read(&record),
+         (unsigned int)record.boot_sequence,
+         (unsigned int)record.stage);
   ret = -ETIMEDOUT;
 
 out_rollback:
@@ -347,6 +479,20 @@ out_rollback:
     }
 
 out_unlock:
+  if (audio_wake_attempted)
+    {
+      syslog(audio_wake_ret < 0 ? LOG_ERR : LOG_INFO,
+             "[AP] audio wake ret=%d pwr=%08lx->%08lx "
+             "sd=%08lx->%08lx ds=%08lx->%08lx\n",
+             audio_wake_ret,
+             (unsigned long)audio_wake.power_before,
+             (unsigned long)audio_wake.power_after,
+             (unsigned long)audio_wake.mem_ctrl1_before,
+             (unsigned long)audio_wake.mem_ctrl1_after,
+             (unsigned long)audio_wake.mem_ctrl2_before,
+             (unsigned long)audio_wake.mem_ctrl2_after);
+    }
+
   nxmutex_unlock(&g_ap_start_lock);
   return ret;
 }
@@ -510,7 +656,7 @@ int bk7258_ap_start_monitor(void)
   ret = boardctl(BOARDIOC_START_CPU, 1);
   if (ret < 0)
     {
-      syslog(LOG_ERR, "[AP] CPU1 release failed: %d\n", ret);
+      syslog(LOG_ERR, "[AP] CPU1 release failed: %d errno=%d\n", ret, errno);
       return ret;
     }
 

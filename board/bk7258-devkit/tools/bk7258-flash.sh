@@ -64,6 +64,8 @@ if [[ ! -f "$IMAGE" ]]; then
   echo "  $TOOLS_DIR/bk7258-package.sh" >&2
   exit 1
 fi
+# Convert IMAGE to absolute path to ensure decode report paths match
+IMAGE="$(realpath "$IMAGE")"
 # The decode report is the packaging gate. Refuse to flash an image that was
 # never independently verified.
 IMAGE_DIR="$(cd -- "$(dirname -- "$IMAGE")" && pwd)"

@@ -15,5 +15,13 @@ if(CONFIG_LCD_JD9853 OR CONFIG_LCD_GC9D01)
   target_sources(board PRIVATE jd9853.c bk7258_spi_bitbang.c bk7258_spi_hw.c bk7258_lcd.c gc9d01.c)
 endif()
 
+if(CONFIG_AUDIO_BK7258)
+  target_sources(board PRIVATE bk7258_audio_pa.c)
+endif()
+
+if(CONFIG_ARCH_BUTTONS AND CONFIG_BK7258_COMPONENT_AP)
+  target_sources(board PRIVATE bk7258_buttons.c)
+endif()
+
 target_include_directories(board PRIVATE ${NUTTX_BOARD_ABS_DIR}/include
                                       ${NUTTX_CHIP_ABS_DIR}/include)

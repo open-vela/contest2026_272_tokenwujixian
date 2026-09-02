@@ -16,6 +16,23 @@
 
 extern const void *const _vectors[];
 
+/* Early-fault handlers are normally attached in up_irqinitialize(), which runs
+ * deep inside nx_start().  Until then g_irqvector[] is zero (BSS) and any
+ * HardFault/MemManage/BusFault falls through to irq_unexpected_isr, which
+ * prints only "irq: 3" with no CFSR/BFAR/fault-PC.  Attach them here, after
+ * the .bss clear and .data copy (g_irqvector lives in .bss, so attaching
+ * earlier would be wiped) but before bk7258_lowsetup/nx_start, so any early
+ * boot HardFault prints the real fault dump instead of a silent hang.
+ * up_irqinitialize() later re-attaches the same handlers (harmless).
+ */
+extern int arm_hardfault(int irq, void *context, void *arg);
+extern int arm_memfault(int irq, void *context, void *arg);
+extern int arm_busfault(int irq, void *context, void *arg);
+extern int arm_usagefault(int irq, void *context, void *arg);
+#ifdef CONFIG_ARMV8M_SECUREFAULT
+extern int arm_securefault(int irq, void *context, void *arg);
+#endif
+
 void __start(void)
 {
   const uint32_t *src;
@@ -61,6 +78,21 @@ void __start(void)
       *dest++ = *src++;
     }
 
+  /* Attach fault handlers now, AFTER .bss clear and .data copy (g_irqvector
+   * lives in .bss, so attaching earlier would be wiped by the BSS clear).
+   * This runs before bk7258_lowsetup and before nx_start, so any early boot
+   * HardFault/MemManage/BusFault prints the real CFSR/BFAR/fault-PC dump
+   * instead of falling through to the default irq_unexpected_isr "irq: 3".
+   * up_irqinitialize() later re-attaches the same handlers (harmless).
+   */
+  irq_attach(NVIC_IRQ_HARDFAULT, arm_hardfault, NULL);
+  irq_attach(NVIC_IRQ_MEMFAULT, arm_memfault, NULL);
+  irq_attach(NVIC_IRQ_BUSFAULT, arm_busfault, NULL);
+  irq_attach(NVIC_IRQ_USAGEFAULT, arm_usagefault, NULL);
+#ifdef CONFIG_ARMV8M_SECUREFAULT
+  irq_attach(NVIC_IRQ_SECUREFAULT, arm_securefault, NULL);
+#endif
+
   bk7258_lowsetup();
   bk7258_lowputc('B');
   bk7258_lowputc('K');
@@ -70,6 +102,10 @@ void __start(void)
 #ifdef USE_EARLYSERIALINIT
   arm_earlyserialinit();
 #endif
+
+  /* Trace marker: boot reached nx_start. */
+  bk7258_lowputc('S');
+  bk7258_lowputc('>');
 
   nx_start();
 
