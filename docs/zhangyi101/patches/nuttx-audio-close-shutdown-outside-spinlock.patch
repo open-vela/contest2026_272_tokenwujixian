@@ -1,0 +1,58 @@
+diff --git a/audio/audio.c b/audio/audio.c
+index 35e1344a92e..0ccec8c2e05 100644
+--- a/audio/audio.c
++++ b/audio/audio.c
+@@ -228,6 +228,7 @@ static int audio_close(FAR struct file *filep)
+   FAR struct audio_openpriv_s *curr;
+   FAR struct audio_openpriv_s *prev;
+   irqstate_t flags;
++  bool last_close;
+   int ret;
+ 
+   /* Get exclusive access to the device structures */
+@@ -240,7 +241,9 @@ static int audio_close(FAR struct file *filep)
+ 
+   flags = spin_lock_irqsave(&upper->spinlock);
+ 
+-  /* find and drop priv from list */
++  /* Find and detach priv from the list.  Only list state and the last-close
++   * decision belong under the spinlock; shutdown may block.
++   */
+ 
+   for (prev = NULL, curr = upper->head; curr && curr != priv;
+        prev = curr, curr = curr->flink);
+@@ -254,18 +257,20 @@ static int audio_close(FAR struct file *filep)
+       upper->head = priv->flink;
+     }
+ 
++  last_close = upper->head == NULL;
++  spin_unlock_irqrestore(&upper->spinlock, flags);
++
+   kmm_free(priv);
+ 
+-  /*  If the reference head decrement to NULL,
+-   *  then uninitialize the driver.
++  /* If this is the last close, uninitialize the lower half while status is
++   * still valid.  A lower-half shutdown may synchronously return buffers
++   * through the upper callback and therefore may block.
+    */
+ 
+-  if (upper->head == NULL)
++  if (last_close)
+     {
+       FAR struct audio_lowerhalf_s *lower = upper->dev;
+ 
+-      /* Disable the Audio device */
+-
+       DEBUGASSERT(lower->ops->shutdown != NULL);
+       audinfo("calling shutdown\n");
+ 
+@@ -274,8 +279,6 @@ static int audio_close(FAR struct file *filep)
+       upper->status = NULL;
+     }
+ 
+-  spin_unlock_irqrestore(&upper->spinlock, flags);
+-
+   ret = OK;
+   nxmutex_unlock(&upper->lock);
+ 

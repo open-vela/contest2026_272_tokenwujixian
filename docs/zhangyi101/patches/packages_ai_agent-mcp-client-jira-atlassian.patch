@@ -1,0 +1,197 @@
+diff --git a/Kconfig b/Kconfig
+index 84628d8..b57d101 100644
+--- a/Kconfig
++++ b/Kconfig
+@@ -260,7 +260,7 @@ config AI_AGENT_MCP_MAX_SERVERS
+ 	int "Max MCP remote servers"
+ 	default 4
+ 	range 1 8
+-	depends on AGENT_MCP
++	depends on AI_AGENT_MCP
+ 	---help---
+ 		Maximum number of remote MCP servers. Each server slot
+ 		uses ~456 bytes BSS. Reduce on memory-constrained boards.
+@@ -269,7 +269,7 @@ config AI_AGENT_MCP_MAX_TOOLS
+ 	int "Max MCP remote tools"
+ 	default 16
+ 	range 4 64
+-	depends on AGENT_MCP
++	depends on AI_AGENT_MCP
+ 	---help---
+ 		Maximum cached remote tools across all MCP servers.
+ 		Each tool slot uses ~452 bytes BSS. Reduce on
+diff --git a/src/channels/nsh_commands.c b/src/channels/nsh_commands.c
+index 25875b5..a6b08c0 100644
+--- a/src/channels/nsh_commands.c
++++ b/src/channels/nsh_commands.c
+@@ -696,16 +696,40 @@ static void cmd_exit_app(void)
+ #ifdef CONFIG_AI_AGENT_MCP
+ static void cmd_mcp_add(int argc, char** argv)
+ {
++    /* Two forms:
++     *   mcp_add <name> <url> [token]                          (generic / Gerrit)
++     *   mcp_add <name> <url> <jira_url> <username> <pat>      (Jira MCP)
++     * The Jira form is selected when the URL targets acc.pt.miui.com; the
++     * Jira MCP (mcp-atlassian) authenticates via three X-Atlassian-* headers
++     * instead of a single bearer token. */
++    bool is_jira = (argc >= 3) && (strstr(argv[2], "acc.pt.miui.com") != NULL);
++
+     if (argc < 3) {
+-        printf("Usage: mcp_add <name> <url> [token]\n"
+-               "  name:  server name (e.g. amap)\n"
+-               "  url:   MCP endpoint (e.g. http://host:port/mcp)\n"
+-               "  token: optional bearer token\n");
++        printf("Usage:\n"
++               "  mcp_add <name> <url> [token]\n"
++               "  mcp_add <name> <url> <jira_url> <username> <pat>   (Jira)\n"
++               "    name:     server name (e.g. gerrit, jira)\n"
++               "    url:      MCP endpoint\n"
++               "    token:    optional bearer token (generic / onedev gateway)\n"
++               "    jira_url: Jira base URL (e.g. https://jira-phone.mioffice.cn)\n"
++               "    username: Jira username (email prefix)\n"
++               "    pat:      Jira personal access token\n");
+         return;
+     }
+ 
+-    const char* token = (argc >= 4) ? argv[3] : NULL;
+-    int ret = mcp_client_add_server(argv[1], argv[2], token);
++    int ret;
++    if (is_jira) {
++        if (argc < 6) {
++            printf("Jira MCP needs: mcp_add <name> <url> <jira_url> <username> <pat>\n");
++            return;
++        }
++        ret = mcp_client_add_server(argv[1], argv[2], NULL,
++            argv[3], argv[4], argv[5]);
++    } else {
++        const char* token = (argc >= 4) ? argv[3] : NULL;
++        ret = mcp_client_add_server(argv[1], argv[2], token,
++            NULL, NULL, NULL);
++    }
+     if (ret == OK) {
+         printf("Added MCP server: %s → %s\n", argv[1], argv[2]);
+     } else {
+diff --git a/src/tools/mcp_client.c b/src/tools/mcp_client.c
+index f7c6db0..4f122ab 100644
+--- a/src/tools/mcp_client.c
++++ b/src/tools/mcp_client.c
+@@ -103,6 +103,16 @@ typedef struct {
+     parsed_url_t parsed;
+     bool initialized; /* MCP initialize handshake done */
+     char session_id[128]; /* Mcp-Session header from server */
++
++    /* Jira MCP (sooperset/mcp-atlassian, fronted by acc.pt.miui.com) authenticates
++     * via three X-Atlassian-* headers instead of x-user-token: the Jira base URL,
++     * the username, and a Jira personal access token. They must outlive the post
++     * call (vela_header_t holds const char*), so they live here on the server
++     * struct rather than on mcp_http_post's stack. Unused (empty) for non-Jira
++     * servers; mcp_http_post only reads them when host == MCP_JIRA_HOST. */
++    char jira_url[128];
++    char jira_user[64];
++    char jira_pat[128];
+ } mcp_remote_server_t;
+ 
+ static mcp_remote_server_t s_servers[MCP_CLIENT_MAX_SERVERS];
+@@ -135,6 +145,15 @@ static atomic_int s_req_id = 1;
+ #define MCP_GERRIT_URL   "https://gerrit.pt.mioffice.cn"
+ #define MCP_GERRIT_SEG   "default"
+ 
++/* The internal Jira MCP service (sooperset/mcp-atlassian, deployed by the
++ * xiaoai client team) is fronted by acc.pt.miui.com and authenticates via
++ * three X-Atlassian-* headers carried on every request (initialize through
++ * tools/call alike). Unlike the onedev Gerrit gateway, Jira needs no separate
++ * tools/call routing header — the Jira base URL itself is the routing hint.
++ * These headers are attached only for this host, so non-Jira servers are
++ * unaffected. */
++#define MCP_JIRA_HOST    "acc.pt.miui.com"
++
+ /* ── JSON-RPC request builder ───────────────────────────── */
+ 
+ static char* build_jsonrpc_request(const char* method, cJSON* params)
+@@ -167,8 +186,9 @@ static int mcp_http_post(mcp_remote_server_t* srv, const char* body,
+     char* resp_buf, size_t resp_cap)
+ {
+     /* Worst case: Accept, Connection, Mcp-Session, x-user-token,
+-     * x-gerrit-host-<seg>, x-gerrit-<seg>, plus NULL terminator. */
+-    vela_header_t headers[7];
++     * x-gerrit-host-<seg>, x-gerrit-<seg>, X-Atlassian-Jira-Url,
++     * X-Atlassian-Username, X-Atlassian-Jira-Personal-Token, plus NULL. */
++    vela_header_t headers[10];
+     int h = 0;
+ 
+     /* Header names for the Gerrit segment, built once: "x-gerrit-host-default"
+@@ -221,6 +241,32 @@ static int mcp_http_post(mcp_remote_server_t* srv, const char* body,
+         h++;
+     }
+ 
++    /* Jira MCP auth via three X-Atlassian-* headers. The Jira service
++     * (acc.pt.miui.com, backed by mcp-atlassian) requires these on every
++     * request — initialize through tools/call — to know which Jira instance
++     * to talk to and to authenticate as the user. Values come from the server
++     * struct (set via mcp_client_add_server) so they outlive this call.
++     * Gated on the Jira host; if a server is added without credentials the
++     * empty fields are simply skipped, letting the server reject with 401
++     * rather than sending a malformed header. */
++    if (strcmp(srv->parsed.host, MCP_JIRA_HOST) == 0) {
++        if (srv->jira_url[0]) {
++            headers[h].name = "X-Atlassian-Jira-Url";
++            headers[h].value = srv->jira_url;
++            h++;
++        }
++        if (srv->jira_user[0]) {
++            headers[h].name = "X-Atlassian-Username";
++            headers[h].value = srv->jira_user;
++            h++;
++        }
++        if (srv->jira_pat[0]) {
++            headers[h].name = "X-Atlassian-Jira-Personal-Token";
++            headers[h].value = srv->jira_pat;
++            h++;
++        }
++    }
++
+     headers[h].name = NULL;
+     headers[h].value = NULL;
+ 
+@@ -553,7 +599,8 @@ int mcp_client_init(void)
+ }
+ 
+ int mcp_client_add_server(const char* name, const char* url,
+-    const char* token)
++    const char* token, const char* jira_url, const char* jira_user,
++    const char* jira_pat)
+ {
+     if (!name || !url)
+         return ERROR;
+@@ -584,6 +631,17 @@ int mcp_client_add_server(const char* name, const char* url,
+     if (token) {
+         strncpy(srv->token, token, sizeof(srv->token) - 1);
+     }
++    /* Jira credentials (X-Atlassian-* header values). Only meaningful for
++     * MCP_JIRA_HOST; NULL/empty otherwise. */
++    if (jira_url) {
++        strncpy(srv->jira_url, jira_url, sizeof(srv->jira_url) - 1);
++    }
++    if (jira_user) {
++        strncpy(srv->jira_user, jira_user, sizeof(srv->jira_user) - 1);
++    }
++    if (jira_pat) {
++        strncpy(srv->jira_pat, jira_pat, sizeof(srv->jira_pat) - 1);
++    }
+ 
+     if (parse_url(url, &srv->parsed) != 0) {
+         syslog(LOG_ERR, "[%s] Invalid URL: %s\n", TAG, url);
+diff --git a/src/tools/mcp_client.h b/src/tools/mcp_client.h
+index b11d984..b2bf4a6 100644
+--- a/src/tools/mcp_client.h
++++ b/src/tools/mcp_client.h
+@@ -46,7 +46,8 @@ extern "C" {
+  * @return OK on success, ERROR on failure
+  */
+ int mcp_client_add_server(const char* name, const char* url,
+-    const char* token);
++    const char* token, const char* jira_url, const char* jira_user,
++    const char* jira_pat);
+ 
+ /**
+  * Remove a remote MCP server by name.

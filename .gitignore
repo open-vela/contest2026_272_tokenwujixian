@@ -23,5 +23,4 @@ research/
 /investigation/
 compile_commands.json
 .mimocode/
-docs/*
 .env

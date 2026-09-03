@@ -1,0 +1,46 @@
+diff --git a/Kconfig b/Kconfig
+index 0188e9d4c..b88a85868 100644
+--- a/Kconfig
++++ b/Kconfig
+@@ -806,6 +806,8 @@ menu "LVGL configuration"
+ 				bool "Enable Dejavu 16 Persian, Hebrew, Arabic letters"
+ 			config LV_FONT_SIMSUN_16_CJK
+ 				bool "Enable Simsun 16 CJK"
++			config LV_FONT_MISANS_16_CJK
++				bool "Enable MiSans 16 CJK (3755 GB2312-1 common chars)"
+ 
+ 			config LV_FONT_UNSCII_8
+ 				bool "Enable UNSCII 8 (Perfect monospace font)"
+diff --git a/src/font/lv_font.h b/src/font/lv_font.h
+index d933fafa3..b90bc54ee 100644
+--- a/src/font/lv_font.h
++++ b/src/font/lv_font.h
+@@ -287,6 +287,10 @@ LV_FONT_DECLARE(lv_font_dejavu_16_persian_hebrew)
+ LV_FONT_DECLARE(lv_font_simsun_16_cjk)
+ #endif
+ 
++#if LV_FONT_MISANS_16_CJK
++LV_FONT_DECLARE(lv_font_misans_16_cjk)
++#endif
++
+ #if LV_FONT_UNSCII_8
+ LV_FONT_DECLARE(lv_font_unscii_8)
+ #endif
+diff --git a/src/lv_conf_internal.h b/src/lv_conf_internal.h
+index 0a1e29810..92eacacec 100644
+--- a/src/lv_conf_internal.h
++++ b/src/lv_conf_internal.h
+@@ -1448,6 +1448,13 @@
+         #define LV_FONT_SIMSUN_16_CJK            0  /*1000 most common CJK radicals*/
+     #endif
+ #endif
++#ifndef LV_FONT_MISANS_16_CJK
++    #ifdef CONFIG_LV_FONT_MISANS_16_CJK
++        #define LV_FONT_MISANS_16_CJK CONFIG_LV_FONT_MISANS_16_CJK
++    #else
++        #define LV_FONT_MISANS_16_CJK            0  /*MiSans 16px CJK (3755 GB2312-1 + ASCII + fullwidth punct)*/
++    #endif
++#endif
+ 
+ /*Pixel perfect monospace fonts*/
+ #ifndef LV_FONT_UNSCII_8

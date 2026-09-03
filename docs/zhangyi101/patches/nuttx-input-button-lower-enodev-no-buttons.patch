@@ -1,0 +1,24 @@
+diff --git a/drivers/input/button_lower.c b/drivers/input/button_lower.c
+index 32e4b132685..bcb7402c765 100644
+--- a/drivers/input/button_lower.c
++++ b/drivers/input/button_lower.c
+@@ -29,6 +29,7 @@
+ #include <sys/types.h>
+ #include <assert.h>
+ #include <debug.h>
++#include <errno.h>
+ #include <inttypes.h>
+ 
+ #include <nuttx/board.h>
+@@ -212,6 +213,11 @@ static int btn_interrupt(int irq, FAR void *context, FAR void *arg)
+ int btn_lower_initialize(FAR const char *devname)
+ {
+   g_btnnum = board_button_initialize();
++  if (g_btnnum == 0)
++    {
++      return -ENODEV;
++    }
++
+   return btn_register(devname, &g_btnlower);
+ }
+ 
