@@ -1,0 +1,1792 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index f1b6b4a..6e22839 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -100,6 +100,11 @@ if(CONFIG_EXAMPLES_AI_AGENT_VELA)
+ 
+   if(CONFIG_AI_AGENT_LVGL_UI)
+     list(APPEND AGENT_SRCS src/ui/lvgl_ui_channel.c)
++    list(APPEND AGENT_SRCS src/ui/lvgl_toast.c)
++  endif()
++
++  if(CONFIG_AI_AGENT_NOTIFY_SERVICE)
++    list(APPEND AGENT_SRCS src/infra/notify_service.c)
+   endif()
+ 
+   if(CONFIG_AI_AGENT_CAMERA)
+diff --git a/Kconfig b/Kconfig
+index 84628d8..172ed3a 100644
+--- a/Kconfig
++++ b/Kconfig
+@@ -260,7 +260,7 @@ config AI_AGENT_MCP_MAX_SERVERS
+ 	int "Max MCP remote servers"
+ 	default 4
+ 	range 1 8
+-	depends on AGENT_MCP
++	depends on AI_AGENT_MCP
+ 	---help---
+ 		Maximum number of remote MCP servers. Each server slot
+ 		uses ~456 bytes BSS. Reduce on memory-constrained boards.
+@@ -269,7 +269,7 @@ config AI_AGENT_MCP_MAX_TOOLS
+ 	int "Max MCP remote tools"
+ 	default 16
+ 	range 4 64
+-	depends on AGENT_MCP
++	depends on AI_AGENT_MCP
+ 	---help---
+ 		Maximum cached remote tools across all MCP servers.
+ 		Each tool slot uses ~452 bytes BSS. Reduce on
+@@ -284,6 +284,39 @@ config AI_AGENT_TLS_CONN_POOL_SIZE
+ 		reuse. Each slot uses ~12KB BSS (TLS context + raw
+ 		buffer). Set to 1 on memory-constrained boards.
+ 
++config AI_AGENT_NOTIFY_SERVICE
++	bool "Enable Gerrit/Jira notify polling → LVGL toast"
++	default n
++	depends on AI_AGENT_LVGL_UI
++	depends on AI_AGENT_MCP
++	---help---
++		Background polling service that periodically queries
++		connected Gerrit/Jira MCP servers for new changes,
++		deduplicates against a persisted cursor, and pops a
++		top-of-screen LVGL toast for each new item (does NOT
++		enter chat history). Requires LVGL UI + MCP client.
++
++config AI_AGENT_NOTIFY_INTERVAL_SEC
++	int "Notify polling interval (seconds)"
++	default 60
++	range 30 3600
++	depends on AI_AGENT_NOTIFY_SERVICE
++	---help---
++		Base polling interval in seconds. Each source (gerrit/
++		jira) keeps its own next-due timestamp staggered off
++		this base. Too low hammers internal MCP gateways; too
++		-high misses fresh CI failures. 60 is a sane default.
++
++config AI_AGENT_NOTIFY_LLM_SUMMARY
++	bool "Summarize new items via LLM (off = template text)"
++	default n
++	depends on AI_AGENT_NOTIFY_SERVICE
++	---help---
++		If on, new Gerrit/Jira items are pushed as a prompt to
++		agent_loop so the LLM summarizes them before showing the
++		toast. Costs tokens + ~2-5s latency per batch. Off (default)
++		uses a fast snprintf template ("Gerrit #N: subject").
++
+ config AI_AGENT_BLE_GATT
+ 	bool "Enable BLE GATT data channel"
+ 	default n
+diff --git a/include/agent_config.h b/include/agent_config.h
+index 711bb6d..ed09678 100644
+--- a/include/agent_config.h
++++ b/include/agent_config.h
+@@ -300,6 +300,11 @@
+ #define AGENT_CHAN_LVGL_UI "lvgl_ui"
+ #endif
+ 
++/* ── Notify Service (Gerrit/Jira background polling → toast popup) ── */
++#ifdef CONFIG_AI_AGENT_NOTIFY_SERVICE
++#define AGENT_CHAN_LVGL_NOTIFY "lvgl_notify"
++#endif
++
+ /* ── WeChat Channel ─────────────────────────────────────────── */
+ #define AGENT_WEIXIN_STACK (12 * 1024)
+ #define AGENT_WEIXIN_PRIO 45
+@@ -310,6 +315,22 @@
+ #define AGENT_LVGL_UI_PRIO 45
+ #endif
+ 
++/* ── Notify Service (Gerrit/Jira polling → LVGL toast) ────── */
++#ifdef CONFIG_AI_AGENT_NOTIFY_SERVICE
++#define AGENT_NOTIFY_STACK (8 * 1024)   /* mcp_client sync HTTP needs deeper stack */
++#define AGENT_NOTIFY_PRIO 35            /* below agent_loop (60) + outbound (50) */
++#ifndef CONFIG_AI_AGENT_NOTIFY_INTERVAL_SEC
++#define CONFIG_AI_AGENT_NOTIFY_INTERVAL_SEC 60
++#endif
++#define AGENT_NOTIFY_INTERVAL_SEC CONFIG_AI_AGENT_NOTIFY_INTERVAL_SEC
++/* JSON buffer for one poll response (Gerrit/Jira ~4-8KB) */
++#define AGENT_NOTIFY_JSON_BUF_SIZE 8192
++#define AGENT_NOTIFY_MAX_NEW 16          /* cap new records per poll */
++#define AGENT_NOTIFY_TOAST_MS 4000       /* toast auto-dismiss */
++#define AGENT_NOTIFY_GERRIT_COLOR 0x2196f3 /* blue */
++#define AGENT_NOTIFY_JIRA_COLOR   0xff9800 /* orange (== LVGL_UI_CARD_COLOR_JIRA) */
++#endif
++
+ /* ── MQTT Channel ───────────────────────────────────────────── */
+ #define AGENT_MQTT_DEFAULT_PORT 1883
+ #define AGENT_MQTT_KEEPALIVE 60
+diff --git a/src/agent_main.c b/src/agent_main.c
+index 9d676c2..5ddf6c6 100644
+--- a/src/agent_main.c
++++ b/src/agent_main.c
+@@ -77,6 +77,12 @@
+ #ifdef CONFIG_AI_AGENT_LVGL_UI
+ #include "ui/lvgl_ui_channel.h"
+ #endif
++#ifdef CONFIG_AI_AGENT_NOTIFY_SERVICE
++#include "infra/notify_service.h"
++#endif
++#ifdef CONFIG_AI_AGENT_MCP
++#include "tools/mcp_client.h"
++#endif
+ #ifdef CONFIG_AI_AGENT_BLE_GATT
+ #include "infra/ble_cmd_handler.h"
+ #include "infra/ble_gatt.h"
+@@ -183,6 +189,18 @@ static void* network_watch_task(void* arg)
+             syslog(LOG_WARNING, "[%s] weixin_channel_start failed\n", TAG);
+ #endif
+ 
++        /* MCP servers were restored from config_store during mcp_client_init
++         * (before the link was up), so the initial discover likely failed.
++         * Retry now that the network is up so tools are registered before
++         * the notify poller first runs. */
++#ifdef CONFIG_AI_AGENT_MCP
++        mcp_client_discover();
++#endif
++#ifdef CONFIG_AI_AGENT_NOTIFY_SERVICE
++        if (notify_service_start() != OK)
++            syslog(LOG_WARNING, "[%s] notify_service_start failed\n", TAG);
++#endif
++
+         syslog(LOG_INFO, "[%s] All network services started!\n", TAG);
+ 
+ #ifdef CONFIG_AI_AGENT_NET_RPMSG
+@@ -405,6 +423,17 @@ static void* outbound_dispatch_task(void* arg)
+                 syslog(LOG_ERR, "[%s] lvgl_ui_channel_send failed: %d\n", TAG, uret);
+             }
+ #endif
++#ifdef CONFIG_AI_AGENT_NOTIFY_SERVICE
++        } else if (strcmp(msg.channel, AGENT_CHAN_LVGL_NOTIFY) == 0) {
++            /* Transient toast notice. The toast itself is already popped
++             * by the notify service (which knows the exact title + color);
++             * this branch only mirrors to the CLI for debug visibility and
++             * does NOT enter the chat history. */
++            pthread_mutex_lock(&g_stdout_lock);
++            printf("\n[Notify]: %s\nvela> ", msg.content);
++            fflush(stdout);
++            pthread_mutex_unlock(&g_stdout_lock);
++#endif
+ #ifdef CONFIG_AI_AGENT_WEIXIN
+         } else if (strcmp(msg.channel, AGENT_CHAN_WEIXIN) == 0) {
+             /* chat_id format: "from_user_id|context_token" */
+@@ -435,6 +464,14 @@ static void* outbound_dispatch_task(void* arg)
+             fflush(stdout);
+             pthread_mutex_unlock(&g_stdout_lock);
+             syslog(LOG_INFO, "[agent] [Agent]: %s\n", msg.content);
++#ifdef CONFIG_AI_AGENT_LVGL_UI
++            /* Mirror CLI replies to the LVGL UI so that `ask` responses
++             * (which come in on the "cli" channel) also render as chat
++             * cards on screen, not only as terminal text.  send() shows
++             * the chat screen on first call, so the UI comes up
++             * automatically when the first reply arrives. */
++            lvgl_ui_channel_send(msg.content);
++#endif
+         } else {
+             syslog(LOG_WARNING, "[%s] Unknown channel: %s\n", TAG, msg.channel);
+         }
+@@ -503,12 +540,10 @@ int ai_agent_main(int argc, char* argv[])
+     mkdir("/data/agent/skills", 0755);
+     BOOT_LOG(&t0, "P0", "storage ready");
+ 
+-    /* Memory info */
+-    {
+-        struct mallinfo mi = mallinfo();
+-        syslog(LOG_INFO, "[%s] [boot +%ldms] heap: arena=%d free=%d used=%d\n",
+-            TAG, boot_ms(&t0), mi.arena, mi.fordblks, mi.uordblks);
+-    }
++    /* Memory info — mallinfo() walks the heap and can DEBUGASSERT-reboot
++     * on this target (see agent_mem.h), so skip the walker at boot. */
++    syslog(LOG_INFO, "[%s] [boot +%ldms] heap: mallinfo disabled\n",
++        TAG, boot_ms(&t0));
+ 
+     /* ── Phase 1: Core infrastructure ──────────────────────── */
+     {
+@@ -597,6 +632,14 @@ int ai_agent_main(int argc, char* argv[])
+         rc = lvgl_ui_channel_init();
+         BOOT_LOG_RC(&t0, "P3", "lvgl_ui_channel_init", rc);
+ #endif
++
++#ifdef CONFIG_AI_AGENT_NOTIFY_SERVICE
++        /* Loads per-source config + cursors only (no network, no thread).
++         * The polling thread is started later in network_watch_task once
++         * the link is up, since each poll issues a sync MCP HTTP call. */
++        rc = notify_service_init();
++        BOOT_LOG_RC(&t0, "P3", "notify_service_init", rc);
++#endif
+     }
+ 
+     /* ── Phase 4: CLI — register commands only, no thread yet ── */
+@@ -735,6 +778,11 @@ int ai_agent_main(int argc, char* argv[])
+     /* Phase 5 services (non-network) */
+     cron_service_stop();
+     heartbeat_stop();
++#ifdef CONFIG_AI_AGENT_NOTIFY_SERVICE
++    /* Stop the poller before MCP is torn down — the poll thread issues
++     * sync MCP HTTP calls and must not outlive the client module. */
++    notify_service_stop();
++#endif
+ 
+     /* Give threads a moment to notice and exit */
+     usleep(500 * 1000);
+diff --git a/src/channels/nsh_commands.c b/src/channels/nsh_commands.c
+index 25875b5..a8be34d 100644
+--- a/src/channels/nsh_commands.c
++++ b/src/channels/nsh_commands.c
+@@ -28,6 +28,9 @@
+ #include "infra/config_store.h"
+ #include "infra/cron_service.h"
+ #include "infra/heartbeat.h"
++#ifdef CONFIG_AI_AGENT_NOTIFY_SERVICE
++#include "infra/notify_service.h"
++#endif
+ #include "llm/llm_proxy.h"
+ #ifdef CONFIG_AI_AGENT_MCP
+ #include "tools/mcp_client.h"
+@@ -156,6 +159,12 @@ static void cmd_help(void)
+         "  mcp_status            - Show MCP client status\n"
+         "  mcp_tools             - List remote MCP tools\n"
+ #endif
++#ifdef CONFIG_AI_AGENT_NOTIFY_SERVICE
++        "  notify_start          - Start Gerrit/Jira background polling\n"
++        "  notify_status         - Show notify service status (cursor/new)\n"
++        "  notify_stop           - Stop background polling\n"
++        "  notify_inject <g|j> <key> <text> - Pop a test toast (gerrit/jira)\n"
++#endif
+ #ifdef CONFIG_AI_AGENT_LVGL_UI
+         "  show_chat            - Show chat UI on screen\n"
+ #endif
+@@ -307,9 +316,12 @@ static void cmd_session_clear_all(void)
+ 
+ static void cmd_heap_info(void)
+ {
+-    struct mallinfo mi = mallinfo();
+-    printf("Heap: arena=%d fordblks(free)=%d uordblks(used)=%d\n",
+-        mi.arena, mi.fordblks, mi.uordblks);
++    /* mallinfo() walks the full heap and DEBUGASSERTs on any free-chunk
++     * link inconsistency — which reboots the board via recursive assert on
++     * this target.  Skip the walker; report a non-iterating conservative
++     * value instead.  (The agent_mem.h change has the full rationale.) */
++    printf("Heap: mallinfo() disabled on this target to avoid heap-walker "
++           "assert reboot. Use 'free' or /proc if available.\n");
+ }
+ 
+ static void cmd_set_proxy(int argc, char** argv)
+@@ -696,18 +708,44 @@ static void cmd_exit_app(void)
+ #ifdef CONFIG_AI_AGENT_MCP
+ static void cmd_mcp_add(int argc, char** argv)
+ {
++    /* Two forms:
++     *   mcp_add <name> <url> [token]                          (generic / Gerrit)
++     *   mcp_add <name> <url> <jira_url> <username> <pat>      (Jira MCP)
++     * The Jira form is selected when the URL targets acc.pt.miui.com; the
++     * Jira MCP (mcp-atlassian) authenticates via three X-Atlassian-* headers
++     * instead of a single bearer token. */
++    bool is_jira = (argc >= 3) && (strstr(argv[2], "acc.pt.miui.com") != NULL);
++
+     if (argc < 3) {
+-        printf("Usage: mcp_add <name> <url> [token]\n"
+-               "  name:  server name (e.g. amap)\n"
+-               "  url:   MCP endpoint (e.g. http://host:port/mcp)\n"
+-               "  token: optional bearer token\n");
++        printf("Usage:\n"
++               "  mcp_add <name> <url> [token]\n"
++               "  mcp_add <name> <url> <jira_url> <username> <pat>   (Jira)\n"
++               "    name:     server name (e.g. gerrit, jira)\n"
++               "    url:      MCP endpoint\n"
++               "    token:    optional bearer token (generic / onedev gateway)\n"
++               "    jira_url: Jira base URL (e.g. https://jira-phone.mioffice.cn)\n"
++               "    username: Jira username (email prefix)\n"
++               "    pat:      Jira personal access token\n");
+         return;
+     }
+ 
+-    const char* token = (argc >= 4) ? argv[3] : NULL;
+-    int ret = mcp_client_add_server(argv[1], argv[2], token);
++    int ret;
++    if (is_jira) {
++        if (argc < 6) {
++            printf("Jira MCP needs: mcp_add <name> <url> <jira_url> <username> <pat>\n");
++            return;
++        }
++        ret = mcp_client_add_server(argv[1], argv[2], NULL,
++            argv[3], argv[4], argv[5]);
++    } else {
++        const char* token = (argc >= 4) ? argv[3] : NULL;
++        ret = mcp_client_add_server(argv[1], argv[2], token,
++            NULL, NULL, NULL);
++    }
+     if (ret == OK) {
+         printf("Added MCP server: %s → %s\n", argv[1], argv[2]);
++        /* Persist so the server is auto-restored after reboot. */
++        mcp_client_persist_save();
+     } else {
+         printf("Failed to add MCP server\n");
+     }
+@@ -725,6 +763,8 @@ static void cmd_mcp_remove(int argc, char** argv)
+     int ret = mcp_client_remove_server(argv[1]);
+     if (ret == OK) {
+         printf("Removed MCP server: %s\n", argv[1]);
++        /* Update persisted list so a removed server doesn't reappear. */
++        mcp_client_persist_save();
+     } else {
+         printf("Server not found: %s\n", argv[1]);
+     }
+@@ -772,6 +812,72 @@ static void cmd_mcp_tools(void)
+ }
+ #endif /* CONFIG_AI_AGENT_MCP */
+ 
++#ifdef CONFIG_AI_AGENT_NOTIFY_SERVICE
++/* ── notify_start / status / stop / inject ──────────────────── */
++
++static void cmd_notify_start(void)
++{
++    if (notify_service_start() == OK) {
++        printf("Notify service started (polling Gerrit/Jira).\n");
++    } else {
++        printf("Notify service already running or failed to start.\n");
++    }
++}
++
++static void cmd_notify_status(void)
++{
++    char* json = notify_service_status_json();
++    if (json) {
++        printf("%s\n", json);
++        free(json);
++    } else {
++        printf("No notify service data\n");
++    }
++}
++
++static void cmd_notify_stop(void)
++{
++    notify_service_stop();
++    printf("Notify service stopped.\n");
++}
++
++static void cmd_notify_inject(int argc, char** argv)
++{
++    /* notify_inject <gerrit|jira> <key> <summary...>
++     * Bypasses polling — pops a toast immediately.  Used to verify the
++     * toast widget + outbound path without a live MCP server. */
++    if (argc < 4) {
++        printf("Usage: notify_inject <gerrit|jira> <key> <summary...>\n"
++               "  e.g. notify_inject gerrit 9688768 \"CI failed: audio.c build error\"\n");
++        return;
++    }
++
++    notify_source_t src;
++    if (strcmp(argv[1], "gerrit") == 0) {
++        src = NOTIFY_SRC_GERRIT;
++    } else if (strcmp(argv[1], "jira") == 0) {
++        src = NOTIFY_SRC_JIRA;
++    } else {
++        printf("Source must be 'gerrit' or 'jira'\n");
++        return;
++    }
++
++    /* Rejoin argv[3..] as the summary text. */
++    char summary[192];
++    summary[0] = '\0';
++    for (int i = 3; i < argc; i++) {
++        if (i > 3) strlcat(summary, " ", sizeof(summary));
++        strlcat(summary, argv[i], sizeof(summary));
++    }
++
++    if (notify_service_inject(src, argv[2], summary) == OK) {
++        printf("Injected %s notification: %s\n", argv[1], argv[2]);
++    } else {
++        printf("Inject failed (bad source/key?)\n");
++    }
++}
++#endif /* CONFIG_AI_AGENT_NOTIFY_SERVICE */
++
+ /* ── install_skill: install a skill from URL ──────────────── */
+ 
+ static void cmd_install_skill(int argc, char** argv)
+@@ -1036,6 +1142,16 @@ static void* cli_thread(void* arg)
+         else if (strcmp(cmd, "mcp_tools") == 0)
+             cmd_mcp_tools();
+ #endif
++#ifdef CONFIG_AI_AGENT_NOTIFY_SERVICE
++        else if (strcmp(cmd, "notify_start") == 0)
++            cmd_notify_start();
++        else if (strcmp(cmd, "notify_status") == 0)
++            cmd_notify_status();
++        else if (strcmp(cmd, "notify_stop") == 0)
++            cmd_notify_stop();
++        else if (strcmp(cmd, "notify_inject") == 0)
++            cmd_notify_inject(argc, argv);
++#endif
+ #ifdef CONFIG_AI_AGENT_LVGL_UI
+         else if (strcmp(cmd, "show_chat") == 0)
+             lvgl_ui_channel_show();
+diff --git a/src/tools/mcp_client.c b/src/tools/mcp_client.c
+index 2ae0bee..a60dd0e 100644
+--- a/src/tools/mcp_client.c
++++ b/src/tools/mcp_client.c
+@@ -18,6 +18,7 @@
+ #include "tools/tool_registry.h"
+ #include "cJSON.h"
+ #include "infra/vela_tls.h"
++#include "infra/config_store.h"
+ #include "agent_compat.h"
+ 
+ #include <pthread.h>
+@@ -103,6 +104,16 @@ typedef struct {
+     parsed_url_t parsed;
+     bool initialized; /* MCP initialize handshake done */
+     char session_id[128]; /* Mcp-Session header from server */
++
++    /* Jira MCP (sooperset/mcp-atlassian, fronted by acc.pt.miui.com) authenticates
++     * via three X-Atlassian-* headers instead of x-user-token: the Jira base URL,
++     * the username, and a Jira personal access token. They must outlive the post
++     * call (vela_header_t holds const char*), so they live here on the server
++     * struct rather than on mcp_http_post's stack. Unused (empty) for non-Jira
++     * servers; mcp_http_post only reads them when host == MCP_JIRA_HOST. */
++    char jira_url[128];
++    char jira_user[64];
++    char jira_pat[128];
+ } mcp_remote_server_t;
+ 
+ static mcp_remote_server_t s_servers[MCP_CLIENT_MAX_SERVERS];
+@@ -115,8 +126,34 @@ static pthread_mutex_t s_mtx = PTHREAD_MUTEX_INITIALIZER;
+ static bool s_inited = false;
+ static atomic_int s_req_id = 1;
+ 
+-/* Response buffer size for MCP HTTP calls */
+-#define MCP_RESP_BUF_SIZE 8192
++/* Response buffer size for MCP HTTP calls.
++ * Must hold full SSE-wrapped JSON-RPC responses; e.g. the onedev Gerrit
++ * gateway's tools/list is ~14KB. 64KB leaves headroom for large tools/call
++ * results (query_changes listings, diffs, etc.). Buffer is heap-allocated
++ * per call and freed immediately after, so the size costs nothing at rest. */
++#define MCP_RESP_BUF_SIZE 65536
++
++/* The onedev MCP unified gateway fronts several Gerrit instances and routes
++ * a tools/call to the right one via a pair of headers: one declares a named
++ * "host segment" carrying the Gerrit base URL, the other selects that segment
++ * by name. Without them tools/list works but tools/call is rejected with
++ * "Missing required header: at least one 'x-gerrit-host-*' must be configured".
++ * The segment name ("default") is a placeholder shared by both headers; the
++ * Gerrit URL must be a *.mioffice.cn address the gateway can resolve. These
++ * are only attached for the onedev gateway host, so other MCP servers are
++ * unaffected. */
++#define MCP_GW_HOST      "onedev.pt.miui.com"
++#define MCP_GERRIT_URL   "https://gerrit.pt.mioffice.cn"
++#define MCP_GERRIT_SEG   "default"
++
++/* The internal Jira MCP service (sooperset/mcp-atlassian, deployed by the
++ * xiaoai client team) is fronted by acc.pt.miui.com and authenticates via
++ * three X-Atlassian-* headers carried on every request (initialize through
++ * tools/call alike). Unlike the onedev Gerrit gateway, Jira needs no separate
++ * tools/call routing header — the Jira base URL itself is the routing hint.
++ * These headers are attached only for this host, so non-Jira servers are
++ * unaffected. */
++#define MCP_JIRA_HOST    "acc.pt.miui.com"
+ 
+ /* ── JSON-RPC request builder ───────────────────────────── */
+ 
+@@ -149,9 +186,19 @@ static char* build_jsonrpc_request(const char* method, cJSON* params)
+ static int mcp_http_post(mcp_remote_server_t* srv, const char* body,
+     char* resp_buf, size_t resp_cap)
+ {
+-    vela_header_t headers[5];
++    /* Worst case: Accept, Connection, Mcp-Session, x-user-token,
++     * x-gerrit-host-<seg>, x-gerrit-<seg>, X-Atlassian-Jira-Url,
++     * X-Atlassian-Username, X-Atlassian-Jira-Personal-Token, plus NULL. */
++    vela_header_t headers[10];
+     int h = 0;
+ 
++    /* Header names for the Gerrit segment, built once: "x-gerrit-host-default"
++     * and "x-gerrit-default". Sized to fit any reasonable segment name. */
++    char host_hdr[32];
++    char sel_hdr[32];
++    snprintf(host_hdr, sizeof(host_hdr), "x-gerrit-host-%s", MCP_GERRIT_SEG);
++    snprintf(sel_hdr, sizeof(sel_hdr), "x-gerrit-%s", MCP_GERRIT_SEG);
++
+     headers[h].name = "Accept";
+     headers[h].value = "application/json, text/event-stream";
+     h++;
+@@ -170,31 +217,55 @@ static int mcp_http_post(mcp_remote_server_t* srv, const char* body,
+     }
+ 
+     if (srv->token[0]) {
+-        /* Build "Bearer <token>" — use heap to avoid static buffer race */
+-        char* auth_buf = malloc(192);
+-        if (!auth_buf)
+-            return -1;
+-        snprintf(auth_buf, 192, "Bearer %s", srv->token);
+-        headers[h].name = "Authorization";
+-        headers[h].value = auth_buf;
++        /* Auth via the MCP unified gateway's custom header.
++         * The gateway (onedev.pt.miui.com/mcp-gw) expects the raw token in
++         * "x-user-token", NOT a standard "************** ****** <token>".
++         * srv->token outlives the post call (caller holds the lock or a
++         * stack copy of the server struct), so no heap buffer is needed. */
++        headers[h].name = "x-user-token";
++        headers[h].value = srv->token;
+         h++;
++    }
+ 
+-        headers[h].name = NULL;
+-        headers[h].value = NULL;
++    /* Gerrit host routing for the onedev gateway. The gateway fronts multiple
++     * Gerrit instances; tools/call needs a host-segment header (declaring a
++     * named Gerrit base URL) plus a selector header (picking that segment by
++     * name) to know which Gerrit to query. tools/list works without these, so
++     * mcp_discover succeeds regardless — this only matters for tools/call.
++     * Gated on the gateway host so non-Gerrit MCP servers are unaffected. */
++    if (strcmp(srv->parsed.host, MCP_GW_HOST) == 0) {
++        headers[h].name = host_hdr;        /* "x-gerrit-host-default" */
++        headers[h].value = MCP_GERRIT_URL; /* https://gerrit.pt.mioffice.cn */
++        h++;
++        headers[h].name = sel_hdr;         /* "x-gerrit-default" */
++        headers[h].value = MCP_GERRIT_SEG; /* "default" */
++        h++;
++    }
+ 
+-        int status;
+-        if (srv->parsed.use_tls) {
+-            status = vela_https_post_json(
+-                srv->parsed.host, srv->parsed.port, srv->parsed.path,
+-                headers, body, resp_buf, resp_cap);
+-        } else {
+-            status = vela_http_post_json(
+-                srv->parsed.host, srv->parsed.port, srv->parsed.path,
+-                headers, body, resp_buf, resp_cap);
++    /* Jira MCP auth via three X-Atlassian-* headers. The Jira service
++     * (acc.pt.miui.com, backed by mcp-atlassian) requires these on every
++     * request — initialize through tools/call — to know which Jira instance
++     * to talk to and to authenticate as the user. Values come from the server
++     * struct (set via mcp_client_add_server) so they outlive this call.
++     * Gated on the Jira host; if a server is added without credentials the
++     * empty fields are simply skipped, letting the server reject with 401
++     * rather than sending a malformed header. */
++    if (strcmp(srv->parsed.host, MCP_JIRA_HOST) == 0) {
++        if (srv->jira_url[0]) {
++            headers[h].name = "X-Atlassian-Jira-Url";
++            headers[h].value = srv->jira_url;
++            h++;
++        }
++        if (srv->jira_user[0]) {
++            headers[h].name = "X-Atlassian-Username";
++            headers[h].value = srv->jira_user;
++            h++;
++        }
++        if (srv->jira_pat[0]) {
++            headers[h].name = "X-Atlassian-Jira-Personal-Token";
++            headers[h].value = srv->jira_pat;
++            h++;
+         }
+-
+-        free(auth_buf);
+-        return status;
+     }
+ 
+     headers[h].name = NULL;
+@@ -216,9 +287,89 @@ static int mcp_http_post(mcp_remote_server_t* srv, const char* body,
+ 
+ /* ── Parse JSON-RPC response ────────────────────────────── */
+ 
++/*
++ * Streamable HTTP MCP servers (e.g. the onedev unified gateway) may return
++ * responses as Server-Sent Events: a "text/event-stream" body where the
++ * JSON-RPC payload sits in one or more "data:" lines:
++ *
++ *   event: message
++ *   data: {"jsonrpc":"2.0","id":1,"result":{...}}
++ *
++ * cJSON cannot parse that directly. This helper extracts and concatenates
++ * the "data:" line payloads into a heap buffer (caller must free) and
++ * returns it; if the response is already plain JSON (no "data:" lines),
++ * it returns a strdup of the original. Returns NULL on allocation failure.
++ */
++static char* extract_mcp_payload(const char* resp)
++{
++    /* Detect SSE: look for a line starting with "data:" */
++    const char* p = resp;
++    bool has_data_line = false;
++    while (p && *p) {
++        if (strncmp(p, "data:", 5) == 0) {
++            has_data_line = true;
++            break;
++        }
++        p = strchr(p, '\n');
++        if (p)
++            p++;
++    }
++
++    if (!has_data_line) {
++        /* Plain JSON response — return a copy */
++        return strdup(resp);
++    }
++
++    /* Concatenate every "data:" line's payload (SSE spec joins multi-line
++     * data with '\n' between them). Most MCP servers send a single line. */
++    size_t cap = strlen(resp) + 1;
++    char* out = malloc(cap);
++    if (!out)
++        return NULL;
++    out[0] = '\0';
++    size_t len = 0;
++
++    p = resp;
++    while (p && *p) {
++        if (strncmp(p, "data:", 5) == 0) {
++            const char* line = p + 5;
++            /* skip one optional leading space */
++            if (*line == ' ')
++                line++;
++            const char* eol = strchr(line, '\n');
++            size_t seg = eol ? (size_t)(eol - line) : strlen(line);
++            /* strip a trailing \r if present */
++            while (seg > 0 && (line[seg - 1] == '\r' || line[seg - 1] == '\n'))
++                seg--;
++            if (len + seg + 1 >= cap) {
++                cap = (len + seg + 1) * 2;
++                char* tmp = realloc(out, cap);
++                if (!tmp) {
++                    free(out);
++                    return NULL;
++                }
++                out = tmp;
++            }
++            memcpy(out + len, line, seg);
++            len += seg;
++            out[len] = '\0';
++        }
++        p = strchr(p, '\n');
++        if (p)
++            p++;
++    }
++
++    return out;
++}
++
+ static cJSON* parse_jsonrpc_result(const char* resp_json)
+ {
+-    cJSON* root = cJSON_Parse(resp_json);
++    char* payload = extract_mcp_payload(resp_json);
++    if (!payload)
++        return NULL;
++
++    cJSON* root = cJSON_Parse(payload);
++    free(payload);
+     if (!root)
+         return NULL;
+ 
+@@ -426,6 +577,106 @@ static int discover_server_tools(mcp_remote_server_t* srv,
+ 
+ /* ── Public API ─────────────────────────────────────────── */
+ 
++/* ── Server persistence (config_store) ──────────────────────────
++ *
++ * Flat KV layout:
++ *   ai.mcp.servers.count = N
++ *   ai.mcp.server.0.name / .url / .token / .jira_url / .jira_user / .jira_pat
++ *   ai.mcp.server.1...
++ *
++ * Only the connection params (the 6 args of mcp_client_add_server) are
++ * persisted; parsed_url/session_id/initialized are re-derived by
++ * add_server + discover.  Tokens are stored as-is — config_store already
++ * lives on the device's persistent partition and is not exported. */
++
++static const char* persist_key(int idx, const char* field)
++{
++    static char buf[64];
++    snprintf(buf, sizeof(buf), "ai.mcp.server.%d.%s", idx, field);
++    return buf;
++}
++
++int mcp_client_persist_save(void)
++{
++    /* Snapshot server list under the lock so we don't hold it during I/O. */
++    int n;
++    mcp_remote_server_t snap[MCP_CLIENT_MAX_SERVERS];
++    pthread_mutex_lock(&s_mtx);
++    n = s_server_count;
++    if (n > MCP_CLIENT_MAX_SERVERS) n = MCP_CLIENT_MAX_SERVERS;
++    memcpy(snap, s_servers, n * sizeof(snap[0]));
++    pthread_mutex_unlock(&s_mtx);
++
++    char cstr[16];
++    snprintf(cstr, sizeof(cstr), "%d", n);
++    claw_config_set("ai.mcp.servers.count", cstr);
++
++    for (int i = 0; i < n; i++) {
++        claw_config_set(persist_key(i, "name"), snap[i].name);
++        claw_config_set(persist_key(i, "url"), snap[i].url);
++        claw_config_set(persist_key(i, "token"), snap[i].token);
++        claw_config_set(persist_key(i, "jira_url"), snap[i].jira_url);
++        claw_config_set(persist_key(i, "jira_user"), snap[i].jira_user);
++        claw_config_set(persist_key(i, "jira_pat"), snap[i].jira_pat);
++    }
++    /* Clear stale entries beyond n (in case count shrank). */
++    for (int i = n; i < MCP_CLIENT_MAX_SERVERS; i++) {
++        config_del(persist_key(i, "name"));
++        config_del(persist_key(i, "url"));
++        config_del(persist_key(i, "token"));
++        config_del(persist_key(i, "jira_url"));
++        config_del(persist_key(i, "jira_user"));
++        config_del(persist_key(i, "jira_pat"));
++    }
++
++    syslog(LOG_INFO, "[%s] persisted %d server(s)\n", TAG, n);
++    return OK;
++}
++
++int mcp_client_persist_load(void)
++{
++    char cstr[8];
++    if (claw_config_get("ai.mcp.servers.count", cstr, sizeof(cstr)) != OK
++        || !cstr[0]) {
++        return OK;  /* nothing persisted yet */
++    }
++    int n = atoi(cstr);
++    if (n < 0) n = 0;
++    if (n > MCP_CLIENT_MAX_SERVERS) n = MCP_CLIENT_MAX_SERVERS;
++
++    int added = 0;
++    for (int i = 0; i < n; i++) {
++        char name[64], url[256], token[128];
++        char jira_url[128], jira_user[64], jira_pat[128];
++        name[0] = url[0] = token[0] = '\0';
++        jira_url[0] = jira_user[0] = jira_pat[0] = '\0';
++
++        claw_config_get(persist_key(i, "name"), name, sizeof(name));
++        claw_config_get(persist_key(i, "url"), url, sizeof(url));
++        claw_config_get(persist_key(i, "token"), token, sizeof(token));
++        claw_config_get(persist_key(i, "jira_url"), jira_url, sizeof(jira_url));
++        claw_config_get(persist_key(i, "jira_user"), jira_user, sizeof(jira_user));
++        claw_config_get(persist_key(i, "jira_pat"), jira_pat, sizeof(jira_pat));
++
++        if (!name[0] || !url[0]) continue;
++
++        if (mcp_client_add_server(name, url,
++                                  token[0] ? token : NULL,
++                                  jira_url[0] ? jira_url : NULL,
++                                  jira_user[0] ? jira_user : NULL,
++                                  jira_pat[0] ? jira_pat : NULL) == OK) {
++            added++;
++        }
++    }
++
++    if (added > 0) {
++        syslog(LOG_INFO, "[%s] restored %d server(s), discovering...\n",
++               TAG, added);
++        mcp_client_discover();
++    }
++    return OK;
++}
++
+ int mcp_client_init(void)
+ {
+     pthread_mutex_lock(&s_mtx);
+@@ -444,12 +695,18 @@ int mcp_client_init(void)
+                                     mcp_client_get_tools_json,
+                                     mcp_client_execute);
+ 
++    /* Auto-restore persisted servers so MCP works right after boot
++     * without a manual mcp_add. discover() is called inside persist_load
++     * once servers are re-added. */
++    mcp_client_persist_load();
++
+     syslog(LOG_INFO, "[%s] MCP client initialized\n", TAG);
+     return OK;
+ }
+ 
+ int mcp_client_add_server(const char* name, const char* url,
+-    const char* token)
++    const char* token, const char* jira_url, const char* jira_user,
++    const char* jira_pat)
+ {
+     if (!name || !url)
+         return ERROR;
+@@ -480,6 +737,17 @@ int mcp_client_add_server(const char* name, const char* url,
+     if (token) {
+         strncpy(srv->token, token, sizeof(srv->token) - 1);
+     }
++    /* Jira credentials (X-Atlassian-* header values). Only meaningful for
++     * MCP_JIRA_HOST; NULL/empty otherwise. */
++    if (jira_url) {
++        strncpy(srv->jira_url, jira_url, sizeof(srv->jira_url) - 1);
++    }
++    if (jira_user) {
++        strncpy(srv->jira_user, jira_user, sizeof(srv->jira_user) - 1);
++    }
++    if (jira_pat) {
++        strncpy(srv->jira_pat, jira_pat, sizeof(srv->jira_pat) - 1);
++    }
+ 
+     if (parse_url(url, &srv->parsed) != 0) {
+         syslog(LOG_ERR, "[%s] Invalid URL: %s\n", TAG, url);
+diff --git a/src/tools/mcp_client.h b/src/tools/mcp_client.h
+index b11d984..eb40e1e 100644
+--- a/src/tools/mcp_client.h
++++ b/src/tools/mcp_client.h
+@@ -46,7 +46,8 @@ extern "C" {
+  * @return OK on success, ERROR on failure
+  */
+ int mcp_client_add_server(const char* name, const char* url,
+-    const char* token);
++    const char* token, const char* jira_url, const char* jira_user,
++    const char* jira_pat);
+ 
+ /**
+  * Remove a remote MCP server by name.
+@@ -102,6 +103,19 @@ char* mcp_client_status_json(void);
+  */
+ void mcp_client_cleanup(void);
+ 
++/**
++ * Persist current server list to config_store and reload from it.
++ *
++ * persist_save() writes every registered server's connection params
++ * (name/url/token/jira_url/jira_user/jira_pat) so they survive reboot.
++ * persist_load() reads them back, re-adds each server, and re-discovers
++ * tools — call once at the end of mcp_client_init() for auto-reconnect.
++ *
++ * Both are no-ops (return OK) if CONFIG_AI_AGENT_MCP_SERVER_PERSIST is off.
++ */
++int mcp_client_persist_save(void);
++int mcp_client_persist_load(void);
++
+ #ifdef __cplusplus
+ }
+ #endif
+diff --git a/src/infra/notify_service.c b/src/infra/notify_service.c
+new file mode 100644
+index 0000000..093fc17
+--- /dev/null
++++ b/src/infra/notify_service.c
+@@ -0,0 +1,524 @@
++/*
++ * Copyright (C) 2026 Xiaomi Corporation
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++/**
++ * notify_service.c — Gerrit/Jira polling → LVGL toast.
++ *
++ * Thread model: a single detached notify_thread, cond_timedwait-driven,
++ * each source keeping its own next-due timestamp.  Polling is a sync
++ * mcp_client_execute() call on this thread (never on agent_loop).
++ *
++ * Dedup: Gerrit change numbers are numeric and ~monotonic → store the max
++ * seen, only report id > last_max.  Jira keys are "PROJ-123" (non-numeric)
++ * → store a last-seen key + a small in-memory LRU of reported keys.
++ *
++ * Cursor persistence: config_store (claw_config_get/set).  Cursor is
++ * updated in memory first, then pushed to outbound, then persisted — so
++ * a push failure (message bus full) does NOT lose the cursor (we'd rather
++ * miss a notification this round and re-report next round than silently
++ * advance the cursor past something the user never saw).
++ */
++
++#include "infra/notify_service.h"
++#include "agent_config.h"
++#include "agent_compat.h"
++#include "core/message_bus.h"
++#include "infra/config_store.h"
++#include "tools/mcp_client.h"
++#include "ui/lvgl_toast.h"
++
++#include "cJSON.h"
++
++#include <errno.h>
++#include <pthread.h>
++#include <stdbool.h>
++#include <stdlib.h>
++#include <string.h>
++#include <syslog.h>
++#include <time.h>
++
++#ifdef CONFIG_AI_AGENT_NOTIFY_SERVICE
++
++static const char *TAG = "notify";
++
++/* ── Per-source config ─────────────────────────────────────────── */
++
++typedef struct {
++    bool enabled;
++    char server_name[32];   /* "gerrit" / "jira" — MCP server name */
++    char tool_query[64];   /* "gerrit.query_changes" / "jira.search" */
++    char query_args[256];   /* JSON args string */
++    int interval_sec;
++    char last_cursor[32];  /* Gerrit: max change num; Jira: last seen key */
++} notify_src_cfg_t;
++
++static notify_src_cfg_t s_cfg[NOTIFY_SRC_COUNT];
++
++/* Jira in-memory LRU of recently reported keys (not persisted). */
++#define JIRA_LRU_SIZE 64
++static char s_jira_lru[JIRA_LRU_SIZE][24];
++static int s_jira_lru_n = 0;
++
++/* Thread state */
++static volatile bool s_running = false;
++static pthread_mutex_t s_mtx = PTHREAD_MUTEX_INITIALIZER;
++static pthread_cond_t s_cond = PTHREAD_COND_INITIALIZER;
++static bool s_inited = false;
++
++/* Status snapshot (for notify_service_status_json) */
++static int s_last_poll_epoch = 0;
++static int s_last_new_count = 0;
++static char s_last_err[64] = "";
++
++/* config_store key prefix per source */
++static const char *cfg_key(notify_source_t src, const char *field)
++{
++    static char buf[64];
++    snprintf(buf, sizeof(buf), "ai.notify.%s.%s",
++             src == NOTIFY_SRC_GERRIT ? "gerrit" : "jira", field);
++    return buf;
++}
++
++/* ── Config load/save ─────────────────────────────────────────── */
++
++static void cfg_load_str(notify_source_t src, const char *field,
++                         char *out, size_t out_sz, const char *def)
++{
++    if (claw_config_get(cfg_key(src, field), out, out_sz) != OK || !out[0]) {
++        strlcpy(out, def ? def : "", out_sz);
++    }
++}
++
++static bool cfg_load_bool(notify_source_t src, const char *field, bool def)
++{
++    char buf[8];
++    if (claw_config_get(cfg_key(src, field), buf, sizeof(buf)) != OK || !buf[0]) {
++        return def;
++    }
++    return (buf[0] == '1' || buf[0] == 't' || buf[0] == 'T');
++}
++
++static int cfg_load_int(notify_source_t src, const char *field, int def)
++{
++    char buf[12];
++    if (claw_config_get(cfg_key(src, field), buf, sizeof(buf)) != OK || !buf[0]) {
++        return def;
++    }
++    return atoi(buf);
++}
++
++static void notify_load_cfg(void)
++{
++    /* Gerrit */
++    notify_src_cfg_t *g = &s_cfg[NOTIFY_SRC_GERRIT];
++    g->enabled = cfg_load_bool(NOTIFY_SRC_GERRIT, "enabled", true);
++    cfg_load_str(NOTIFY_SRC_GERRIT, "server", g->server_name,
++                 sizeof(g->server_name), "gerrit");
++    cfg_load_str(NOTIFY_SRC_GERRIT, "tool", g->tool_query,
++                 sizeof(g->tool_query), "gerrit.query_changes");
++    cfg_load_str(NOTIFY_SRC_GERRIT, "query_args", g->query_args,
++                 sizeof(g->query_args),
++                 "{\"query\":\"status:open\",\"limit\":50}");
++    g->interval_sec = cfg_load_int(NOTIFY_SRC_GERRIT, "interval_sec",
++                                   AGENT_NOTIFY_INTERVAL_SEC);
++    cfg_load_str(NOTIFY_SRC_GERRIT, "last_cursor", g->last_cursor,
++                 sizeof(g->last_cursor), "0");
++
++    /* Jira */
++    notify_src_cfg_t *j = &s_cfg[NOTIFY_SRC_JIRA];
++    j->enabled = cfg_load_bool(NOTIFY_SRC_JIRA, "enabled", true);
++    cfg_load_str(NOTIFY_SRC_JIRA, "server", j->server_name,
++                 sizeof(j->server_name), "jira");
++    cfg_load_str(NOTIFY_SRC_JIRA, "tool", j->tool_query,
++                 sizeof(j->tool_query), "jira.search");
++    {
++        /* Default JQL: issues updated since boot time.  If a cursor was
++         * persisted we use it; otherwise we fall back to "updated >= now". */
++        char ts[32];
++        time_t now = time(NULL);
++        struct tm tm;
++        gmtime_r(&now, &tm);
++        strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M", &tm);
++        snprintf(j->query_args, sizeof(j->query_args),
++                 "{\"jql\":\"updated >= \\\"%s\\\" ORDER BY updated DESC\","
++                 "\"fields\":\"summary,status,priority,assignee\",\"limit\":50}",
++                 ts);
++    }
++    j->interval_sec = cfg_load_int(NOTIFY_SRC_JIRA, "interval_sec",
++                                   AGENT_NOTIFY_INTERVAL_SEC * 2);
++    cfg_load_str(NOTIFY_SRC_JIRA, "last_cursor", j->last_cursor,
++                 sizeof(j->last_cursor), "");
++}
++
++static void persist_cursor(notify_source_t src)
++{
++    claw_config_set(cfg_key(src, "last_cursor"), s_cfg[src].last_cursor);
++}
++
++/* ── Jira LRU ────────────────────────────────────────────────── */
++
++static bool jira_lru_seen(const char *key)
++{
++    for (int i = 0; i < s_jira_lru_n; i++) {
++        if (strcmp(s_jira_lru[i], key) == 0) return true;
++    }
++    return false;
++}
++
++static void jira_lru_add(const char *key)
++{
++    if (s_jira_lru_n < JIRA_LRU_SIZE) {
++        strlcpy(s_jira_lru[s_jira_lru_n], key, sizeof(s_jira_lru[0]));
++        s_jira_lru_n++;
++    } else {
++        /* ring: overwrite oldest */
++        memmove(s_jira_lru[0], s_jira_lru[1],
++                sizeof(s_jira_lru[0]) * (JIRA_LRU_SIZE - 1));
++        strlcpy(s_jira_lru[JIRA_LRU_SIZE - 1], key, sizeof(s_jira_lru[0]));
++    }
++}
++
++/* ── Push a notification to the outbound bus ──────────────────── */
++
++static void push_notify(notify_source_t src, const char *key,
++                        const char *summary)
++{
++    const char *title;
++    uint32_t color;
++    char body[200];   /* toast body (no prefix) */
++    char text[256];   /* bus content (with prefix, for cli mirror / log) */
++
++    if (src == NOTIFY_SRC_GERRIT) {
++        title = "Gerrit";
++        color = AGENT_NOTIFY_GERRIT_COLOR;
++        snprintf(body, sizeof(body), "#%s: %s", key, summary);
++        snprintf(text, sizeof(text), "Gerrit %s", body);
++    } else {
++        title = "Jira";
++        color = AGENT_NOTIFY_JIRA_COLOR;
++        snprintf(body, sizeof(body), "%s: %s", key, summary);
++        snprintf(text, sizeof(text), "Jira %s", body);
++    }
++
++    /* Pop the toast directly — the notify thread knows the exact title
++     * and color, so it builds the toast here rather than letting the
++     * outbound dispatcher guess from content text.  The dispatcher
++     * still sees the message (for cli mirror / logging) but skips
++     * re-popping a toast for the lvgl_notify channel. */
++    lvgl_toast_show_async(title, body, color, AGENT_NOTIFY_TOAST_MS);
++
++    agent_msg_t msg;
++    memset(&msg, 0, sizeof(msg));
++    strncpy(msg.channel, AGENT_CHAN_LVGL_NOTIFY, sizeof(msg.channel) - 1);
++    strncpy(msg.chat_id, "notify", sizeof(msg.chat_id) - 1);
++    msg.content = strdup(text);
++    if (!msg.content) {
++        syslog(LOG_ERR, "[%s] strdup notify failed\n", TAG);
++        return;
++    }
++    if (message_bus_push_outbound(&msg) != OK) {
++        syslog(LOG_WARNING, "[%s] outbound push failed (bus full?)\n", TAG);
++        free(msg.content);
++        return;
++    }
++    syslog(LOG_INFO, "[%s] notified %s %s\n", TAG, title, key);
++}
++
++/* ── Gerrit dedup: extract new changes from query result ─────── */
++
++static int gerrit_dedup(const char *json, notify_source_t src, int *n_new_out)
++{
++    /* mcp_client_execute returns result.content[0].text which is itself
++     * often a JSON string (the change list).  Try to parse it as an array
++     * or as an object with an array field. */
++    cJSON *root = cJSON_Parse(json);
++    if (!root) {
++        return -1;
++    }
++
++    cJSON *arr = root;
++    if (cJSON_IsObject(root)) {
++        arr = cJSON_GetArrayItem(root, 0);
++        if (!cJSON_IsArray(arr)) {
++            arr = cJSON_GetObjectItem(root, "changes");
++            if (!cJSON_IsArray(arr)) {
++                arr = cJSON_GetObjectItem(root, "result");
++            }
++        }
++    }
++    if (!cJSON_IsArray(arr)) {
++        cJSON_Delete(root);
++        return -1;
++    }
++
++    long last_max = strtol(s_cfg[src].last_cursor, NULL, 10);
++    int n_new = 0;
++
++    cJSON *item;
++    cJSON_ArrayForEach(item, arr) {
++        cJSON *num = cJSON_GetObjectItem(item, "_number");
++        if (!num) num = cJSON_GetObjectItem(item, "number");
++        if (!num) num = cJSON_GetObjectItem(item, "change_id");
++        if (!num || !cJSON_IsNumber(num)) continue;
++
++        long id = (long)num->valuedouble;
++        if (id <= last_max) continue;  /* already seen */
++
++        cJSON *subj = cJSON_GetObjectItem(item, "subject");
++        if (!subj) subj = cJSON_GetObjectItem(item, "summary");
++        const char *summary = (subj && cJSON_IsString(subj))
++                              ? subj->valuestring : "(no subject)";
++
++        char key[24];
++        snprintf(key, sizeof(key), "%ld", id);
++        push_notify(src, key, summary);
++        n_new++;
++
++        last_max = id;  /* id > last_max guaranteed by the continue above */
++    }
++
++    if (n_new > 0) {
++        snprintf(s_cfg[src].last_cursor, sizeof(s_cfg[src].last_cursor),
++                 "%ld", last_max);
++        persist_cursor(src);
++    }
++
++    cJSON_Delete(root);
++    *n_new_out = n_new;
++    return 0;
++}
++
++/* ── Jira dedup: extract new issues ────────────────────────────── */
++
++static int jira_dedup(const char *json, notify_source_t src, int *n_new_out)
++{
++    cJSON *root = cJSON_Parse(json);
++    if (!root) return -1;
++
++    cJSON *arr = cJSON_GetObjectItem(root, "issues");
++    if (!cJSON_IsArray(arr)) {
++        arr = cJSON_GetArrayItem(root, 0);  /* maybe top-level array */
++    }
++    if (!cJSON_IsArray(arr)) {
++        cJSON_Delete(root);
++        return -1;
++    }
++
++    int n_new = 0;
++    cJSON *item;
++    cJSON_ArrayForEach(item, arr) {
++        cJSON *keyobj = cJSON_GetObjectItem(item, "key");
++        if (!keyobj || !cJSON_IsString(keyobj)) continue;
++        const char *key = keyobj->valuestring;
++        if (jira_lru_seen(key)) continue;
++
++        cJSON *fields = cJSON_GetObjectItem(item, "fields");
++        const char *summary = "(no summary)";
++        if (fields) {
++            cJSON *s = cJSON_GetObjectItem(fields, "summary");
++            if (s && cJSON_IsString(s)) summary = s->valuestring;
++        }
++
++        push_notify(src, key, summary);
++        jira_lru_add(key);
++        strlcpy(s_cfg[src].last_cursor, key,
++                sizeof(s_cfg[src].last_cursor));
++        n_new++;
++    }
++
++    if (n_new > 0) {
++        persist_cursor(src);
++    }
++
++    cJSON_Delete(root);
++    *n_new_out = n_new;
++    return 0;
++}
++
++/* ── Poll one source ──────────────────────────────────────────── */
++
++static void poll_one_source(notify_source_t src)
++{
++    notify_src_cfg_t *c = &s_cfg[src];
++    if (!c->enabled || c->server_name[0] == '\0' || c->tool_query[0] == '\0') {
++        return;
++    }
++
++    char *buf = (char *)malloc(AGENT_NOTIFY_JSON_BUF_SIZE);
++    if (!buf) {
++        strlcpy(s_last_err, "alloc failed", sizeof(s_last_err));
++        return;
++    }
++    buf[0] = '\0';
++
++    syslog(LOG_INFO, "[%s] polling %s (%s)\n", TAG, c->server_name, c->tool_query);
++
++    int rc = mcp_client_execute(c->tool_query, c->query_args,
++                                buf, AGENT_NOTIFY_JSON_BUF_SIZE);
++    if (rc != OK) {
++        snprintf(s_last_err, sizeof(s_last_err), "%s exec failed", c->server_name);
++        syslog(LOG_WARNING, "[%s] %s poll failed: %.80s\n", TAG,
++               c->server_name, buf);
++        free(buf);
++        return;
++    }
++
++    int n_new = 0;
++    int parse_rc;
++    if (src == NOTIFY_SRC_GERRIT) {
++        parse_rc = gerrit_dedup(buf, src, &n_new);
++    } else {
++        parse_rc = jira_dedup(buf, src, &n_new);
++    }
++
++    if (parse_rc < 0) {
++        snprintf(s_last_err, sizeof(s_last_err), "%s parse failed", c->server_name);
++        syslog(LOG_WARNING, "[%s] %s result not a JSON array: %.80s\n",
++               TAG, c->server_name, buf);
++    } else {
++        s_last_err[0] = '\0';
++        s_last_new_count = n_new;
++        syslog(LOG_INFO, "[%s] %s poll: %d new\n", TAG, c->server_name, n_new);
++    }
++
++    s_last_poll_epoch = (int)time(NULL);
++    free(buf);
++}
++
++/* ── Polling thread ────────────────────────────────────────────── */
++
++static void *notify_thread(void *arg)
++{
++    (void)arg;
++
++    struct timespec next_due[NOTIFY_SRC_COUNT];
++    clock_gettime(CLOCK_REALTIME, &next_due[NOTIFY_SRC_GERRIT]);
++    /* stagger: gerrit polls first, jira 30s later */
++    next_due[NOTIFY_SRC_JIRA] = next_due[NOTIFY_SRC_GERRIT];
++    next_due[NOTIFY_SRC_JIRA].tv_sec += 30;
++
++    while (s_running) {
++        /* find earliest next_due */
++        struct timespec earliest = next_due[0];
++        for (int i = 1; i < NOTIFY_SRC_COUNT; i++) {
++            if (next_due[i].tv_sec < earliest.tv_sec ||
++                (next_due[i].tv_sec == earliest.tv_sec &&
++                 next_due[i].tv_nsec < earliest.tv_nsec)) {
++                earliest = next_due[i];
++            }
++        }
++
++        pthread_mutex_lock(&s_mtx);
++        pthread_cond_timedwait(&s_cond, &s_mtx, &earliest);
++        pthread_mutex_unlock(&s_mtx);
++
++        if (!s_running) break;
++
++        time_t now = time(NULL);
++        for (int i = 0; i < NOTIFY_SRC_COUNT; i++) {
++            if (!s_cfg[i].enabled) continue;
++            if (now < next_due[i].tv_sec) continue;
++            poll_one_source((notify_source_t)i);
++            next_due[i].tv_sec = now + s_cfg[i].interval_sec;
++        }
++    }
++
++    return NULL;
++}
++
++/* ── Public API ───────────────────────────────────────────────── */
++
++int notify_service_init(void)
++{
++    if (s_inited) return OK;
++    notify_load_cfg();
++    s_inited = true;
++    syslog(LOG_INFO, "[%s] inited (gerrit=%s/%ds, jira=%s/%ds)\n", TAG,
++           s_cfg[NOTIFY_SRC_GERRIT].enabled ? "on" : "off",
++           s_cfg[NOTIFY_SRC_GERRIT].interval_sec,
++           s_cfg[NOTIFY_SRC_JIRA].enabled ? "on" : "off",
++           s_cfg[NOTIFY_SRC_JIRA].interval_sec);
++    return OK;
++}
++
++int notify_service_start(void)
++{
++    if (!s_inited) {
++        notify_service_init();
++    }
++    if (s_running) {
++        return OK;
++    }
++    s_running = true;
++    int err = agent_task_create(notify_thread, "notify",
++                                 AGENT_NOTIFY_STACK, NULL, AGENT_NOTIFY_PRIO);
++    if (err != OK) {
++        s_running = false;
++        syslog(LOG_ERR, "[%s] thread create failed\n", TAG);
++        return ERROR;
++    }
++    syslog(LOG_INFO, "[%s] started\n", TAG);
++    return OK;
++}
++
++void notify_service_stop(void)
++{
++    if (!s_running) return;
++    s_running = false;
++    pthread_mutex_lock(&s_mtx);
++    pthread_cond_signal(&s_cond);
++    pthread_mutex_unlock(&s_mtx);
++    syslog(LOG_INFO, "[%s] stopped\n", TAG);
++}
++
++char* notify_service_status_json(void)
++{
++    cJSON *root = cJSON_CreateObject();
++    if (!root) return NULL;
++    cJSON_AddBoolToObject(root, "running", s_running);
++    cJSON_AddNumberToObject(root, "last_poll", s_last_poll_epoch);
++    cJSON_AddNumberToObject(root, "last_new", s_last_new_count);
++    cJSON_AddStringToObject(root, "last_err", s_last_err);
++
++    cJSON *srcs = cJSON_CreateArray();
++    for (int i = 0; i < NOTIFY_SRC_COUNT; i++) {
++        cJSON *s = cJSON_CreateObject();
++        cJSON_AddStringToObject(s, "name",
++            i == NOTIFY_SRC_GERRIT ? "gerrit" : "jira");
++        cJSON_AddBoolToObject(s, "enabled", s_cfg[i].enabled);
++        cJSON_AddStringToObject(s, "server", s_cfg[i].server_name);
++        cJSON_AddStringToObject(s, "cursor", s_cfg[i].last_cursor);
++        cJSON_AddNumberToObject(s, "interval", s_cfg[i].interval_sec);
++        cJSON_AddItemToArray(srcs, s);
++    }
++    cJSON_AddItemToObject(root, "sources", srcs);
++
++    char *out = cJSON_PrintUnformatted(root);
++    cJSON_Delete(root);
++    return out;
++}
++
++int notify_service_inject(notify_source_t src, const char *key,
++                          const char *summary)
++{
++    if (src < 0 || src >= NOTIFY_SRC_COUNT || !key || !summary) {
++        return ERROR;
++    }
++    push_notify(src, key, summary);
++    return OK;
++}
++
++#endif /* CONFIG_AI_AGENT_NOTIFY_SERVICE */
+diff --git a/src/infra/notify_service.h b/src/infra/notify_service.h
+new file mode 100644
+index 0000000..82c7106
+--- /dev/null
++++ b/src/infra/notify_service.h
+@@ -0,0 +1,86 @@
++/*
++ * Copyright (C) 2026 Xiaomi Corporation
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++/**
++ * notify_service.h — Gerrit/Jira background polling → LVGL toast.
++ *
++ * A detached polling thread periodically queries connected MCP servers
++ * (gerrit.query_changes / jira.search) for recent changes, deduplicates
++ * against a persisted cursor in config_store, and for each genuinely new
++ * item pushes a message on the bus (channel "lvgl_notify") which the
++ * outbound dispatcher turns into a top-of-screen LVGL toast.
++ *
++ * It runs OUTSIDE the agent_loop ReAct loop — polling is a plain sync
++ * MCP tool call on the notify thread, and notification text is a fast
++ * snprintf template (no LLM by default).  This keeps the agent chat loop
++ * responsive and avoids spending tokens on empty polls.
++ *
++ * Lifecycle mirrors cron_service/heartbeat: init() loads config + cursor
++ * (no thread), start() spawns the thread, stop() clears the running flag.
++ */
++
++#pragma once
++
++#include <stdbool.h>
++#include <stddef.h>
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++typedef enum {
++    NOTIFY_SRC_GERRIT = 0,
++    NOTIFY_SRC_JIRA,
++    NOTIFY_SRC_COUNT
++} notify_source_t;
++
++/**
++ * Initialize the notify service: load per-source config and cursors from
++ * config_store into memory.  Does NOT start the thread.
++ * Call once at startup (Phase 3), after mcp_client_init().
++ */
++int notify_service_init(void);
++
++/**
++ * Start the polling thread.  Idempotent — returns OK if already running.
++ * Call after network is up (the thread issues sync HTTP MCP calls).
++ */
++int notify_service_start(void);
++
++/**
++ * Stop the polling thread.  Sets running=false and signals the cond so the
++ * thread wakes immediately.  The thread is detached and exits on its own.
++ */
++void notify_service_stop(void);
++
++/**
++ * Build a JSON status string for CLI display (caller frees).
++ * Format: {"running":bool,"last_poll":N,"last_new":N,"last_err":"...",
++ *          "sources":[{"name":"gerrit","enabled":bool,"cursor":"...",
++ *                       "interval":N}, ...]}
++ */
++char* notify_service_status_json(void);
++
++/**
++ * Inject a notification bypassing the poll (debug aid).
++ * Pops a toast immediately via the same outbound path.
++ */
++int notify_service_inject(notify_source_t src, const char *key,
++                          const char *summary);
++
++#ifdef __cplusplus
++}
++#endif
+diff --git a/src/ui/lvgl_toast.c b/src/ui/lvgl_toast.c
+new file mode 100644
+index 0000000..426216a
+--- /dev/null
++++ b/src/ui/lvgl_toast.c
+@@ -0,0 +1,247 @@
++/*
++ * Copyright (C) 2026 Xiaomi Corporation
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++/**
++ * lvgl_toast.c — Top-of-screen toast popup (transient notice, not in chat history).
++ *
++ * Pattern follows qrcode_display.c: an async entry copies the request onto the
++ * heap and lv_async_call()'s into the LVGL thread, where the real widget is
++ * built on top of lv_screen_active().  A one-shot lv_timer triggers a fade-out
++ * animation that deletes the object; a CLICKED handler allows early dismiss.
++ *
++ * Only one toast is shown at a time — a newer toast replaces an older one.
++ */
++
++#include "ui/lvgl_toast.h"
++#include "agent_config.h"
++
++#include <string.h>
++#include <stdlib.h>
++#include <syslog.h>
++
++#if defined(CONFIG_AI_AGENT_LVGL_UI) && defined(CONFIG_GRAPHICS_LVGL)
++#include <lvgl/lvgl.h>
++
++static const char *TAG = "lvgl_toast";
++
++#define TOAST_TITLE_LEN 32
++#define TOAST_BODY_LEN  160
++#define TOAST_DEFAULT_MS 4000  /* auto-dismiss if caller passes 0 */
++
++/* Heap payload for the async hop into the LVGL thread. */
++typedef struct {
++    char title[TOAST_TITLE_LEN];
++    char body[TOAST_BODY_LEN];
++    uint32_t bar_color;
++    uint32_t duration_ms;
++} toast_payload_t;
++
++static lv_obj_t *s_toast = NULL;        /* active toast object, NULL if none */
++static lv_timer_t *s_timer = NULL;     /* auto-dismiss timer */
++
++/* ── Cleanup (must run on LVGL thread) ─────────────────────────── */
++
++static void toast_cleanup(void)
++{
++    if (s_timer) {
++        lv_timer_delete(s_timer);
++        s_timer = NULL;
++    }
++    if (s_toast) {
++        lv_obj_delete(s_toast);
++        s_toast = NULL;
++    }
++}
++
++/* ── Event callbacks (LVGL thread) ──────────────────────────────── */
++
++static void toast_click_cb(lv_event_t *e)
++{
++    (void)e;
++    syslog(LOG_INFO, "[%s] toast dismissed by tap\n", TAG);
++    toast_cleanup();
++}
++
++static void toast_anim_ready_cb(lv_anim_t *a)
++{
++    lv_obj_t *obj = (lv_obj_t *)a->var;
++    if (obj == s_toast) {
++        s_toast = NULL;   /* cleared so toast_cleanup won't double-delete */
++    }
++    if (s_timer) {
++        lv_timer_delete(s_timer);
++        s_timer = NULL;
++    }
++    lv_obj_delete(obj);
++}
++
++static void toast_timeout_cb(lv_timer_t *t)
++{
++    (void)t;
++    s_timer = NULL;  /* timer auto-deletes (repeat_count=1 + auto_delete) */
++    if (!s_toast) {
++        return;
++    }
++    syslog(LOG_INFO, "[%s] toast auto-dismiss (fade out)\n", TAG);
++
++    /* Fade out 300ms then delete */
++    lv_anim_t a;
++    lv_anim_init(&a);
++    lv_anim_set_var(&a, s_toast);
++    lv_anim_set_values(&a, LV_OPA_COVER, LV_OPA_TRANSP);
++    lv_anim_set_time(&a, 300);
++    lv_anim_set_ready_cb(&a, toast_anim_ready_cb);
++    lv_anim_start(&a);
++}
++
++/* ── Build the toast widget (LVGL thread) ──────────────────────── */
++
++static void toast_build(const toast_payload_t *p)
++{
++    /* Replace any existing toast */
++    toast_cleanup();
++
++    lv_obj_t *scr = lv_screen_active();
++    if (!scr) {
++        syslog(LOG_ERR, "[%s] no active screen\n", TAG);
++        return;
++    }
++
++    lv_display_t *disp = lv_display_get_default();
++    lv_coord_t disp_w = disp ? lv_display_get_horizontal_resolution(disp) : 466;
++    lv_coord_t disp_h = disp ? lv_display_get_vertical_resolution(disp) : 466;
++    (void)disp_h;
++
++    lv_obj_t *toast = lv_obj_create(scr);
++    if (!toast) {
++        syslog(LOG_ERR, "[%s] lv_obj_create failed\n", TAG);
++        return;
++    }
++    s_toast = toast;
++
++    lv_coord_t w = disp_w - 40;
++    if (w < 200) w = 200;
++    lv_obj_set_size(toast, w, 80);
++    lv_obj_align(toast, LV_ALIGN_TOP_MID, 0, 12);
++    lv_obj_set_style_bg_color(toast, lv_color_hex(0x2a2a3e), 0);
++    lv_obj_set_style_bg_opa(toast, LV_OPA_COVER, 0);
++    lv_obj_set_style_border_color(toast, lv_color_hex(p->bar_color), 0);
++    lv_obj_set_style_border_width(toast, 2, 0);
++    lv_obj_set_style_border_side(toast, LV_BORDER_SIDE_FULL, 0);
++    lv_obj_set_style_radius(toast, 8, 0);
++    lv_obj_set_style_pad_all(toast, 8, 0);
++    lv_obj_clear_flag(toast, LV_OBJ_FLAG_SCROLLABLE);
++    lv_obj_add_flag(toast, LV_OBJ_FLAG_CLICKABLE);
++    lv_obj_add_event_cb(toast, toast_click_cb, LV_EVENT_CLICKED, NULL);
++
++    /* Left color bar */
++    lv_obj_t *bar = lv_obj_create(toast);
++    lv_obj_set_size(bar, 6, 64);
++    lv_obj_align(bar, LV_ALIGN_LEFT_MID, 0, 0);
++    lv_obj_set_style_bg_color(bar, lv_color_hex(p->bar_color), 0);
++    lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, 0);
++    lv_obj_set_style_radius(bar, 3, 0);
++    lv_obj_set_style_border_width(bar, 0, 0);
++    lv_obj_clear_flag(bar, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
++
++    /* Title label */
++    lv_obj_t *title = lv_label_create(toast);
++    if (title) {
++        lv_label_set_text(title, p->title);
++#if LV_FONT_MISANS_16_CJK
++        lv_obj_set_style_text_font(title, &lv_font_misans_16_cjk, 0);
++#endif
++        lv_obj_set_style_text_color(title, lv_color_hex(0xe8e8e8), 0);
++        lv_obj_align(title, LV_ALIGN_TOP_LEFT, 14, 4);
++    }
++
++    /* Body label (ellipsis on overflow) */
++    lv_obj_t *body = lv_label_create(toast);
++    if (body) {
++        lv_label_set_text(body, p->body);
++#if LV_FONT_MISANS_16_CJK
++        lv_obj_set_style_text_font(body, &lv_font_misans_16_cjk, 0);
++#endif
++        lv_obj_set_style_text_color(body, lv_color_hex(0xc8c8d0), 0);
++        lv_label_set_long_mode(body, LV_LABEL_LONG_DOT);
++        lv_obj_set_width(body, w - 28);
++        lv_obj_align(body, LV_ALIGN_BOTTOM_LEFT, 14, -4);
++    }
++
++    /* Auto-dismiss timer */
++    s_timer = lv_timer_create(toast_timeout_cb, p->duration_ms, NULL);
++    if (s_timer) {
++        lv_timer_set_repeat_count(s_timer, 1);
++        lv_timer_set_auto_delete(s_timer, true);
++    }
++
++    syslog(LOG_INFO, "[%s] toast: %s | %s\n", TAG, p->title, p->body);
++}
++
++/* ── Async entry (LVGL thread) ────────────────────────────────── */
++
++static void toast_async_cb(void *data)
++{
++    toast_payload_t *p = (toast_payload_t *)data;
++    if (!p) {
++        return;
++    }
++    toast_build(p);
++    free(p);
++}
++
++/* ── Public API ───────────────────────────────────────────────── */
++
++void lvgl_toast_show_async(const char *title, const char *body,
++                           uint32_t bar_color, uint32_t duration_ms)
++{
++    if (!title || !body) {
++        return;
++    }
++
++    toast_payload_t *p = (toast_payload_t *)malloc(sizeof(toast_payload_t));
++    if (!p) {
++        syslog(LOG_ERR, "[%s] payload alloc failed\n", TAG);
++        return;
++    }
++    strlcpy(p->title, title, sizeof(p->title));
++    strlcpy(p->body, body, sizeof(p->body));
++    p->bar_color = bar_color;
++    p->duration_ms = duration_ms ? duration_ms : TOAST_DEFAULT_MS;
++
++    if (lv_async_call(toast_async_cb, p) == LV_RESULT_OK) {
++        /* async scheduled; payload freed in callback */
++        return;
++    }
++
++    /* lv_async_call failed — free here to avoid leak */
++    syslog(LOG_ERR, "[%s] lv_async_call failed\n", TAG);
++    free(p);
++}
++
++#else /* !CONFIG_AI_AGENT_LVGL_UI || !CONFIG_GRAPHICS_LVGL */
++
++void lvgl_toast_show_async(const char *title, const char *body,
++                           uint32_t bar_color, uint32_t duration_ms)
++{
++    (void)bar_color;
++    (void)duration_ms;
++    if (title && body) {
++        syslog(LOG_INFO, "[lvgl_toast] (LVGL unavailable) %s: %s\n", title, body);
++    }
++}
++
++#endif /* CONFIG_AI_AGENT_LVGL_UI && CONFIG_GRAPHICS_LVGL */
+diff --git a/src/ui/lvgl_toast.h b/src/ui/lvgl_toast.h
+new file mode 100644
+index 0000000..26676c1
+--- /dev/null
++++ b/src/ui/lvgl_toast.h
+@@ -0,0 +1,54 @@
++/*
++ * Copyright (C) 2026 Xiaomi Corporation
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++/**
++ * lvgl_toast.h — Top-of-screen toast popup for notify cards.
++ *
++ * A toast is a temporary card overlaid on the active screen's top edge:
++ * left color bar + title + body.  It auto-dismisses after a timeout
++ * (fade-out animation) and can be dismissed early by tap.  It does NOT
++ * enter the chat history — it is purely a glanceable transient notice,
++ * used by the notify service for "Gerrit CI failed" / "new Jira issue"
++ * style alerts.
++ *
++ * Thread-safety: lvgl_toast_show_async() may be called from any thread;
++ * it hops into the LVGL thread via lv_async_call.  All widget creation
++ * and deletion happens on the LVGL thread.
++ */
++
++#pragma once
++
++#include <stdint.h>
++#include <stddef.h>
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++/**
++ * Show a toast popup.  Safe to call from any thread.
++ *
++ * @param title       Short title, e.g. "Gerrit" / "Jira" (copied internally)
++ * @param body        Body text, e.g. "#9688768: audio CI failed" (copied)
++ * @param bar_color   Left bar color, RGB 0xRRGGBB (e.g. 0x2196f3 blue)
++ * @param duration_ms Auto-dismiss delay in ms (e.g. 4000)
++ */
++void lvgl_toast_show_async(const char *title, const char *body,
++                           uint32_t bar_color, uint32_t duration_ms);
++
++#ifdef __cplusplus
++}
++#endif

@@ -1,0 +1,18 @@
+diff --git a/libs/libxx/libcxx/CMakeLists.txt b/libs/libxx/libcxx/CMakeLists.txt
+index f3d4a38da7f..5ef9205b1c5 100644
+--- a/libs/libxx/libcxx/CMakeLists.txt
++++ b/libs/libxx/libcxx/CMakeLists.txt
+@@ -134,6 +134,13 @@ if(CONFIG_LIBCXX)
+     set(FLAGS -Wno-attributes -Wno-deprecated-declarations -Wno-shadow
+               -Wno-sign-compare -Wno-cpp)
+   endif()
++  # Workaround: GCCVER may be unset during CMake re-runs (e.g. after a
++  # resetconfig-triggered reconfigure), so the GCCVER>=12 guard below does not
++  # fire and -Wno-alloc-size-larger-than is never added.  GCC 13.4 then fails
++  # libcxx/src/locale.cpp with -Werror=alloc-size-larger-than (a known false
++  # positive in __time_get_storage::__analyze).  Add it unconditionally here so
++  # the libcxx CXX target is always protected regardless of GCCVER scoping.
++  list(APPEND FLAGS -Wno-alloc-size-larger-than -Wno-stringop-overflow)
+ 
+   if(GCCVER GREATER_EQUAL 12)
+     list(APPEND FLAGS -Wno-maybe-uninitialized -Wno-alloc-size-larger-than)

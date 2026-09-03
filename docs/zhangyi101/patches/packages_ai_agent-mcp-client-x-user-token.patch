@@ -1,0 +1,43 @@
+diff --git a/src/tools/mcp_client.c b/src/tools/mcp_client.c
+index 2ae0bee..4b250dc 100644
+--- a/src/tools/mcp_client.c
++++ b/src/tools/mcp_client.c
+@@ -170,31 +170,14 @@ static int mcp_http_post(mcp_remote_server_t* srv, const char* body,
+     }
+ 
+     if (srv->token[0]) {
+-        /* Build "Bearer <token>" — use heap to avoid static buffer race */
+-        char* auth_buf = malloc(192);
+-        if (!auth_buf)
+-            return -1;
+-        snprintf(auth_buf, 192, "Bearer %s", srv->token);
+-        headers[h].name = "Authorization";
+-        headers[h].value = auth_buf;
++        /* Auth via the MCP unified gateway's custom header.
++         * The gateway (onedev.pt.miui.com/mcp-gw) expects the raw token in
++         * "x-user-token", NOT a standard "************** ****** <token>".
++         * srv->token outlives the post call (caller holds the lock or a
++         * stack copy of the server struct), so no heap buffer is needed. */
++        headers[h].name = "x-user-token";
++        headers[h].value = srv->token;
+         h++;
+-
+-        headers[h].name = NULL;
+-        headers[h].value = NULL;
+-
+-        int status;
+-        if (srv->parsed.use_tls) {
+-            status = vela_https_post_json(
+-                srv->parsed.host, srv->parsed.port, srv->parsed.path,
+-                headers, body, resp_buf, resp_cap);
+-        } else {
+-            status = vela_http_post_json(
+-                srv->parsed.host, srv->parsed.port, srv->parsed.path,
+-                headers, body, resp_buf, resp_cap);
+-        }
+-
+-        free(auth_buf);
+-        return status;
+     }
+ 
+     headers[h].name = NULL;
