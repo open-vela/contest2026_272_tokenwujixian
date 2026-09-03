@@ -331,3 +331,18 @@ bool bk7258_ap_c2flag_test(void)
 
   return flag[BK7258_AP_SWAP_C2_WORD] == BK7258_AP_SWAP_C2_MAGIC;
 }
+
+void bk7258_ap_dbg_mark(uint32_t mark)
+{
+  volatile uint32_t *words = (volatile uint32_t *)g_ap_record;
+
+  words[BK7258_AP_SWAP_DBG_WORD] = mark;
+  bk7258_ap_barrier();
+}
+
+uint32_t bk7258_ap_dbg_read(void)
+{
+  volatile uint32_t *words = (volatile uint32_t *)g_ap_record;
+
+  return words[BK7258_AP_SWAP_DBG_WORD];
+}

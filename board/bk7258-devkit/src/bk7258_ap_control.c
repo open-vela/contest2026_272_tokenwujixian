@@ -551,6 +551,7 @@ static int bk7258_ap_monitor(int argc, char *argv[])
   struct bk7258_ap_boot_record_s record;
   uint32_t last_heartbeat = 0;
   uint32_t last_stage = UINT32_MAX;
+  uint32_t last_dbg = 0;
   unsigned int invalid_samples = 0;
   unsigned int stagnant_samples = 0;
   bool invalid_reported = false;
@@ -595,6 +596,16 @@ static int bk7258_ap_monitor(int argc, char *argv[])
 
       invalid_samples = 0;
       invalid_reported = false;
+
+      {
+        uint32_t dbg = bk7258_ap_dbg_read();
+
+        if (dbg != last_dbg)
+          {
+            syslog(LOG_INFO, "[AP] bootmark=0x%08x\n", dbg);
+            last_dbg = dbg;
+          }
+      }
 
       if (record.stage != last_stage)
         {

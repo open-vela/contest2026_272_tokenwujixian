@@ -89,11 +89,13 @@ void __start(void)
 
   bk7258_ap_record_mark_reset((uint32_t)(uintptr_t)_vectors,
                               (uint32_t)(uintptr_t)_vectors[1]);
+  bk7258_ap_dbg_mark(BK7258_AP_DBG_MARK_RESET_DONE);
 
   /* No notifier registration here: anything that takes sched_lock() before
    * nx_start()'s tasklist_initialize() dereferences a NULL TCB inside
    * _assert() and double-faults into a silent lockup. */
 
+  bk7258_ap_dbg_mark(BK7258_AP_DBG_MARK_BEFORE_NX);
   nx_start();
 
   for (; ; )

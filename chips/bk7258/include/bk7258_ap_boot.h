@@ -16,6 +16,7 @@
 #define BK7258_AP_FAULT_PANIC_BASE UINT32_C(0x50414e00) /* "PAN" + action */
 #define BK7258_AP_FAULT_SLEEP_BASE UINT32_C(0x534c5000) /* "SLP" + errno */
 #define BK7258_AP_FAULT_C2START_BASE UINT32_C(0x43325400) /* "C2T" + status */
+#define BK7258_AP_FAULT_MBOX_BASE UINT32_C(0x4d425800) /* "MBX" + fstat */
 
 #define BK7258_AP_IMAGE_CONTRACT_OFFSET UINT32_C(0x200)
 #define BK7258_AP_IMAGE_MAGIC           UINT32_C(0x4f564150) /* "OVAP" */
@@ -88,5 +89,27 @@ void bk7258_ap_record_fault(uint32_t fault);
 void bk7258_ap_c2flag_clear(void);
 void bk7258_ap_c2flag_set(void);
 bool bk7258_ap_c2flag_test(void);
+
+/* Debug boot-progress markers written by the AP cores into SWAP word 40.
+ * The CP monitor prints marker changes so a silent bring-up stall can be
+ * attributed to a specific core/step.  Bring-up diagnostics only: removed
+ * once the SMP start path is stable on hardware. */
+
+#define BK7258_AP_SWAP_DBG_WORD         UINT32_C(40)
+
+#define BK7258_AP_DBG_MARK_RESET_DONE       0x0101u
+#define BK7258_AP_DBG_MARK_BEFORE_NX        0x0102u
+#define BK7258_AP_DBG_MARK_BOARD_EARLY      0x0103u
+#define BK7258_AP_DBG_MARK_C2START_ENTRY    0x0200u
+#define BK7258_AP_DBG_MARK_C2START_CTRL1    0x0201u
+#define BK7258_AP_DBG_MARK_C2START_RELEASED 0x0202u
+#define BK7258_AP_DBG_MARK_C2START_HANDSHAKE_OK 0x0203u
+#define BK7258_AP_DBG_MARK_CPU2_ENTRY       0x0300u
+#define BK7258_AP_DBG_MARK_CPU2_DISCARDED   0x0301u
+#define BK7258_AP_DBG_MARK_CPU2_IRQ_ARMED   0x0302u
+#define BK7258_AP_DBG_MARK_CPU2_READY       0x0303u
+
+void bk7258_ap_dbg_mark(uint32_t mark);
+uint32_t bk7258_ap_dbg_read(void);
 
 #endif /* __VENDOR_BEKEN_CHIP_BK7258_AP_BOOT_H */

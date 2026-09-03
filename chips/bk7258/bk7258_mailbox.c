@@ -18,6 +18,7 @@
 
 #include "arm_internal.h"
 #include "nvic.h"
+#include "include/bk7258_ap_boot.h"
 #include "include/bk7258_mailbox.h"
 #include "include/bk7258_memorymap.h"
 
@@ -186,15 +187,32 @@ void bk7258_mbox_discard(unsigned int channel)
   /* Warm reset clears SRAM but not the Mailbox peripheral: FIFO entries of a
    * previous life survive.  A stale SMP_MAGIC entry read by the ISR would run
    * the SMP-call path on a core whose scheduler does not exist yet, so every
-   * channel must be emptied without dispatch before its interrupt is armed. */
+   * channel must be emptied without dispatch before its interrupt is armed.
+   *
+   * The drain is bounded by the channel FIFO depth: a healthy FIFO reports
+   * EMPTY after at most that many pops.  Spinning forever here would stall
+   * the CPU2 SMP boot invisibly (the AP panic notifier is not registered
+   * until board_late_initialize), so bail out with the raw FSTAT in the
+   * fault word instead and let the caller keep booting. */
 
-  while ((getreg32(BK7258_MBOX_CH_FSTAT(channel)) &
-          BK7258_MBOX_FIFO_EMPTY) == 0)
+  unsigned int guard;
+
+  for (guard = 0; guard < g_bk7258_mbox_fifo[channel].length; guard++)
     {
+      if ((getreg32(BK7258_MBOX_CH_FSTAT(channel)) &
+           BK7258_MBOX_FIFO_EMPTY) != 0)
+        {
+          return;
+        }
+
       getreg32(BK7258_MBOX_CH_SID(channel));
       getreg32(BK7258_MBOX_CH_RDATA0(channel));
       getreg32(BK7258_MBOX_CH_RDATA1(channel));
     }
+
+  bk7258_ap_record_fault(BK7258_AP_FAULT_MBOX_BASE |
+                         (getreg32(BK7258_MBOX_CH_FSTAT(channel)) &
+                          UINT32_C(0xff)));
 }
 
 void bk7258_mbox_discard_local(void)

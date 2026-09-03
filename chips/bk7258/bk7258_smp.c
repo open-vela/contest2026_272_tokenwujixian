@@ -39,7 +39,6 @@
    BK7258_SYS_CPU2_OFFSET_MASK)
 
 #define BK7258_CPU2_POWER_STABILIZE_LOOPS 1000
-#define BK7258_CPU2_POWER_WAIT_LOOPS      10000
 
 /* SWAP handshake poll bound.  The loop body is one SRAM read from XIP code,
  * so this is on the order of a second -- long enough for CPU2 to leave
@@ -131,6 +130,8 @@ static void bk7258_cpu2_boot(void)
 {
   __asm__ volatile ("cpsid i" : : : "memory");
 
+  bk7258_ap_dbg_mark(BK7258_AP_DBG_MARK_CPU2_ENTRY);
+
   /* CPU2 may inherit cache state from the Bootloader/vendor AP lifecycle.
    * Match the CPU1 policy: deterministic uncached shared-SRAM path. */
 
@@ -184,13 +185,16 @@ static void bk7258_cpu2_boot(void)
    * scheduler exists. */
 
   bk7258_mbox_discard_local();
+  bk7258_ap_dbg_mark(BK7258_AP_DBG_MARK_CPU2_DISCARDED);
   up_prioritize_irq(BK7258_IRQ_MAILBOX,
                     CONFIG_BK7258_MAILBOX_IRQ_PRIORITY);
   up_enable_irq(BK7258_IRQ_MAILBOX);
+  bk7258_ap_dbg_mark(BK7258_AP_DBG_MARK_CPU2_IRQ_ARMED);
 #endif
 
   /* Then transfer control to the IDLE task */
 
+  bk7258_ap_dbg_mark(BK7258_AP_DBG_MARK_CPU2_READY);
   nx_idle_trampoline();
 
   for (; ; )
@@ -282,6 +286,7 @@ int up_cpu_start(int cpu)
   /* Ensure the SMP doorbell and IPI handler are live before CPU2 exists. */
 
   bk7258_smp_initialize();
+  bk7258_ap_dbg_mark(BK7258_AP_DBG_MARK_C2START_ENTRY);
 
   flags = up_irq_save();
 
@@ -301,30 +306,24 @@ int up_cpu_start(int cpu)
   if ((getreg32(BK7258_SYS_CPU2_CTRL) &
        BK7258_CPU2_CTRL_LIFECYCLE_MASK) != expected)
     {
+      /* Visible instead of silent: the AP panic notifier is registered only
+       * in board_late_initialize(), after nx_smp_start().  A failure here
+       * would otherwise leave the CP monitor staring at reset-entered with
+       * no fault record.  Low byte = the raw CTRL readback that mismatched.
+       */
+
+      bk7258_ap_record_fault(BK7258_AP_FAULT_C2START_BASE |
+                             (getreg32(BK7258_SYS_CPU2_CTRL) &
+                              UINT32_C(0xff)));
       ret = -EIO;
       goto out;
     }
 
+  bk7258_ap_dbg_mark(BK7258_AP_DBG_MARK_C2START_CTRL1);
+
   for (count = 0; count < BK7258_CPU2_POWER_STABILIZE_LOOPS; count++)
     {
       __asm__ volatile ("nop");
-    }
-
-  for (count = 0; count < BK7258_CPU2_POWER_WAIT_LOOPS; count++)
-    {
-      status = getreg32(BK7258_SYS_CPU_STATUS);
-      if ((status & (BK7258_SYS_CPU2_PWR_DW_STATE |
-                     BK7258_SYS_CPU2_HALTED_STATE |
-                     BK7258_SYS_CPU2_RESET_STATE)) == 0)
-        {
-          break;
-        }
-    }
-
-  if (count == BK7258_CPU2_POWER_WAIT_LOOPS)
-    {
-      ret = -ETIMEDOUT;
-      goto out;
     }
 
   control = getreg32(BK7258_SYS_CPU2_CTRL);
@@ -341,6 +340,9 @@ int up_cpu_start(int cpu)
   if ((getreg32(BK7258_SYS_CPU2_CTRL) &
        BK7258_CPU2_CTRL_LIFECYCLE_MASK) != expected)
     {
+      bk7258_ap_record_fault(BK7258_AP_FAULT_C2START_BASE |
+                             (getreg32(BK7258_SYS_CPU2_CTRL) &
+                              UINT32_C(0xff)));
       ret = -EIO;
       goto out;
     }
@@ -353,6 +355,7 @@ int up_cpu_start(int cpu)
   putreg32(control | BK7258_SYS_CPU2_RESET_RELEASE,
            BK7258_SYS_CPU2_CTRL);
   __asm__ volatile ("dsb\n\tisb" : : : "memory");
+  bk7258_ap_dbg_mark(BK7258_AP_DBG_MARK_C2START_RELEASED);
 
 out:
   up_irq_restore(flags);
@@ -386,6 +389,10 @@ out:
       bk7258_ap_record_fault(BK7258_AP_FAULT_C2START_BASE |
                              (status & UINT32_C(0xff)));
       ret = -ETIMEDOUT;
+    }
+  else
+    {
+      bk7258_ap_dbg_mark(BK7258_AP_DBG_MARK_C2START_HANDSHAKE_OK);
     }
 
   return ret;
