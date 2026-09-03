@@ -1,6 +1,6 @@
 ---
 name: bk7258-worktree-build
-description: "可复现地编译、打包、独立解码并交互烧录 BK7258 worktree。Use when working in a BK7258 feature worktree, running the CP/AP build-to-flash flow, packaging all-app.bin, debugging build.sh paths, or needing visible manual-reset prompts during GetBus. Do not use for generic OpenVela boards or raw app.bin flashing."
+description: "可复现地编译、打包、独立解码并全自动烧录 BK7258 worktree。Use when working in a BK7258 feature worktree, running the CP/AP build-to-flash flow, packaging all-app.bin, debugging build.sh paths, or needing the automatic reboot-bootloader flash (manual-reset fallback prompts during GetBus). Do not use for generic OpenVela boards or raw app.bin flashing."
 ---
 
 # BK7258 Worktree Build
@@ -35,11 +35,38 @@ To flash, rerun in an interactive terminal and explicitly add `--flash`:
   --flash --device /dev/ttyUSB0
 ```
 
+To flash an existing verified package without rebuilding or requiring a
+workspace/worktree, give the image and the board tools directory explicitly:
+
+```bash
+<skill-dir>/scripts/full_flow.sh \
+  --image /absolute/path/to/all-app.bin \
+  --tools-dir /absolute/path/to/board/bk7258-devkit/tools \
+  --flash --device /dev/ttyUSB0
+```
+
+Image-only mode requires `manifest.json` and `decode-report.json` next to the
+image. It runs the same independent integrity gate and automatic flash wrapper
+but skips build/package. `--worktree <feature-worktree>` may replace
+`--tools-dir`; the wrapper then derives `board/bk7258-devkit/tools` from that
+worktree.
+
 Flashing is destructive and must use an interactive terminal. The PTY wrapper
-streams the loader output without buffering. Every observed `Getting Bus...`
-causes a terminal bell and a highlighted Chinese prompt telling the operator to
-press reset, numbered 1, 2, ... . `Gotten Bus...` produces a handshake-success
-banner. Do not press reset after that success banner or after `Begin EraseFlash`.
+streams the loader output without buffering and drives the reset itself: once
+the loader prints `connect success`, the wrapper opens the same serial device
+as a second writer and injects `reboot bootloader` into the running NSH
+console. Target firmware carrying the bootloader-reset patch
+(`feature/bk7258-bootloader-reset`, `board_reset`
+`ENTER_BOOTLOADER` via AON WDT) then performs a chip-level reset with the
+vendor warm-jump tag cleared and the reset reason recorded as watchdog, so
+the BootROM runs the cold chain and BL2 opens the download listen window
+that the already-polling loader catches by itself -- no manual reset.
+`Gotten Bus...` produces the handshake-success banner. If the automatic
+reset does not engage within a few seconds (firmware without the patch, a
+hung console), the wrapper retries once and then falls back to bell-and-
+prompt manual resets, numbered 1, 2, ...; press reset on each prompt and
+stop after the success banner. Never press reset after `Begin EraseFlash`,
+and never type into the terminal during the automatic phase.
 
 The public workflow assumes a trusted, current-user-owned workspace and Git
 worktree. It does not defend against malicious processes running as the same
@@ -53,10 +80,12 @@ must still announce the target device and complete image hash in commentary
 immediately before launching it.
 
 When an agent launches the flash stage for the user, it must first announce in
-commentary that the interactive terminal will request manual resets, then run
-the command with interactive terminal support. Never launch `--flash` in the
-background, through redirected output, or in a non-interactive shell. Keep the
-turn open until `Writing Flash OK` or a clear failure is reported.
+commentary the target device, the complete image SHA-256, and that the wrapper
+injects `reboot bootloader` automatically (manual-reset fallback prompts
+appear only if the auto reset does not engage), then run the command with
+interactive terminal support. Never launch `--flash` in the background,
+through redirected output, or in a non-interactive shell. Keep the turn open
+until `Writing Flash OK` or a clear failure is reported.
 
 The existing board scripts remain the authority: `bk7258-package.sh` must
 produce `decode pass`, and `bk7258-flash.sh` must reproduce the report, validate
@@ -201,8 +230,8 @@ copy credentials into the repository.
 | CP image not found during packaging | CP build was not successful or used a custom output directory | Check `cmake_out/bk7258-devkit_cp/bk7258/app.bin`, its L1 report, and pass `--cp-app-bin` when using `-b` |
 | Decoder report differs by working directory | Decoder received relative input and stored it verbatim | Use the current decoder that resolves `args.image`; run the path-stability regression |
 | Too many generated directories | A one-shot workflow was used instead of the stable bound slot | Use the default `full_flow.sh`; it incrementally reuses one build slot and replaces one package slot per worktree |
-| Loader prints `Getting Bus...` twice | The BootROM handshake is retrying and needs the board reset in each window | Follow each numbered bell/banner from `notify_flash.py`; stop resetting after `Gotten Bus...` |
-| No reset prompt is visible | Flash was launched without a PTY or through a buffered pipe | Run `full_flow.sh --flash` in an interactive terminal; do not redirect loader stdout |
+| `Getting Bus...` keeps printing but `Gotten Bus...` never appears, then the manual-reset banner shows up | The automatic `reboot bootloader` did not engage: target firmware lacks the bootloader-reset patch, its console was hung, or the injection window was missed | Press reset on each numbered bell/banner from `notify_flash.py`; stop resetting after `Gotten Bus...`. Deploy `feature/bk7258-bootloader-reset` firmware for the automatic path |
+| No reset prompt and no auto-reset banner are visible | Flash was launched without a PTY or through a buffered pipe | Run `full_flow.sh --flash` in an interactive terminal; do not redirect loader stdout |
 | `GetBus fail` or `LinkCheck Timeout` | Reset timing, USB, downloader mode, or a busy serial port prevented handshake; Flash has not been erased yet | Close serial monitors and rerun the interactive flash stage |
 | Flash refuses root or reports serial permission denied | Public workflow does not execute mutable worktree code as root | Add the user to the serial-device group, re-login, and run without `sudo` |
 | Loader SHA-256 mismatch | The bundled proprietary loader differs from the audited repository version | Stop; review the binary change and update the pinned hash only through code review |

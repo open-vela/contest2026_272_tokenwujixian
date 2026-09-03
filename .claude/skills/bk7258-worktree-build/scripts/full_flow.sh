@@ -7,13 +7,15 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
   cat >&2 <<EOF
-usage: $0 --workspace DIR --worktree DIR [options]
+usage: $0 (--workspace DIR --worktree DIR | --image FILE [--tools-dir DIR | --worktree DIR]) [options]
 
 options:
   --jobs N             build parallelism (default: 12)
   --slot NAME          stable incremental build/package slot name
   --fresh              rebuild this worktree's bound build slot
   --placeholder        use bundled AP recovery placeholder
+  --image FILE         flash an existing all-app.bin; skips build/package
+  --tools-dir DIR      tools directory for --image (contains bk7258-flash.sh)
   --flash              flash the verified all-app.bin (destructive)
   --device PATH        serial device (default: /dev/ttyUSB0)
   --port N             bk_loader port number (default: 0)
@@ -23,6 +25,8 @@ EOF
 
 WORKSPACE=""
 WORKTREE=""
+IMAGE=""
+TOOLS_DIR=""
 JOBS=12
 SLOT=""
 FRESH=0
@@ -36,6 +40,8 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --workspace) WORKSPACE="$2"; shift 2 ;;
     --worktree) WORKTREE="$2"; shift 2 ;;
+    --image) IMAGE="$2"; shift 2 ;;
+    --tools-dir) TOOLS_DIR="$2"; shift 2 ;;
     --jobs) JOBS="$2"; shift 2 ;;
     --slot) SLOT="$2"; shift 2 ;;
     --fresh) FRESH=1; shift ;;
@@ -48,9 +54,6 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-[[ -n "$WORKSPACE" && -n "$WORKTREE" ]] || usage
-WORKSPACE="$(realpath "$WORKSPACE")"
-WORKTREE="$(realpath "$WORKTREE")"
 [[ "$JOBS" =~ ^[1-9][0-9]*$ ]] || usage
 
 if [[ "$FLASH" -eq 1 ]]; then
@@ -65,6 +68,73 @@ if [[ "$FLASH" -eq 1 ]]; then
     exit 1
   fi
 fi
+
+if [[ -n "$IMAGE" ]]; then
+  [[ "$FLASH" -eq 1 ]] || {
+    echo "error: --image is an image-only flash mode; add --flash" >&2
+    exit 2
+  }
+  IMAGE="$(realpath "$IMAGE")"
+  [[ -f "$IMAGE" && ! -L "$IMAGE" ]] || {
+    echo "error: image is not a regular file: $IMAGE" >&2
+    exit 1
+  }
+
+  if [[ -z "$TOOLS_DIR" && -n "$WORKTREE" ]]; then
+    WORKTREE="$(realpath "$WORKTREE")"
+    TOOLS_DIR="$WORKTREE/board/bk7258-devkit/tools"
+  fi
+  [[ -n "$TOOLS_DIR" ]] || {
+    echo "error: --image needs --tools-dir, or --worktree to derive it" >&2
+    exit 2
+  }
+  TOOLS_DIR="$(realpath "$TOOLS_DIR")"
+
+  FLASHER="$TOOLS_DIR/bk7258-flash.sh"
+  LOADER="$TOOLS_DIR/bk_loader"
+  NOTIFIER="$SCRIPT_DIR/notify_flash.py"
+  for executable in "$FLASHER" "$NOTIFIER"; do
+    [[ -x "$executable" ]] || {
+      echo "error: required executable is missing: $executable" >&2
+      exit 1
+    }
+  done
+
+  echo "== BK7258 existing-image integrity gate =="
+  "$FLASHER" --image "$IMAGE" --verify-only
+
+  if [[ ! -c "$DEVICE" || -L "$DEVICE" ]]; then
+    echo "error: serial device is not connected: $DEVICE" >&2
+    exit 1
+  fi
+  [[ -x "$LOADER" ]] || {
+    echo "error: bundled loader is missing or not executable: $LOADER" >&2
+    exit 1
+  }
+  LOADER_SHA256="$(sha256sum "$LOADER" | cut -d' ' -f1)"
+  if [[ "$LOADER_SHA256" != "$EXPECTED_LOADER_SHA256" ]]; then
+    echo "error: bundled bk_loader SHA-256 is not the audited version" >&2
+    echo "       expected: $EXPECTED_LOADER_SHA256" >&2
+    echo "       actual:   $LOADER_SHA256" >&2
+    exit 1
+  fi
+
+  echo
+  echo "WARNING: flashing overwrites Bootloader, CP and AP from offset 0x0."
+  echo "The wrapper injects 'reboot bootloader' automatically (AON-WDT chip"
+  echo "reset, no manual reset needed on firmware carrying the bootloader-"
+  echo "reset patch); manual-reset prompts appear only if the auto reset"
+  echo "does not engage."
+  IMAGE_SHA256="$(sha256sum "$IMAGE" | cut -d' ' -f1)"
+  echo "image SHA-256: $IMAGE_SHA256"
+  echo
+
+  exec "$NOTIFIER" -- "$FLASHER" --image "$IMAGE" --device "$DEVICE" --port "$PORT"
+fi
+
+[[ -n "$WORKSPACE" && -n "$WORKTREE" ]] || usage
+WORKSPACE="$(realpath "$WORKSPACE")"
+WORKTREE="$(realpath "$WORKTREE")"
 
 EVIDENCE_ROOT="$WORKSPACE/cmake_out"
 mkdir -p "$EVIDENCE_ROOT"
@@ -247,7 +317,10 @@ fi
 
 echo
 echo "WARNING: flashing overwrites Bootloader, CP and AP from offset 0x0."
-echo "During GetBus, the terminal will ring and ask for two manual resets."
+echo "The wrapper injects 'reboot bootloader' automatically (AON-WDT chip"
+echo "reset, no manual reset needed on firmware carrying the bootloader-"
+echo "reset patch); manual-reset prompts appear only if the auto reset"
+echo "does not engage."
 IMAGE_SHA256="$(sha256sum "$IMAGE" | cut -d' ' -f1)"
 echo "image SHA-256: $IMAGE_SHA256"
 echo
