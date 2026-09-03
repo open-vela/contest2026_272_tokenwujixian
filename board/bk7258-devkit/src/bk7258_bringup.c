@@ -28,7 +28,7 @@
 #endif
 
 #ifdef CONFIG_AUDIO_BK7258
-#  include <nuttx/audio/bk7258_audio.h>
+#  include <arch/chip/bk7258_audio.h>
 int bk7258_devkit_audio_pa_register(void);
 #endif
 

@@ -170,6 +170,29 @@ config BK7258_GDMA_TEST
 	help
 		Internal marker selected by the Kconfig-gated SRAM validation command.
 
+config AUDIO_BK7258
+	bool "BK7258 audio device"
+	default n
+	depends on ARCH_CHIP_BK7258
+	select AUDIO
+	select AUDIO_FORMAT_PCM
+	select SCHED_LPWORK
+	---help---
+		Enable the BK7258 audio driver for playback (/dev/audio/pcm0p)
+		and capture (/dev/audio/pcm0c) using the Beken HAL ADC/DAC APIs.
+
+if AUDIO_BK7258
+
+config AUDIO_BK7258_CAPTURE
+	bool "Register BK7258 capture device (/dev/audio/pcm0c)"
+	default n
+	---help---
+		Register a capture (ADC) audio device.  Leave disabled on boards
+		without a microphone so the current playback-only bring-up is not
+		misinterpreted as recording-capable.
+
+endif # AUDIO_BK7258
+
 endmenu
 
 endif

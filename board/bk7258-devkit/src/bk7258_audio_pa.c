@@ -27,7 +27,7 @@
 #include <errno.h>
 #include <syslog.h>
 
-#include <nuttx/audio/bk7258_audio.h>
+#include <arch/chip/bk7258_audio.h>
 #include <nuttx/clock.h>
 #include <nuttx/signal.h>
 

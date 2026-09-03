@@ -30,5 +30,5 @@ ifeq ($(CONFIG_AUDIO_BK7258),y)
 VPATH += :audio
 DEPPATH += --dep-path audio
 CFLAGS += -I$(CHIP_DIR)$(DELIM)audio
-CHIP_CSRCS += bk7258_dac.c bk7258_gdma.c
+CHIP_CSRCS += bk7258_dac.c bk7258_gdma.c bk7258_audio.c
 endif

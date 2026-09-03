@@ -4,5 +4,6 @@
 # Kconfig gates and stay out of the compile unit until a matching hardware
 # requirement lands.
 
-target_sources(arch PRIVATE bk7258_dac.c bk7258_gdma.c bk7258_adc.c)
+target_sources(arch PRIVATE bk7258_dac.c bk7258_gdma.c bk7258_adc.c
+                        bk7258_audio.c)
 target_include_directories(arch PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
