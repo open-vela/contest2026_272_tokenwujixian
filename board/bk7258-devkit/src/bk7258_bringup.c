@@ -18,6 +18,9 @@
 #include <nuttx/semaphore.h>
 #include <nuttx/serial/uart_rpmsg.h>
 #include <nuttx/signal.h>
+#ifdef CONFIG_NET_RPMSG_DRV
+#  include <nuttx/net/rpmsgdrv.h>
+#endif
 
 #ifdef CONFIG_INPUT_BUTTONS_LOWER
 #  include <nuttx/input/buttons.h>
@@ -177,6 +180,24 @@ void board_late_initialize(void)
   else
     {
       syslog(LOG_INFO, "[AMP] CP RPTUN master initialized (Mailbox IRQ)\n");
+#ifdef CONFIG_NET_RPMSG_DRV
+      /* Cross-core Ethernet-over-RPMsg netdev; the AP side registers its
+       * peer from bk7258_ap_amp_initialize() after its own RPTUN is up.
+       * The endpoint name is derived from the netdev name (rpmsgdrv.c,
+       * NET_RPMSG_EPT_PREFIX), so both sides must agree on "rpmsg0".
+       * NET_LL_IEEE80211 keeps the 576-byte MTU contract of wlan0 instead
+       * of pulling in the 1500-byte Ethernet default on this RAM-tight
+         build. */
+
+      if (net_rpmsg_drv_init("ap", "rpmsg0", NET_LL_IEEE80211) == NULL)
+        {
+          syslog(LOG_ERR, "[AMP] CP rpmsg0 netdev init failed\n");
+        }
+      else
+        {
+          syslog(LOG_INFO, "[AMP] CP rpmsg0 netdev registered\n");
+        }
+#endif
 #ifdef CONFIG_BK7258_MB_IPC_RPMSG
       ret = bk7258_mb_ipc_initialize();
       if (ret != 0)
@@ -371,6 +392,22 @@ static int bk7258_ap_amp_initialize(int argc, char *argv[])
   if (ret != 0)
     {
       return ret;
+    }
+#endif
+
+#ifdef CONFIG_NET_RPMSG_DRV
+  /* Peer of the CP-side rpmsg0 created in board_late_initialize(); the
+   * endpoint is announced through RPMsg name service and bound on the
+   * other core.  Must run after this core's RPTUN is up (this kthread)
+   * and before userspace starts issuing ifconfig/DHCP on rpmsg0. */
+
+  if (net_rpmsg_drv_init("cp", "rpmsg0", NET_LL_IEEE80211) == NULL)
+    {
+      syslog(LOG_ERR, "[AMP] AP rpmsg0 netdev init failed\n");
+    }
+  else
+    {
+      syslog(LOG_INFO, "[AMP] AP rpmsg0 netdev registered\n");
     }
 #endif
 

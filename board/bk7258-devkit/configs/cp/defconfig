@@ -131,3 +131,5 @@ CONFIG_TIMER=y
 CONFIG_TASK_NAME_SIZE=0
 CONFIG_USEC_PER_TICK=1000
 CONFIG_LIBM=y
+# Cross-core Ethernet-over-RPMsg: peer netdev for the AP side
+CONFIG_NET_RPMSG_DRV=y
