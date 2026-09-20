@@ -1347,17 +1347,6 @@ int bk7258_audio_playback_initialize(void)
   return OK;
 }
 
-int bk7258_audio_capture_initialize(void)
-{
-  /* Placeholder: BK7258 ADC + microphone path is out of scope for the
-   * current bring-up.  Return -ENOSYS so the board bring-up can log the
-   * miss without aborting other subsystems.
-   */
-
-  AUD_ERR("capture path not implemented yet");
-  return -ENOSYS;
-}
-
 int bk7258_audio_pa_register(FAR const struct bk7258_audio_pa_ops *ops)
 {
   int ret = OK;
