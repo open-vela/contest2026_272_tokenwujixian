@@ -148,3 +148,7 @@ CONFIG_TTY_SIGINT_CHAR=0x03
 # now arrive here and inet_setup rejects them with EPROTONOSUPPORT.
 # Required for ws_server today and the MQTT channel later.
 CONFIG_NET_TCP=y
+# Reassembly slots for usrsock-rpmsg requests: 16 x ~2KB payload buffers
+# accommodates the AP's LLM POST bodies (was 8 x ~480B ~= 3.8KB ceiling,
+# "Request too large" on the first chat turn).
+CONFIG_NET_USRSOCK_RPMSG_SERVER_NIOVEC=16

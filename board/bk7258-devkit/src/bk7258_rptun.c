@@ -29,8 +29,15 @@
 
 #define BK7258_RPTUN_VRINGS        2
 #define BK7258_RPTUN_VRING_ALIGN   8
-#define BK7258_RPTUN_VRING_NUM     8
-#define BK7258_RPTUN_BUFFER_SIZE   512
+/* 4 descriptors x 2048B payload buffers (36KB of the 44KB shared window)
+ * instead of the original 8 x 512B (24KB).  The usrsock-rpmsg server
+ * reassembles a request from up to NIOVEC payload buffers, so the old
+ * geometry capped a single request near 8 x ~480B ~= 3.8KB -- too small
+ * for the ai_agent's LLM POST bodies (10KB+), which died with
+ * "Request too large" on the CP.  4 x 2048B with NIOVEC=16 lifts that
+ * ceiling to ~30KB at the same vring-memory class. */
+#define BK7258_RPTUN_VRING_NUM     4
+#define BK7258_RPTUN_BUFFER_SIZE   2048
 
 struct bk7258_rptun_shmem_s
 {
