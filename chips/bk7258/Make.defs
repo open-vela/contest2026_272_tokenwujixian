@@ -4,7 +4,7 @@
 
 include armv8-m/Make.defs
 
-CHIP_CSRCS += bk7258_irq.c bk7258_allocateheap.c bk7258_timer.c
+CHIP_CSRCS += bk7258_irq.c bk7258_allocateheap.c bk7258_timer.c bk7258_flash.c
 CHIP_CSRCS += bk7258_ap_boot.c bk7258_gpio.c
 
 ifeq ($(CONFIG_ARCH_HAVE_MULTICPU),y)
@@ -17,6 +17,23 @@ endif
 
 ifeq ($(CONFIG_BK7258_MAILBOX),y)
 CHIP_CSRCS += bk7258_mailbox.c
+endif
+
+ifeq ($(CONFIG_BK7258_MB_IPC_RPMSG),y)
+VPATH += :mb_ipc
+ifeq ($(CONFIG_BK7258_COMPONENT_CP),y)
+CFLAGS += -I$(CHIP_DIR)$(DELIM)mb_ipc$(DELIM)armino$(DELIM)include
+CFLAGS += -I$(CHIP_DIR)$(DELIM)mb_ipc$(DELIM)armino$(DELIM)middleware$(DELIM)driver$(DELIM)mailbox
+CHIP_CSRCS += armino_cp_mailbox_channel.c armino_cp_mb_chnl_buff.c armino_cp_mb_ipc.c
+else
+CFLAGS += -I$(CHIP_DIR)$(DELIM)mb_ipc$(DELIM)armino_ap$(DELIM)include
+CFLAGS += -I$(CHIP_DIR)$(DELIM)mb_ipc$(DELIM)armino_ap$(DELIM)middleware$(DELIM)driver$(DELIM)mailbox
+CHIP_CSRCS += armino_ap_mailbox_channel.c armino_ap_mb_chnl_buff.c armino_ap_mb_ipc.c bk_mailbox_rpmsg_ap_rtos.c
+endif
+DEPPATH += --dep-path mb_ipc
+CFLAGS += -I$(CHIP_DIR)$(DELIM)wifi$(DELIM)glue$(DELIM)include
+CFLAGS += -I$(CHIP_DIR)$(DELIM)mb_ipc$(DELIM)include
+CHIP_CSRCS += bk_mailbox_rpmsg.c
 endif
 
 ifeq ($(CONFIG_BK7258_GDMA),y)
@@ -34,6 +51,16 @@ CHIP_CSRCS += bk7258_psram.c
 endif
 endif
 
+ifeq ($(CONFIG_BK7258_WIFI),y)
+# The Wi-Fi component is CMake-only.  Its Make closure was never complete --
+# it listed no hal_port/*.c unit and none of the BK7258_WPA_STA_SOURCES the
+# VENDOR_RUNTIME link needs -- so `make` could not link the default CP
+# configuration even before the wrapper fold.  No Make build has ever run in
+# this workspace (no in-tree artifacts in the shared nuttx/ checkout), and
+# every documented flow builds through ./build.sh --cmake.  Build the Wi-Fi
+# closure from chips/bk7258/wifi/CMakeLists.txt.
+endif
+
 ifeq ($(CONFIG_AUDIO_BK7258),y)
 VPATH += :audio
 DEPPATH += --dep-path audio
@@ -41,3 +68,4 @@ CFLAGS += -I$(CHIP_DIR)$(DELIM)audio
 CHIP_CSRCS += bk7258_dac.c bk7258_gdma.c bk7258_adc.c bk7258_audio.c \
               bk7258_audio_capture.c
 endif
+

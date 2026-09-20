@@ -17,6 +17,8 @@
 #include <nuttx/arch.h>
 #include <arch/chip/bk7258_clock.h>
 #include <arch/chip/bk7258_gpio.h>
+#include <arch/chip/bk7258_flash.h>
+#include <bk7258_partition.h>
 #include <arch/chip/bk7258_irq.h>
 #include <arch/chip/bk7258_memorymap.h>
 #include <arch/chip/bk7258_sysctrl.h>
@@ -25,6 +27,12 @@
 #include <arch/chip/irq.h>
 
 static volatile unsigned int g_irq_count;
+static volatile unsigned int g_vendor_irq_count;
+
+static void bk7258_platform_test_vendor_irq(void)
+{
+  g_vendor_irq_count++;
+}
 
 static void bk7258_platform_test_timer_signal(int signo)
 {
@@ -139,12 +147,147 @@ static int test_power_clock(void)
 
   ret = bk7258_phy_clock(false);
   failures += check("PHY clock off", ret);
+  value = bk7258_platform_test_read(BK7258_SYS_DEV_CLK_EN);
+  failures += check("PHY clock off readback",
+                    (value & BK7258_SYS_PHY_CKEN) == 0 ? OK : -EIO);
   ret = bk7258_mac_clock(false);
   failures += check("MAC clock off", ret);
+  value = bk7258_platform_test_read(BK7258_SYS_DEV_CLK_EN);
+  failures += check("MAC clock off readback",
+                    (value & BK7258_SYS_MAC_CKEN) == 0 ? OK : -EIO);
   ret = bk7258_phy_power(false);
   failures += check("PHY power off", ret);
+  value = bk7258_platform_test_read(BK7258_SYS_POWER_WAKEUP);
+  failures += check("PHY power off readback",
+                    (value & BK7258_SYS_WIFI_PHY_POWERDOWN) != 0 ? OK : -EIO);
   ret = bk7258_mac_power(false);
   failures += check("MAC power off", ret);
+  value = bk7258_platform_test_read(BK7258_SYS_POWER_WAKEUP);
+  failures += check("MAC power off readback",
+                    (value & BK7258_SYS_WIFI_MAC_POWERDOWN) != 0 ? OK : -EIO);
+  return failures;
+}
+
+static int test_flash_controller(void)
+{
+  uint8_t first[32];
+  uint8_t second[32];
+  uint32_t id;
+  int failures = 0;
+
+  failures += check("Flash initialize", bk7258_flash_initialize());
+  failures += check("Flash ID read", bk7258_flash_read_id(&id));
+  failures += check("Flash ID valid", id != 0 && id != UINT32_MAX ? OK : -EIO);
+  failures += check("Flash read offset 0", bk7258_flash_read(0, first,
+                                                               sizeof(first)));
+  failures += check("Flash read repeat", bk7258_flash_read(0, second,
+                                                             sizeof(second)));
+  failures += check("Flash read stable",
+                    memcmp(first, second, sizeof(first)) == 0 ? OK : -EIO);
+  failures += check("Flash read CP slot",
+                    bk7258_flash_read(UINT32_C(0x11000), second,
+                                      sizeof(second)));
+  failures += check("Flash NULL buffer",
+                    bk7258_flash_read(0, NULL, sizeof(first)) == -EINVAL ?
+                    OK : -EIO);
+  failures += check("Flash invalid offset",
+                    bk7258_flash_read(BK7258_FLASH_SIZE_BYTES, first, 1) ==
+                    -ERANGE ? OK : -EIO);
+  failures += check("Flash invalid length",
+                    bk7258_flash_read(BK7258_FLASH_SIZE_BYTES - 1, first, 2) ==
+                    -ERANGE ? OK : -EIO);
+  printf("[bk7258_platform_test] Flash ID=0x%08lx first=0x%02x%02x%02x%02x\n",
+         (unsigned long)id, first[0], first[1], first[2], first[3]);
+  return failures;
+}
+
+static int test_flash_partitions(void)
+{
+  uint8_t rf[32];
+  uint8_t net[32];
+  uint32_t start;
+  uint32_t length;
+  int failures = 0;
+
+  failures += check("SYS_RF info",
+                    bk7258_partition_get_info(BK7258_PARTITION_SYS_RF,
+                                               &start, &length));
+  failures += check("SYS_RF layout",
+                    start == BK7258_PART_SYS_RF_OFFSET &&
+                    length == BK7258_PART_SYS_RF_SIZE ? OK : -EIO);
+  failures += check("SYS_NET info",
+                    bk7258_partition_get_info(BK7258_PARTITION_SYS_NET,
+                                               &start, &length));
+  failures += check("SYS_NET layout",
+                    start == BK7258_PART_SYS_NET_OFFSET &&
+                    length == BK7258_PART_SYS_NET_SIZE ? OK : -EIO);
+  failures += check("SYS_RF read",
+                    bk7258_partition_read(BK7258_PARTITION_SYS_RF, rf, 0,
+                                          sizeof(rf)));
+  failures += check("SYS_NET read",
+                    bk7258_partition_read(BK7258_PARTITION_SYS_NET, net, 0,
+                                          sizeof(net)));
+  failures += check("SYS_RF boundary",
+                    bk7258_partition_read(BK7258_PARTITION_SYS_RF, rf,
+                                           BK7258_PART_SYS_RF_SIZE - 1,
+                                           2) == -ERANGE ? OK : -EIO);
+  failures += check("SYS_NET invalid",
+                    bk7258_partition_read(BK7258_PARTITION_SYS_NET, net,
+                                           BK7258_PART_SYS_NET_SIZE,
+                                           1) == -ERANGE ? OK : -EIO);
+  failures += check("partition unknown",
+                    bk7258_partition_get_info(0, &start, &length) == -ENOENT ?
+                    OK : -EIO);
+  printf("[bk7258_platform_test] SYS_RF first=0x%02x SYS_NET first=0x%02x\n",
+         rf[0], net[0]);
+  return failures;
+}
+
+static int test_pmu_readback(void)
+{
+  uint32_t raw7c;
+  uint32_t raw7d;
+  uint32_t analog8;
+  uint32_t analog9;
+  uint32_t value;
+  uint32_t latch_value;
+  int failures = 0;
+
+  failures += check("PMU R7C read", bk7258_pmu_read(0x7c, &raw7c));
+  failures += check("PMU R7D read", bk7258_pmu_read(0x7d, &raw7d));
+  failures += check("PMU chipid read", bk7258_pmu_get_chipid(&value));
+  failures += check("PMU chipid width", value != 0 ? OK : -EIO);
+  failures += check("PMU ADC cal read", bk7258_pmu_get_adc_cal(&value));
+  failures += check("PMU ADC cal width", value <= UINT32_C(0x3f) ? OK : -EIO);
+  failures += check("PMU BG cal read", bk7258_pmu_get_bgcal(&value));
+  failures += check("PMU BG cal width", value <= UINT32_C(0x3f) ? OK : -EIO);
+  failures += check("analog R0 read", bk7258_analog_read(0, &value));
+  failures += check("analog R8 read", bk7258_analog_read(8, &analog8));
+  failures += check("analog R9 read", bk7258_analog_read(9, &analog9));
+  failures += check("analog BG read", bk7258_sys_get_bgcalm(&value));
+  printf("[bk7258_platform_test] analog BGCAL=%lu\n",
+         (unsigned long)value);
+
+  /* Validate a real analog-bus write using the latch gate itself.  Changing
+   * BGCAL or DPLL while executing from Flash can destabilize the running
+   * system before the test can restore it, so those destructive transitions
+   * belong in a dedicated reset-bounded calibration test. */
+  failures += check("analog latch set",
+                    bk7258_analog_write(9, analog9 | (UINT32_C(1) << 9)));
+  failures += check("analog latch readback",
+                    bk7258_analog_read(9, &latch_value));
+  failures += check("analog latch behavior",
+                    (latch_value & (UINT32_C(1) << 9)) != 0 ? OK : -EIO);
+  failures += check("analog latch restore",
+                    bk7258_analog_write(9, analog9));
+  failures += check("analog latch restored",
+                    bk7258_analog_read(9, &latch_value));
+  failures += check("analog latch state",
+                    latch_value == analog9 ? OK : -EIO);
+  failures += check("analog invalid read",
+                    bk7258_analog_read(28, &value) == -EINVAL ? OK : -EIO);
+  printf("[bk7258_platform_test] PMU R7C=0x%08lx R7D=0x%08lx\n",
+         (unsigned long)raw7c, (unsigned long)raw7d);
   return failures;
 }
 
@@ -184,12 +327,41 @@ static int test_irq_map(void)
       failures += check(name,
                         (bk7258_platform_test_read(reg) & mask) == 0 ?
                         OK : -EIO);
+      irq_detach(BK7258_IRQ_TIMER0 - 3 + source);
     }
 
   failures += check("ICU invalid source",
                     bk7258_icu_enable(64) == -EINVAL ? OK : -EIO);
   failures += check("ICU NULL handler",
                     bk7258_icu_attach(29, NULL, NULL) == -EINVAL ? OK : -EIO);
+  return failures;
+}
+
+static int test_vendor_irq_api(void)
+{
+  int failures = 0;
+  int ret;
+
+  g_vendor_irq_count = 0;
+  ret = bk7258_icu_vendor_register(3, bk7258_platform_test_vendor_irq,
+                                   NULL);
+  failures += check("vendor IRQ register", ret);
+  failures += check("vendor IRQ duplicate",
+                    bk7258_icu_vendor_register(3,
+                                                bk7258_platform_test_vendor_irq,
+                                                NULL) == -EBUSY ? OK : -EIO);
+  failures += check("vendor IRQ priority",
+                    bk7258_icu_set_priority(3, 128));
+  failures += check("vendor IRQ enable", bk7258_icu_enable(3));
+  irq_dispatch(BK7258_IRQ_TIMER0, NULL);
+  failures += check("vendor IRQ software dispatch",
+                    g_vendor_irq_count == 1 ? OK : -EIO);
+  failures += check("vendor IRQ disable", bk7258_icu_disable(3));
+  failures += check("vendor IRQ unregister", bk7258_icu_vendor_unregister(3));
+  failures += check("vendor IRQ invalid",
+                    bk7258_icu_vendor_register(64,
+                                                bk7258_platform_test_vendor_irq,
+                                                NULL) == -EINVAL ? OK : -EIO);
   return failures;
 }
 
@@ -293,7 +465,11 @@ int main(int argc, char *argv[])
   printf("[bk7258_platform_test] begin\n");
   bk7258_platform_test_snapshot();
   failures += test_power_clock();
+  failures += test_flash_controller();
+  failures += test_flash_partitions();
+  failures += test_pmu_readback();
   failures += test_irq_map();
+  failures += test_vendor_irq_api();
   failures += test_timer0_irq();
   failures += test_gpio_mux();
   bk7258_platform_test_restore();

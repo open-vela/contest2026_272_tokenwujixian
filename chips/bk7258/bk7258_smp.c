@@ -33,10 +33,31 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+/* HALT is deliberately NOT verified, mirroring
+ * BK7258_AP_CPU1_CTRL_LIFECYCLE_MASK in board/bk7258-devkit/src/
+ * bk7258_ap_control.c -- see the comment there for the full reasoning.
+ *
+ * Short version: the authority releases a slave core from a state where halt is
+ * asserted and never waits for it to clear.  reset_cpu2_core()
+ * (cp/components/bk_startup/system_main.c:205-213) writes only pwr_dw(0),
+ * rxevt_sel(1), the boot offset and reset(1), with no halt write and no
+ * read-back verification at all -- and its own pm_hardware_init() has already
+ * set halt via sys_hal_power_config_default().
+ *
+ * Board evidence that requiring it breaks the release: the CP monitor reported
+ *
+ *   [AP] bootmark=0x00000200        C2START_ENTRY reached, CTRL1 never
+ *   [AP] stage=fault fault=0x43325438
+ *
+ * and 0x43325438 is BK7258_AP_FAULT_C2START_BASE | 0x38, where the low byte is
+ * the raw CPU2_CTRL read-back (see the fault record call below).  0x38 is
+ * HALT|speed|RXEVT_SEL against an expected 0x20 -- bit1 POWER_DOWN had cleared,
+ * so the power-down write did land and only halt stayed set.  Byte-for-byte the
+ * same mismatch CPU1 produced before HALT came out of its mask. */
+
 #define BK7258_CPU2_CTRL_LIFECYCLE_MASK \
   (BK7258_SYS_CPU2_RESET_RELEASE | BK7258_SYS_CPU2_POWER_DOWN | \
-   BK7258_SYS_CPU2_HALT | BK7258_SYS_CPU2_RXEVT_SEL | \
-   BK7258_SYS_CPU2_OFFSET_MASK)
+   BK7258_SYS_CPU2_RXEVT_SEL | BK7258_SYS_CPU2_OFFSET_MASK)
 
 #define BK7258_CPU2_POWER_STABILIZE_LOOPS 1000
 

@@ -1,0 +1,78 @@
+Script started on 2026-09-08 20:19:03+08:00 [<not executed on terminal>]
+== BK7258 existing-image integrity gate ==
+package integrity gate: pass
+
+WARNING: flashing overwrites Bootloader, CP and AP from offset 0x0.
+The wrapper injects 'reboot bootloader' automatically (AON-WDT chip
+reset, no manual reset needed on firmware carrying the bootloader-
+reset patch); manual-reset prompts appear only if the auto reset
+does not engage.
+image SHA-256: c0163765695d046a328ba57dd215bc1a57c739f544c16fe6757f150a16b8e1f0
+
+image    /home/czp/openvela_contest/cmake_out/bk7258-worktrees/bk7258-wifi-rebuild--e2507a8ee482/package/all-app.bin
+sha256   c0163765695d046a328ba57dd215bc1a57c739f544c16fe6757f150a16b8e1f0
+bytes    1903936
+target   /dev/ttyUSB0 (loader port 0) at 1500000
+
+This overwrites the Bootloader, CP and AP areas from physical offset 0x0.
+
+== writing Flash ==
+cmdline: |/home/czp/openvela_contest/.worktrees/bk7258-wifi-rebuild/board/bk7258-devkit/tools/bk_loader download -p 0 -b 1500000 -s 0 -i /home/czp/openvela_contest/cmake_out/bk7258-worktrees/bk7258-wifi-rebuild--e2507a8ee482/package/all-app.bin |
+bk_loader version 2.1.11.8: build @May  8 2024 23:15:55
+2026-09-08 20:19:05.873    Current port : /dev/ttyUSB0 + BaudRate : 115200 connect success
+2026-09-08 20:19:05.873    do_reset_signal
+2026-09-08 20:19:05.873    Getting Bus...
+
+[1;33m====================================================================
+[BK7258] downloader 就绪：已自动注入 reboot bootloader（软件复位进下载模式，无需人工）
+====================================================================[0m
+2026-09-08 20:19:06.141    Gotten Bus...
+
+[1;33m====================================================================
+[BK7258] GetBus 握手成功（零人工），等待烧录完成
+====================================================================[0m
+2026-09-08 20:19:06.250    Current Chip is : BK7236
+2026-09-08 20:19:06.620    [ 0 ] Read the last not aligned 4K data, align startAddr : 0x001d0000
+2026-09-08 20:19:06.620    Read  successfully
+2026-09-08 20:19:06.648    Current baudrate : 1500000 success
+2026-09-08 20:19:06.648    Unprotecting Flash
+2026-09-08 20:19:06.664    Unprotected Flash ->pass
+2026-09-08 20:19:06.664    [ 0 ] file_startAddr : 0x00000000
+2026-09-08 20:19:06.664    [ 0 ] file_path : /home/czp/openvela_contest/cmake_out/bk7258-worktrees/bk7258-wifi-rebuild--e2507a8ee482/package/all-app.bin
+2026-09-08 20:19:06.664    [ 0 ] file_length : 0x1d0e00 (1859 KB)
+2026-09-08 20:19:06.664    [ 0 ] file_crc : 0x831ffc5c
+2026-09-08 20:19:06.664    Begin EraseFlash
+2026-09-08 20:19:06.666    Start 4K Erase
+2026-09-08 20:19:06.666    End 4K Erase
+2026-09-08 20:19:06.666    Start 64K Erase
+Erasing Flash ... 0%Erasing Flash ... 3%Erasing Flash ... 6%Erasing Flash ... 10%Erasing Flash ... 13%Erasing Flash ... 17%Erasing Flash ... 20%Erasing Flash ... 24%Erasing Flash ... 27%Erasing Flash ... 31%Erasing Flash ... 34%Erasing Flash ... 37%Erasing Flash ... 41%Erasing Flash ... 44%Erasing Flash ... 48%Erasing Flash ... 51%Erasing Flash ... 55%Erasing Flash ... 58%Erasing Flash ... 62%Erasing Flash ... 65%Erasing Flash ... 68%Erasing Flash ... 72%Erasing Flash ... 75%Erasing Flash ... 79%Erasing Flash ... 82%Erasing Flash ... 86%Erasing Flash ... 89%Erasing Flash ... 93%Erasing Flash ... 96%2026-09-08 20:19:12.780    End 64K Erase
+2026-09-08 20:19:12.780    Handling file end
+2026-09-08 20:19:12.892    Last 4K CRC_Verify ->pass
+2026-09-08 20:19:12.892    Handled file end
+2026-09-08 20:19:12.892    EraseFlash ->pass
+2026-09-08 20:19:12.894    [ 0 ] Begin write to flash...
+Writing Flash ... 0%Writing Flash ... 1%Writing Flash ... 2%Writing Flash ... 3%Writing Flash ... 4%Writing Flash ... 5%Writing Flash ... 6%Writing Flash ... 7%Writing Flash ... 8%Writing Flash ... 9%Writing Flash ... 10%Writing Flash ... 11%Writing Flash ... 12%Writing Flash ... 13%Writing Flash ... 14%Writing Flash ... 15%Writing Flash ... 16%Writing Flash ... 17%Writing Flash ... 18%Writing Flash ... 19%Writing Flash ... 20%Writing Flash ... 21%Writing Flash ... 22%Writing Flash ... 23%Writing Flash ... 24%Writing Flash ... 25%Writing Flash ... 26%Writing Flash ... 27%Writing Flash ... 28%Writing Flash ... 29%Writing Flash ... 30%Writing Flash ... 31%Writing Flash ... 32%Writing Flash ... 33%Writing Flash ... 34%Writing Flash ... 35%Writing Flash ... 36%Writing Flash ... 37%Writing Flash ... 38%Writing Flash ... 39%Writing Flash ... 40%Writing Flash ... 41%Writing Flash ... 42%Writing Flash ... 43%Writing Flash ... 44%Writing Flash ... 45%Writing Flash ... 46%Writing Flash ... 47%Writing Flash ... 48%Writing Flash ... 49%Writing Flash ... 50%Writing Flash ... 51%Writing Flash ... 52%Writing Flash ... 53%Writing Flash ... 54%Writing Flash ... 55%Writing Flash ... 56%Writing Flash ... 57%Writing Flash ... 58%Writing Flash ... 59%Writing Flash ... 60%Writing Flash ... 61%Writing Flash ... 62%Writing Flash ... 63%Writing Flash ... 64%Writing Flash ... 65%Writing Flash ... 66%Writing Flash ... 67%Writing Flash ... 68%Writing Flash ... 69%Writing Flash ... 70%Writing Flash ... 71%Writing Flash ... 72%Writing Flash ... 73%Writing Flash ... 74%Writing Flash ... 75%Writing Flash ... 76%Writing Flash ... 77%Writing Flash ... 78%Writing Flash ... 79%Writing Flash ... 80%Writing Flash ... 81%Writing Flash ... 82%Writing Flash ... 83%Writing Flash ... 84%Writing Flash ... 85%Writing Flash ... 86%Writing Flash ... 87%Writing Flash ... 88%Writing Flash ... 89%Writing Flash ... 90%Writing Flash ... 91%Writing Flash ... 92%Writing Flash ... 93%Writing Flash ... 94%Writing Flash ... 95%Writing Flash ... 96%Writing Flash ... 97%Writing Flash ... 98%Writing Flash ... 99%2026-09-08 20:19:32.022    WriteFlash ->pass
+2026-09-08 20:19:32.038    Enprotect pass
+2026-09-08 20:19:32.068    Boot_Reboot
+
+2026-09-08 20:19:32.188    Total Test Time : 26.047 s
+2026-09-08 20:19:32.188    Writing Flash OK                             
+
+2026-09-08 20:19:32.188    
+==============================================================
+     _             (done)
+    | |                 
+  __| | ___  _ __   ___ 
+ / _  |/ _ \|  _ \ / _ \
+| (_| | (_) | | | |  __/
+ \__,_|\___/|_| |_|\___|
+{All Finished Successfully}
+
+
+log      /home/czp/openvela_contest/cmake_out/bk7258-worktrees/bk7258-wifi-rebuild--e2507a8ee482/package/bk_loader-20260908-201932.log
+
+flashed. open the console with:
+  sudo minicom -o -D /dev/ttyUSB0 -b 115200
+in minicom, turn hardware and software flow control off (Ctrl-A O).
+
+Script done on 2026-09-08 20:19:32+08:00 [COMMAND_EXIT_CODE="0"]

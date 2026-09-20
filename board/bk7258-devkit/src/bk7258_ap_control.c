@@ -33,10 +33,43 @@
 #define BK7258_AP_RPTUN_STOP_ATTEMPTS    50
 #define BK7258_AP_RPTUN_STOP_WAIT_USEC   (10 * 1000)
 
+/* HALT is deliberately NOT part of the verified lifecycle state.
+ *
+ * The authority's release sequence is reset_cpu1_core()
+ * (cp/components/bk_startup/system_main.c:175-183), reached from
+ * start_cpu1_core():
+ *
+ *   sys_drv_set_cpu1_pwr_dw(0);
+ *   sys_drv_set_cpu1_rxevt_sel(1);
+ *   sys_drv_set_cpu1_boot_address_offset(offset >> 8);
+ *   sys_drv_set_cpu1_reset(start_flag);
+ *
+ * Four field writes, no halt among them and no read-back verification at all.
+ * Upstream reaches that code with halt already asserted -- its own
+ * pm_hardware_init() runs sys_hal_power_config_default(), which powers CPU1 OFF
+ * by setting halt and pwr_dw (sys_hal.c:159-165) -- and CPU1 still starts.  So
+ * a set halt bit is not a launch precondition on this part.
+ *
+ * Requiring it here made the release fail as soon as PM init moved to its
+ * authority position in __start() (/tmp/0910-vela-11.log and the run after it):
+ *
+ *   before=00000018            HALT(bit3) | cpu1_speed(bit4)
+ *   readback=00000038 expected=00000020 -> EIO
+ *
+ * pwr_dw clears and stays clear -- visible as before= dropping from 0x1a to
+ * 0x18 once the CPU1 power vote was added above -- but halt does not, even
+ * though sys_hal_module_power_ctrl()'s ON branch writes both fields in adjacent
+ * instructions (verified in the disassembly at 0x201203c and 0x2012044).  The
+ * hardware appears to hold halt while the core is in reset; that is inference,
+ * not something measured, but it is exactly the state upstream releases from
+ * without complaint.
+ *
+ * This mask is the same set of bits minus HALT, so every other lifecycle field
+ * stays verified. */
+
 #define BK7258_AP_CPU1_CTRL_LIFECYCLE_MASK \
   (BK7258_SYS_CPU1_RESET_RELEASE | BK7258_SYS_CPU1_POWER_DOWN | \
-   BK7258_SYS_CPU1_HALT | BK7258_SYS_CPU1_RXEVT_SEL | \
-   BK7258_SYS_CPU1_OFFSET_MASK)
+   BK7258_SYS_CPU1_RXEVT_SEL | BK7258_SYS_CPU1_OFFSET_MASK)
 
 static uint32_t g_ap_boot_sequence;
 static mutex_t g_ap_start_lock = NXMUTEX_INITIALIZER;
@@ -262,6 +295,79 @@ int board_start_cpu(int cpuid)
       goto out_unlock;
     }
 
+  /* Power the CPU1 domain up through the authority sequence before releasing
+   * the core, the way upstream does it (startup_cpu1.c:261 votes
+   * PM_POWER_MODULE_NAME_CPU1 ON ahead of the release).
+   *
+   * This step was missing, and it only started to matter once
+   * sys_hal_low_power_hardware_init() moved to __start() (bk7258_start.c) to
+   * match the authority's boot position.  That function powers CPU1 and CPU2
+   * OFF -- upstream a no-op, because neither core has been started yet -- so
+   * the AP release below now runs against a halted, powered-down core.  Board
+   * evidence (/tmp/0910-vela-11.log):
+   *
+   *   [AP] start: cpu1_ctrl before=0000001a          POWER_DOWN|HALT|bit4
+   *   [AP] start: cpu1_ctrl readback=00000038 expected=00000020 -> EIO
+   *   [AP] CPU1 release failed: -1 errno=5
+   *
+   * POWER_DOWN (bit1) does clear and stay clear; HALT (bit3) and bit4 read
+   * back set.  That is a settling problem rather than a missing write: the
+   * authority clears power and halt in two separate register writes and then
+   * spins 1000 iterations, with the comment "wait halt really cleared, clock
+   * support finish" (sys_hal.c:150-157), whereas the sequence below clears both
+   * in one write and reads back after a barrier.  Our own settling loop
+   * (BK7258_AP_POWER_STABILIZE_LOOPS) sits AFTER that read-back check, so the
+   * check lands inside the window the hardware needs.
+   *
+   * Same register on both sides -- ours is BK7258_SYS_BASE + 0x014, the
+   * authority's sys_cpu1_int_halt_clk_op is SOC_SYS_REG_BASE + (0x5 << 2)
+   * (sys_ll.h:292); both resolve to 0x44010014.
+   *
+   * Called before up_irq_save() on purpose: the authority sequence contains a
+   * busy-wait, and there is no reason to hold interrupts off across it.
+   * Nothing else in this image touches the CPU1 power domain, so the state
+   * cannot change between here and the release below.
+   *
+   * sys_hal_module_power_ctrl() rather than bk_pm_module_vote_power_ctrl() for
+   * the same reason as the PSRAM domain in bk7258_psram.c: the vote function in
+   * this port (hal_port/platform_shim.c:188) has no CPU1 branch and would answer
+   * BK_ERR_NOT_SUPPORT, and it is built only under CONFIG_BK7258_WIFI.  The HAL
+   * entry is authority code under pm/ and compiles unconditionally.  When
+   * platform_shim's vote layer is replaced by the authority's pm.c this becomes
+   * the CPU1 vote and this call site is the only line that changes.
+   *
+   * Declared locally to keep the PM module's SoC headers out of board code. */
+
+  {
+    extern void sys_hal_module_power_ctrl(int module, int power_state);
+
+    /* POWER_MODULE_NAME_CPU1 == 17, CPU2 == 19, POWER_MODULE_STATE_ON == 0
+     * (aon_pmu/.../sys_types.h:337,339 and :417). */
+
+    sys_hal_module_power_ctrl(17 /* CPU1 */, 0 /* STATE_ON */);
+
+    /* CPU2 too, because sys_hal_power_config_default() switched off both slave
+     * cores and the authority restores both before starting either
+     * (cli_main.c:509-516 votes CPU1 ON, start_cpu1_core(), CPU2 ON,
+     * start_cpu2_core()).
+     *
+     * Done from here rather than next to the CPU2 release in
+     * chips/bk7258/bk7258_smp.c because that file belongs to the AP image,
+     * which does not link sys_hal_module_power_ctrl at all -- the PM module is
+     * CP-only (verified with nm: ap/nuttx has up_cpu_start and
+     * bk7258_smp_initialize, cp/nuttx has sys_hal_module_power_ctrl).  CP is
+     * also the core that switched the domain off, so restoring it here keeps
+     * the whole slave-core power lifecycle on one side.
+     *
+     * Not what fixed the CPU2 release: the fault record showed bit1 POWER_DOWN
+     * already clear (fault=0x43325438, low byte 0x38 = HALT|speed|RXEVT_SEL),
+     * so bk7258_smp.c's own direct write was landing.  This is authority
+     * symmetry, not the repair -- dropping HALT from
+     * BK7258_CPU2_CTRL_LIFECYCLE_MASK is. */
+
+    sys_hal_module_power_ctrl(19 /* CPU2 */, 0 /* STATE_ON */);
+  }
+
   flags = up_irq_save();
 
   /* Follow Armino's BK7258 lifecycle order. CPU_CURRENT_RUN_STATUS is
@@ -300,9 +406,18 @@ int board_start_cpu(int cpuid)
 
   for (count = 0; count < BK7258_AP_POWER_WAIT_LOOPS; count++)
     {
+      /* HALTED_STATE dropped from the wait condition for the same reason it is
+       * out of BK7258_AP_CPU1_CTRL_LIFECYCLE_MASK: the authority releases CPU1
+       * from a state where halt is asserted and never waits for it to clear
+       * (reset_cpu1_core(), system_main.c:175-183).  Keeping it here would only
+       * move the failure from the -EIO above to the -ETIMEDOUT below.
+       *
+       * PWR_DW_STATE and RESET_STATE stay: pwr_dw is what the CPU1 power vote
+       * ahead of this loop actually clears, and it was observed clearing on the
+       * board, so both remain meaningful preconditions. */
+
       status = bk7258_ap_reg_read(BK7258_SYS_CPU_STATUS);
       if ((status & (BK7258_SYS_CPU1_PWR_DW_STATE |
-                     BK7258_SYS_CPU1_HALTED_STATE |
                      BK7258_SYS_CPU1_RESET_STATE)) == 0)
         {
           break;

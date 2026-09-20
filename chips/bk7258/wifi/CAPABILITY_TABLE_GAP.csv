@@ -1,0 +1,114 @@
+field,armino_value,category,nuttx_action,notes
+._cal_set_rfconfig_BTPLL,rwnx_cal_set_rfconfig_BTPLL,vendor_symbol,挂表,vendor glue 已编入
+._cal_set_rfconfig_WIFIPLL,rwnx_cal_set_rfconfig_WIFIPLL,vendor_symbol,挂表,vendor glue 已编入
+._calibration_init,calibration_init,vendor_symbol,挂表,wifi_init.c 已编入
+._rf_pll_ctrl,rf_pll_ctrl_wrapper,vendor_symbol,挂表+写wrapper,需thin wrapper调rf_pll_ctrl
+._rw_msg_send,rw_msg_send,vendor_symbol,挂表,rw_msg_tx.c 已编入
+._rw_ieee80211_init_scan_chan,rw_ieee80211_init_scan_chan,vendor_symbol,挂表,rw_ieee80211.c 已编入
+._rw_ieee80211_get_scan_default_chan_num,rw_ieee80211_get_scan_default_chan_num,vendor_symbol,挂表,rw_ieee80211.c 已编入
+._sr_get_scan_number,sr_get_scan_number,vendor_symbol,挂表,vendor glue 已编入
+._sr_get_scan_results,sr_get_scan_results,vendor_symbol,挂表,vendor glue 已编入
+._sr_flush_scan_results,sr_flush_scan_results,vendor_symbol,挂表,vendor glue 已编入
+._rwnx_set_bk_rlk_start,rwnx_set_wifi_rlk_start,vendor_symbol,挂表,vendor glue 已编入
+._rwnx_get_rlk_info_results,rwnx_get_rlk_info_results,vendor_symbol,挂表,vendor glue 已编入
+._rwnx_flush_rlk_info_results,rwnx_flush_rlk_info_results,vendor_symbol,挂表,vendor glue 已编入
+._rwnx_cal_save_trx_rcbekn_reg_val,rwnx_cal_save_trx_rcbekn_reg_val,vendor_symbol,挂表,vendor glue 已编入
+._rwnx_cal_recover_rcbeken_reg_val,rwnx_cal_recover_rcbeken_reg_val,vendor_symbol,挂表,vendor glue 已编入
+._rwnx_cal_recover_trx_reg_val,rwnx_cal_recover_trx_reg_val,vendor_symbol,挂表,vendor glue 已编入
+._rwnx_cal_recover_rf_setting,rwnx_cal_recover_rf_setting,vendor_symbol,挂表,vendor glue 已编入
+._rwnx_cal_recover_wifi_setting,rwnx_cal_recover_wifi_setting,vendor_symbol,挂表,vendor glue 已编入
+._rwnx_cal_load_trx_rcbekn_reg_val,rwnx_cal_load_trx_rcbekn_reg_val,vendor_symbol,挂表,vendor glue 已编入
+._rwnx_cal_set_channel,rwnx_cal_set_channel,vendor_symbol,挂表,可能需wrapper加频率转换
+._rwnx_cal_set_40M_setting,rwnx_cal_set_40M_setting,vendor_symbol,挂表,vendor glue 已编入
+._rwnx_cal_set_20M_setting,rwnx_cal_set_20M_setting,vendor_symbol,挂表,vendor glue 已编入
+._rwnx_cal_mac_sleep_rc_clr,rwnx_cal_mac_sleep_rc_clr,vendor_symbol,挂表,vendor glue 已编入
+._rwnx_cal_mac_sleep_rc_recover,rwnx_cal_mac_sleep_rc_recover,vendor_symbol,挂表,vendor glue 已编入
+._rwnx_tpc_get_pwridx_by_rate,rwnx_tpc_get_pwridx_by_rate,vendor_symbol,挂表,vendor glue 已编入
+._rwnx_is_enable_pwr_change_by_rssi,rwnx_is_enable_pwr_change_by_rssi,vendor_symbol,挂表,vendor glue 已编入
+._rwnx_setting_for_single_rate,rwnx_setting_for_single_rate,vendor_symbol,挂表,vendor glue 已编入
+._tpc_auto_change_pwr_by_rssi,tpc_auto_change_pwr_by_rssi,vendor_symbol,挂表,vendor glue 已编入
+._bk7011_cal_pll,bk7011_cal_pll,vendor_symbol,挂表,vendor glue 已编入
+._bk7011_update_by_rx,bk7011_update_by_rx,vendor_symbol,挂表,可能需wrapper
+._bk7011_default_rxsens_setting,bk7011_default_rxsens_setting,vendor_symbol,挂表,vendor glue 已编入
+._bk7011_max_rxsens_setting,bk7011_max_rxsens_setting,vendor_symbol,挂表,vendor glue 已编入
+._manual_get_epa_flag,manual_get_epa_flag,vendor_symbol,挂表,vendor glue 已编入
+._rxsens_start_flag_get,rxsens_start_flag_get,vendor_symbol,挂表,vendor glue 已编入
+._rc_drv_get_rf_en,rc_drv_get_rf_en,vendor_symbol,挂表,vendor glue 已编入
+._power_save_delay_sleep_check,stub_return_0,safe_stub,空实现返回0,省电首版不启用
+._power_save_wake_mac_rf_if_in_sleep,stub_void,safe_stub,空函数,省电首版不启用
+._power_save_wake_mac_rf_end_clr_flag,stub_void,safe_stub,空函数,省电首版不启用
+._power_save_if_ps_rf_dtim_enabled,stub_return_false,safe_stub,返回false,省电首版不启用
+._power_save_forbid_trace,stub_void,safe_stub,空函数,省电首版不启用
+._power_save_rf_sleep_check,stub_return_0,safe_stub,返回0,省电首版不启用
+._ps_need_pre_process,stub_return_false,safe_stub,返回false,省电首版不启用
+._mac_ps_bcn_callback,stub_void,safe_stub,空函数,省电首版不启用
+._mac_sleeped,stub_return_false,safe_stub,返回false,省电首版不启用
+._mcu_ps_machw_cal,stub_void,safe_stub,空函数,省电首版不启用
+._mcu_ps_machw_reset,stub_void,safe_stub,空函数,省电首版不启用
+._mcu_ps_machw_init,stub_void,safe_stub,空函数,省电首版不启用
+._mcu_ps_bcn_callback,stub_void,safe_stub,空函数,省电首版不启用
+._wifi_notify_state_to_bt,stub_void,safe_stub,空函数,无BT共存
+._wifi_vote_rf_ctrl,stub_return_ok,safe_stub,返回OK,首版不做RF投票
+._wifi_phy_clk_open,stub_void,safe_stub,空函数,hw_init已开
+._wifi_phy_clk_close,stub_void,safe_stub,空函数,首版不关
+._wifi_mac_phy_power_on,stub_void,safe_stub,空函数,hw_init已开
+._bk_wifi_stop_rf,stub_void,safe_stub,空函数,首版不停RF
+._bk_wifi_set_rf_en,stub_void,safe_stub,空函数,首版RF常开
+._bk_restore_all_regs_for_mac,stub_void,safe_stub,空函数,首版无低功耗恢复
+._bk_ckmn_driver_get_rc32k_ppm,stub_return_0,safe_stub,返回0,32K校准首版不启用
+._dbg_enable_debug_gpio,stub_void,safe_stub,空函数,调试GPIO不启用
+._gpio_dev_unprotect_map,stub_return_ok,safe_stub,返回OK,已有gpio_dev_map
+._gpio_dev_unprotect_unmap,stub_return_ok,safe_stub,返回OK,已有gpio_dev_unmap
+._flush_all_dcache,stub_void,safe_stub,空函数,首版无dcache
+._bk_feature_csi_out_cb,stub_return_null,safe_stub,返回NULL,CSI不启用
+._bk_wifi_get_vendor_ie_cb_internal,stub_return_null,safe_stub,返回NULL,vendor IE不启用
+._bk_wifi_get_vendor_ie_type,stub_return_0,safe_stub,返回0,vendor IE不启用
+._bk_wifi_get_vendor_ie_oui_len,stub_return_0,safe_stub,返回0,vendor IE不启用
+._wapi_wpi_encrypt,NULL,safe_stub,NULL,Armino也是NULL
+._wapi_wpi_decrypt,NULL,safe_stub,NULL,Armino也是NULL
+._send_udp_bc_pkt,stub_void,safe_stub,空函数,airkiss不启用
+._tx_verify_test_call_back,stub_void,safe_stub,空函数,ATE测试不启用
+._sys_hal_enter_low_analog,stub_void,safe_stub,空函数,低功耗模拟首版不启用
+._sys_hal_exit_low_analog,stub_void,safe_stub,空函数,低功耗模拟首版不启用
+._mac_printf_encode,stub_void,safe_stub,空函数或直接返回,MAC地址格式化
+._tpc_change_pwr_by_media,tpc_change_pwr_by_media,verified_provider,libbk_phy.a BK7258 provider,probe-TX TPC required
+._tpc_set_media_pwr_level,tpc_set_media_pwr_level,verified_provider,libbk_phy.a BK7258 provider,media-TPC group member
+._tpc_get_media_pwr_level,tpc_get_media_pwr_level,verified_provider,libbk_phy.a BK7258 provider,media-TPC group member
+._do_evm,stub_void,safe_stub,空函数,ATE测试
+._do_rx_sensitivity,stub_void,safe_stub,空函数,ATE测试
+._evm_via_mac_continue,stub_void,safe_stub,空函数,ATE测试
+._evm_via_mac_evt,stub_void,safe_stub,空函数,ATE测试
+._tx_evm_rate_get,stub_return_0,safe_stub,返回0,ATE参数
+._tx_evm_pwr_idx_get,stub_return_0,safe_stub,返回0,ATE参数
+._tx_evm_modul_format_get,stub_return_0,safe_stub,返回0,ATE参数
+._tx_evm_guard_i_tpye_get,stub_return_0,safe_stub,返回0,ATE参数
+._tx_evm_bandwidth_get,stub_return_0,safe_stub,返回0,ATE参数
+._tx_evm_mode_get,stub_return_0,safe_stub,返回0,ATE参数
+._rc_drv_set_agc_manual_en,stub_void,safe_stub,空函数,AGC手动控制不启用
+._rc_drv_set_rx_mode_enrxsw,stub_void,safe_stub,空函数,RX模式手动不启用
+._rc_drv_get_rx_mode_enrxsw,stub_return_0,safe_stub,返回0,RX模式查询
+._set_sta_status,stub_void,safe_stub,空函数,STA状态通知暂空
+._shell_assert_out,syslog_err,safe_stub,syslog(LOG_ERR),断言输出
+._rtos_assert,PANIC,safe_stub,PANIC(),致命断言
+._log,bk_printf,safe_stub,bk_printf,日志(可能已有)
+._delay05us,up_udelay_1,nuttx_map,up_udelay(1),0.5us延迟
+._get_netif_hostname,return_bk7258,nuttx_map,返回"bk7258",主机名
+._inet_ntoa,inet_ntoa,nuttx_map,NuttX inet_ntoa,IP转字符串
+._lwip_ntohl,ntohl,nuttx_map,ntohl(),字节序
+._lwip_htons,htons,nuttx_map,htons(),字节序
+._save_net_info,stub_return_ok,nuttx_map,暂空返回OK,S5再接
+._get_net_info,stub_return_0,nuttx_map,暂空返回0,S5再接
+._sta_ip_down,stub_void,nuttx_map,暂空,S5再接
+._sta_ip_mode_set,stub_void,nuttx_map,暂空,S5再接
+._uap_ip_start,stub_void,nuttx_map,暂空,S5再接SoftAP
+._uap_ip_down,stub_void,nuttx_map,暂空,S5再接SoftAP
+._net_wlan_add_netif,stub_void,nuttx_map,暂空,S5再接
+._net_wlan_remove_netif,stub_void,nuttx_map,暂空,S5再接
+._lookup_ipaddr,stub_return_err,nuttx_map,返回-1,DNS暂不支持
+._net_begin_send_arp_reply,stub_void,nuttx_map,暂空,S5再接
+._sys_sys_debug_config1_addr,SYS_SYS_DEBUG_CONFIG1_ADDR,variable_const,填常量,寄存器地址
+._low_power_xtal_dpll_stability_delay_time,LOW_POWER_XTAL_DPLL_STABILITY_DELAY_TIME,variable_const,填常量,PM延迟常量
+._low_power_delay_time_hardware,LOW_POWER_DELAY_TIME_HARDWARE,variable_const,填常量,PM延迟常量
+._low_power_26m_stability_delay_time_hardware,LOW_POWER_26M_STABILITY_DELAY_TIME_HARDWARE,variable_const,填常量,PM延迟常量
+._pm_low_voltage_delta_wakeup_delay_in_us,PM_LOW_VOLTAGE_DELTA_WAKEUP_DELAY_IN_US,variable_const,填常量,PM唤醒延迟
+._wifi_hsu_interrupt_ctrl_bit,WIFI_HSU_INTERRUPT_CTRL_BIT,variable_const,填常量,中断位常量

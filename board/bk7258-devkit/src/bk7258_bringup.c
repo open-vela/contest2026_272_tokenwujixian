@@ -12,8 +12,10 @@
 #include <sys/mount.h>
 
 #include <nuttx/board.h>
+#include <nuttx/arch.h>
 #include <nuttx/kthread.h>
 #include <nuttx/panic_notifier.h>
+#include <nuttx/semaphore.h>
 #include <nuttx/serial/uart_rpmsg.h>
 #include <nuttx/signal.h>
 
@@ -22,8 +24,10 @@
 #endif
 
 #include <arch/chip/bk7258_ap_boot.h>
+#include <arch/chip/bk7258_mb_ipc.h>
 #include <arch/chip/bk7258_memorymap.h>
 #include <arch/chip/bk7258_timer.h>
+#include <arch/chip/bk7258_wifi.h>
 #include <arch/board/board.h>
 
 #ifdef CONFIG_RPTUN
@@ -37,6 +41,68 @@ int bk7258_devkit_audio_pa_register(void);
 
 #ifdef CONFIG_BK7258_COMPONENT_CP
 int bk7258_ap_start_monitor(void);
+
+#ifdef CONFIG_BK7258_WIFI_VENDOR_RUNTIME
+#  define BK7258_WIFI_INIT_PRIORITY  85
+#  define BK7258_WIFI_INIT_STACKSIZE 8192
+#  define BK7258_WIFI_INIT_TIMEOUT   SEC2TICK(30)
+
+static sem_t g_bk7258_wifi_init_done;
+static int g_bk7258_wifi_init_result;
+
+static int bk7258_wifi_init_worker(int argc, char *argv[])
+{
+  (void)argc;
+  (void)argv;
+
+  g_bk7258_wifi_init_result = bk7258_wifi_initialize();
+  nxsem_post(&g_bk7258_wifi_init_done);
+  return g_bk7258_wifi_init_result;
+}
+
+static void bk7258_wifi_boot_initialize(void)
+{
+  int ret;
+
+  ret = nxsem_init(&g_bk7258_wifi_init_done, 0, 0);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "[BK7258-WIFI] init semaphore failed: %d\n", ret);
+      return;
+    }
+
+  ret = kthread_create("bk7258-wifi-init", BK7258_WIFI_INIT_PRIORITY,
+                       BK7258_WIFI_INIT_STACKSIZE,
+                       bk7258_wifi_init_worker, NULL);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "[BK7258-WIFI] init thread failed: %d\n", ret);
+      return;
+    }
+
+  ret = nxsem_tickwait_uninterruptible(&g_bk7258_wifi_init_done,
+                                       BK7258_WIFI_INIT_TIMEOUT);
+  if (ret == -ETIMEDOUT)
+    {
+      syslog(LOG_ERR, "[BK7258-WIFI] init timed out after 30 seconds\n");
+      return;
+    }
+
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "[BK7258-WIFI] init wait failed: %d\n", ret);
+    }
+  else if (g_bk7258_wifi_init_result < 0)
+    {
+      syslog(LOG_ERR, "[BK7258-WIFI] boot init failed: %d\n",
+             g_bk7258_wifi_init_result);
+    }
+  else
+    {
+      syslog(LOG_INFO, "[BK7258-WIFI] wlan0 ready before userspace\n");
+    }
+}
+#endif
 #endif
 
 #ifdef CONFIG_BK7258_COMPONENT_AP
@@ -49,7 +115,9 @@ void rpmsg_serialinit(void)
   int ret;
 
 #ifdef CONFIG_BK7258_COMPONENT_CP
+  up_putc('r');
   ret = uart_rpmsg_init("ap", "AP", 4096, false);
+  up_putc('o');
 #else
 #  ifdef CONFIG_RPMSG_UART_CONSOLE
   ret = uart_rpmsg_init("cp", "AP", 4096, true);
@@ -78,6 +146,11 @@ void board_late_initialize(void)
   /* UART console registration is chip-owned. Board peripherals are added
    * only after their pinmux and hardware contracts are verified. */
 
+  /* Diagnostic-only boot ladder. /dev/console has been registered by the
+   * time board_late_initialize runs; up_putc remains independent of syslog.
+   */
+  up_putc('K');
+
 #ifdef CONFIG_BK7258_COMPONENT_CP
 #ifdef CONFIG_BK7258_TIMER0
   {
@@ -91,6 +164,8 @@ void board_late_initialize(void)
       {
         syslog(LOG_INFO, "[BK7258] Timer0 lower-half registered\n");
       }
+
+    up_putc('L');
   }
 #endif
 #ifdef CONFIG_RPTUN
@@ -102,9 +177,21 @@ void board_late_initialize(void)
   else
     {
       syslog(LOG_INFO, "[AMP] CP RPTUN master initialized (Mailbox IRQ)\n");
+#ifdef CONFIG_BK7258_MB_IPC_RPMSG
+      ret = bk7258_mb_ipc_initialize();
+      if (ret != 0)
+        {
+          syslog(LOG_ERR, "[AMP] CP mailbox IPC init failed: %d\n", ret);
+        }
+#endif
     }
+
+  up_putc('M');
 #else
   (void)bk7258_ap_start_monitor();
+#endif
+#ifdef CONFIG_BK7258_WIFI_VENDOR_RUNTIME
+  bk7258_wifi_boot_initialize();
 #endif
 #else
   bk7258_ap_initialize();
@@ -113,17 +200,27 @@ void board_late_initialize(void)
 
 int board_app_initialize(uintptr_t arg)
 {
-#if defined(CONFIG_BK7258_COMPONENT_AP) && defined(CONFIG_FS_PROCFS)
-  /* nshlib does not mount procfs by itself, and the AP has no startup
-   * script: mount it here so `ps` and the per-task affinity view work in
-   * the RPMsg-backed AP NSH. */
+#ifdef CONFIG_FS_PROCFS
+  /* nshlib does not mount procfs by itself, and neither component has a startup
+   * script (CONFIG_NSH_ROMFSETC is unset for both): mount it here so `ps` and
+   * the per-task affinity view work in the RPMsg-backed AP NSH.
+   *
+   * No longer restricted to the AP.  On the CP this is what makes `ifconfig`
+   * usable at all: nsh_netcmds.c reads /proc/net to enumerate devices (:373)
+   * and per-device state (:189), so without the mount the command exists but
+   * fails with "is procfs mounted?".  That is also why
+   * NSH_DISABLE_IFCONFIG/IFUPDOWN default to y when FS_PROCFS is off -- the
+   * commands are useless without it. */
 
   if (mount(NULL, CONFIG_NSH_PROC_MOUNTPOINT, "procfs", 0, NULL) < 0 &&
       get_errno() != EEXIST)
     {
-      syslog(LOG_ERR, "[AP] procfs mount failed: %d\n", get_errno());
+      syslog(LOG_ERR, "[BK7258] procfs mount failed: %d\n", get_errno());
     }
 #endif
+
+  /* CONFIG_NSH_ARCHINIT calls this from the NSH startup path. */
+  up_putc('N');
 
 #if defined(CONFIG_LCD_JD9853) || defined(CONFIG_LCD_GC9D01)
   int ret;
@@ -268,6 +365,14 @@ static int bk7258_ap_amp_initialize(int argc, char *argv[])
 
       return ret;
     }
+
+#ifdef CONFIG_BK7258_MB_IPC_RPMSG
+  ret = bk7258_mb_ipc_initialize();
+  if (ret != 0)
+    {
+      return ret;
+    }
+#endif
 
   /* Publish scheduler-running only after the AP-side RPTUN/RPMsg instance is
    * initialized.  CP uses the SWAP generation transition as the trigger to

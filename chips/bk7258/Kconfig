@@ -52,6 +52,7 @@ config ARCH_CHIP_BK7258
 	bool "Beken BK7258 CP / CPU0"
 	default y
 	select ARCH_CORTEXM33
+	select ARCH_HAVE_FPU if BK7258_HARD_FLOAT
 	select ARCH_HAVE_TRUSTZONE
 	select ARCH_HAVE_MULTICPU
 	select ARMV8M_HAVE_DCACHE
@@ -61,12 +62,21 @@ config ARCH_CHIP_BK7258
 	select TIMER_ARCH
 	select OTHER_UART_SERIALDRIVER if BK7258_COMPONENT_CP
 	help
-			Secure BK7258 CP/AP support for the locked DevKit profile. CP owns
-			UART0; the AP component is a dual-core NuttX SMP image on physical
-			CPU1 (logical0) and CPU2 (logical1).  CP and the AP SMP domain stay
-			separate AMP images.  ARCH_HAVE_MULTICPU is selected because the SoC
-			exposes three physical cores; the AP defconfig additionally enables
-			CONFIG_SMP, while the CP defconfig remains single-core.
+		Secure BK7258 CP/AP support for the locked DevKit profile. CP owns
+		UART0; the AP component is a dual-core NuttX SMP image on physical
+		CPU1 (logical0) and CPU2 (logical1). CP and the AP SMP domain stay
+		separate AMP images. ARCH_HAVE_MULTICPU is selected because the SoC
+		exposes three physical cores; the AP defconfig additionally enables
+		CONFIG_SMP, while the CP defconfig remains single-core.
+
+config BK7258_HARD_FLOAT
+	bool "Enable BK7258 hard-float ABI"
+	default n
+	help
+		Enable the Cortex-M33 FPU and hard-float compiler ABI. This is required
+		when linking the vendor Wi-Fi archives, but remains independently
+		selectable for PSRAM startup controls so FPU effects can be tested
+		without linking Wi-Fi.
 
 config BK7258_SYSTICK_CLOCK_HZ
 	int "Secure SysTick clock frequency"
@@ -131,6 +141,17 @@ config BK7258_MAILBOX_IRQ_PRIORITY
 	depends on BK7258_MAILBOX
 	default 128
 	range 0 255
+
+config BK7258_MB_IPC_RPMSG
+	bool "Armino mailbox IPC protocol over RPMsg"
+	depends on BK7258_MAILBOX && RPTUN
+	default y
+	help
+		Compile the role-specific Armino mailbox_channel and mb_ipc state
+		machines with a BK7258 RPMsg backend. Mailbox v2 remains the RPTUN
+		doorbell; authority commands and copied payloads travel over a dedicated
+		RPMsg endpoint. This option does not independently enable PHY or SARADC
+		multi-core feature macros.
 
 config BK7258_UART0_BAUD
 	int "UART0 console baud"
@@ -201,5 +222,9 @@ config AUDIO_BK7258_CAPTURE
 endif # AUDIO_BK7258
 
 endmenu
+
+# Path is relative to this Kconfig file's directory (kconfiglib semantics);
+# re-verify against the parent-workspace Kconfig root at full build time.
+source "$BINDIR/../../../../../vendor/beken/chips/bk7258/wifi/Kconfig"
 
 endif

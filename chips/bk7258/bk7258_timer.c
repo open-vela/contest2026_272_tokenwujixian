@@ -15,6 +15,7 @@
 #include <stdbool.h>
 
 #include "arm_internal.h"
+#include "bk7258_internal.h"
 #include "nvic.h"
 #include "systick.h"
 #include "include/bk7258_memorymap.h"
@@ -266,6 +267,9 @@ void up_timer_initialize(void)
   uint32_t regval;
   uint32_t reload;
 
+  /* Polling-only early-boot marker: SysTick is not enabled yet. */
+  BK7258_BOOT_MARK('E');
+
   /* CP and AP use separate 32 kHz SysTick selectors for physical CPU0 and
    * physical CPU1. Do not touch the other domain's selector. */
 
@@ -300,4 +304,5 @@ void up_timer_initialize(void)
   up_timer_set_lowerhalf(
     systick_initialize(false, CONFIG_BK7258_SYSTICK_CLOCK_HZ, -1));
 
+  BK7258_BOOT_MARK('F');
 }

@@ -1,0 +1,31 @@
+
+nsh> [Kbk7258_wifi_runtime init
+nsh> [K[aon_rtc] bk_aon_rtc_driver_init[+]
+[aon_rtc] aon_rtc_hw_init[+]cur_tick=0
+[aon_rtc] aon_rtc_hw_init[-]cur_tick=8
+[aon_rtc] bk_aon_rtc_driver_init[-]
+[nv] vnd_cal_version = 24-04-10 00:00:00
+[wifi] wifi initing
+rwnx_cal_set_rfconfig(0x102) phy on; rf off
+[cal] load polar tab magic code error 0xffffffff
+[cal] get rfcali_mode:1
+[adc] release
+[cal] temp in otp is:563
+[cal] temp_code=34,dmodldosel=4,Dgmdc=7
+[cal] cali bias(e)
+[cal] retry_count=4,dlypc_i=2,stateI=[0,60,28,0],dlypc_q=2,stateQ=[0,60,29,0]
+[adc] release
+[cal] cali bias(e)
+[cal] calibration_main(e1c2bcd) over
+[cal] rf cali flag in flash: valid
+flash txpwr table:0xf
+[cal] load polar tab magic code error 0xffffffff
+[adc] release
+[cal] retry_count=5,dlypc_i=2,stateI=[0,0,30,0],dlypc_q=2,stateQ=[0,0,28,0]
+[cal] temp_code:35 - adc_code:516 - adc_trend:[13]:563->[15]:517
+[adc] release
+xtal_cali:45
+[cal] --init_xtal = 45
+[cal] gtx_dcorPA=0x15->0x15
+[cal] -----pwr_gain:40, rate=54, g_idx:40, shift_b:0, shift_g:1
+[cal] idx:41=40+(1),r:54,xtal:45,pwr_gain:a8ab7131

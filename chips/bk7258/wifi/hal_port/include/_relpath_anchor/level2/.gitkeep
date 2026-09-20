@@ -1,0 +1,3 @@
+# Intentionally empty: this directory exists only as an -I anchor so that
+# upstream's `#include <../../lwip_intf_v2_1/...>` resolves into our
+# replacement layer. See ../README.md.
