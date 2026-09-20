@@ -18,10 +18,6 @@
 #include <nuttx/semaphore.h>
 #include <nuttx/serial/uart_rpmsg.h>
 #include <nuttx/signal.h>
-#ifdef CONFIG_NET_RPMSG_DRV
-#  include <nuttx/net/rpmsgdrv.h>
-#  include <nuttx/net/netdev.h>
-#endif
 
 #ifdef CONFIG_INPUT_BUTTONS_LOWER
 #  include <nuttx/input/buttons.h>
@@ -181,18 +177,6 @@ void board_late_initialize(void)
   else
     {
       syslog(LOG_INFO, "[AMP] CP RPTUN master initialized (Mailbox IRQ)\n");
-      /* No rpmsg0 client registration on the CP.  This core runs the
-       * net rpmsg SERVER only (CONFIG_NET_RPMSG_DRV_SERVER, initialized
-       * by drivers_initialize()): when the AP's client announces the
-       * "rpmsg0" endpoint, ns_bind allocates this core's peer netdev
-       * automatically (rpmsgdrv.c net_rpmsg_drv_alloc).  Running BOTH
-       * roles on both cores -- which the first cut of this feature did
-       * -- double-creates the endpoint on each core (the client's
-       * device_created callback and the server's ns_bind both call
-       * rpmsg_create_ept on the same struct) and corrupts the endpoint
-       * tree; the first cross-core RPC then lands on corrupted state
-       * (observed: AP panic at the first ifup RPC, CP blocked forever
-       * waiting for the response that never comes back). */
 #ifdef CONFIG_BK7258_MB_IPC_RPMSG
       ret = bk7258_mb_ipc_initialize();
       if (ret != 0)
@@ -390,51 +374,13 @@ static int bk7258_ap_amp_initialize(int argc, char *argv[])
     }
 #endif
 
-#ifdef CONFIG_NET_RPMSG_DRV
-  /* This core is the rpmsg net CLIENT: register "rpmsg0" toward the CP
-   * and announce the endpoint via RPMsg name service.  The CP (server,
-   * CONFIG_NET_RPMSG_DRV_SERVER, no client call -- see the matching
-   * comment in board_late_initialize) allocates its peer netdev when
-   * this announcement arrives.  One client, one server: never both
-   * roles on the same netdev name, or the endpoint gets created twice
-   * and the first cross-core RPC lands on corrupted state.
-   *
-   * NET_LL_ETHERNET, not NET_LL_IEEE80211: the IEEE80211 case in
-   * netdev_register() is compiled only under CONFIG_DRIVERS_IEEE80211,
-   * which this AP image does not carry -- with the wrong type the
-   * registration falls to the default: branch and returns -EINVAL, and
-   * net_rpmsg_drv_alloc() swallows that error, so the "registered" log
-   * line below lies (observed: no rpmsg0 in ifconfig, ifup Failed,
-   * /proc/net/rpmsg0 ENOENT).  The 576-byte MTU contract is preserved
-   * through CONFIG_NET_ETH_PKTSIZE=590 in configs/ap-net (590 -
-   * ETH_HDRLEN 14 = 576).
-   *
-   * Must run after this core's RPTUN is up (this kthread), and NO ifup
-   * here: rpmsgdrv's ifup is a cross-core RPC answered by the peer, so
-   * it only works from userspace once both endpoints are bound (the
-   * deadlock of 8c0e227). */
-
-  syslog(LOG_INFO, "[AMP] AP rpmsg0 client init enter\n");
-
-  if (net_rpmsg_drv_init("cp", "rpmsg0", NET_LL_ETHERNET) == NULL)
-    {
-      syslog(LOG_ERR, "[AMP] AP rpmsg0 netdev init failed\n");
-    }
-  else
-    {
-      syslog(LOG_INFO, "[AMP] AP rpmsg0 netdev registered\n");
-    }
-
-  /* TEMPORARY AMP BRING-UP DIAGNOSTIC -- remove with the rest of the
-   * ap-net instrumentation.  The "registered" line has stopped appearing
-   * while the console stays alive, which means this kthread blocks
-   * somewhere inside net_rpmsg_drv_init(); these two lines bracket where.
-   * The findbyname probe tells whether the netdev made it into the
-   * kernel list even when the init call never returns. */
-
-  syslog(LOG_INFO, "[AMP] AP rpmsg0 init returned, dev=%p\n",
-         netdev_findbyname("rpmsg0"));
-#endif
+  /* No rpmsg netdev registration here: the NET_RPMSG_DRV client/server
+   * pair deadlocks on this platform (the AP's rpmsg_create_ept sends an
+   * NS announcement and waits synchronously; the CP's ns_bind handler
+   * answers it by creating the peer endpoint, whose own announcement
+   * waits for an ACK the blocked AP will never send).  Cross-core
+   * networking goes through the Vela-standard NET_RPMSG socket domain
+   * instead; the transport this kthread initialized above is shared. */
 
   /* Publish scheduler-running only after the AP-side RPTUN/RPMsg instance is
    * initialized.  CP uses the SWAP generation transition as the trigger to

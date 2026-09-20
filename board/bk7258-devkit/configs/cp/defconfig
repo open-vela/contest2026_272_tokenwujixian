@@ -131,9 +131,8 @@ CONFIG_TIMER=y
 CONFIG_TASK_NAME_SIZE=24
 CONFIG_USEC_PER_TICK=1000
 CONFIG_LIBM=y
-# Cross-core Ethernet-over-RPMsg: peer netdev for the AP side
-CONFIG_NET_RPMSG_DRV=y
-# Answer the AP's rpmsg0 IFUP/CARRIER RPCs (net_rpmsg_drv_server_init):
-# without this the AP-side ifup waits forever on a response this core
-# never sends, and the AP netdev stays down (sendto -ENETUNREACH).
-CONFIG_NET_RPMSG_DRV_SERVER=y
+# Cross-core networking, Vela standard: the AP connects back to this core
+# through PF_RPMSG sockets; this core runs the listening side and owns
+# wlan0/NAT.  NET_RPMSG_DRV was abandoned (symmetric-create deadlock).
+CONFIG_NET_RPMSG=y
+CONFIG_EXAMPLES_RPMSGSOCKET=y
