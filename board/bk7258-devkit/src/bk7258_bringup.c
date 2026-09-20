@@ -20,8 +20,6 @@
 #include <nuttx/signal.h>
 #ifdef CONFIG_NET_RPMSG_DRV
 #  include <nuttx/net/rpmsgdrv.h>
-#  include <nuttx/net/netdev.h>
-#  include <netinet/in.h>
 #endif
 
 #ifdef CONFIG_INPUT_BUTTONS_LOWER
@@ -189,36 +187,23 @@ void board_late_initialize(void)
        * NET_RPMSG_EPT_PREFIX), so both sides must agree on "rpmsg0".
        * NET_LL_IEEE80211 keeps the 576-byte MTU contract of wlan0 instead
        * of pulling in the 1500-byte Ethernet default on this RAM-tight
-         build. */
+         build.
+       *
+       * Deliberately NO address assignment and NO ifup here: rpmsgdrv's
+       * ifup is a cross-core RPC (net_rpmsg_drv_send_recv waits
+       * synchronously for the peer's response), so calling it from
+       * bring-up context deadlocks the CP before the scheduler runs and
+       * panics the AP waiting for a reply that never comes -- the exact
+       * failure of 8c0e227, reverted here.  The address pair is applied
+       * from userspace (ifconfig) once both endpoints are bound. */
 
-      FAR struct net_driver_s *rpmsg0;
-      FAR struct netdev_lowerhalf_s *lower;
-
-      lower = net_rpmsg_drv_init("ap", "rpmsg0", NET_LL_IEEE80211);
-      if (lower == NULL)
+      if (net_rpmsg_drv_init("ap", "rpmsg0", NET_LL_IEEE80211) == NULL)
         {
           syslog(LOG_ERR, "[AMP] CP rpmsg0 netdev init failed\n");
         }
       else
         {
           syslog(LOG_INFO, "[AMP] CP rpmsg0 netdev registered\n");
-
-          /* Static 192.168.7.1/24 on the CP side of the link.  Kernel-side
-           * assignment (d_ipaddr/d_netmask under net_lock, then ifup) is
-           * what SIOCSIFADDR/SIOCSIFNETMASK would do from userspace, minus
-           * the rcS file system dependency.  These addresses are a board
-           * contract between the two components, not a user preference. */
-
-          rpmsg0 = netdev_findbyname("rpmsg0");
-          if (rpmsg0 != NULL)
-            {
-              net_lock();
-              rpmsg0->d_ipaddr   = htonl(0xc0a80701); /* 192.168.7.1 */
-              rpmsg0->d_netmask  = htonl(0xffffff00); /* 255.255.255.0 */
-              net_unlock();
-              netdev_ifup(rpmsg0);
-              syslog(LOG_INFO, "[AMP] CP rpmsg0 192.168.7.1/24 up\n");
-            }
         }
 #endif
 #ifdef CONFIG_BK7258_MB_IPC_RPMSG
@@ -422,33 +407,18 @@ static int bk7258_ap_amp_initialize(int argc, char *argv[])
   /* Peer of the CP-side rpmsg0 created in board_late_initialize(); the
    * endpoint is announced through RPMsg name service and bound on the
    * other core.  Must run after this core's RPTUN is up (this kthread)
-   * and before userspace starts issuing ifconfig/DHCP on rpmsg0. */
+   * and before userspace starts issuing ifconfig/DHCP on rpmsg0.
+   *
+   * No ifup here either, for the same cross-core-RPC reason recorded on
+   * the CP side: the deadlock of 8c0e227. */
 
-  FAR struct net_driver_s *rpmsg0;
-  FAR struct netdev_lowerhalf_s *lower;
-
-  lower = net_rpmsg_drv_init("cp", "rpmsg0", NET_LL_IEEE80211);
-  if (lower == NULL)
+  if (net_rpmsg_drv_init("cp", "rpmsg0", NET_LL_IEEE80211) == NULL)
     {
       syslog(LOG_ERR, "[AMP] AP rpmsg0 netdev init failed\n");
     }
   else
     {
       syslog(LOG_INFO, "[AMP] AP rpmsg0 netdev registered\n");
-
-      /* Static 192.168.7.2/24, the AP side of the board contract; see the
-       * matching comment on the CP side for why this is kernel-side. */
-
-      rpmsg0 = netdev_findbyname("rpmsg0");
-      if (rpmsg0 != NULL)
-        {
-          net_lock();
-          rpmsg0->d_ipaddr   = htonl(0xc0a80702); /* 192.168.7.2 */
-          rpmsg0->d_netmask  = htonl(0xffffff00); /* 255.255.255.0 */
-          net_unlock();
-          netdev_ifup(rpmsg0);
-          syslog(LOG_INFO, "[AMP] AP rpmsg0 192.168.7.2/24 up\n");
-        }
     }
 #endif
 
