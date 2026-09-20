@@ -2,6 +2,8 @@
 
 ## vendor_openvela-qemu-arm64-v8a-ap-ai-agent.patch
 
+> ⚠️ **本 patch 已被下面两个 vendor_openvela 补丁取代**（新补丁从实际提交的 `dev-ai-contest-2026` 分支生成，覆盖 goldfish-arm64 + qemu-arm64 两块板、配置项更全）。仅作历史记录保留。
+
 **用途**：让 `qemu-arm64-v8a-ap` 板卡默认配置支持编译并稳定运行 AI Agent。
 
 **改动内容**：
@@ -21,6 +23,41 @@ git apply /path/to/contest2026_272_tokenwujixian/docs/zhangyi101/patches/vendor_
 ```
 
 应用后重新走一次完整编译流程即可（`--cmake` 生成配置 + `cmake --build`）。
+
+**性质说明**：本 patch 未提交至 `open-vela/vendor_openvela` 官方仓库，仅作为团队内部保管、可复用的配置记录，存放于本专属仓库 `docs/zhangyi101/patches/` 目录下。
+
+## vendor_openvela-emulator-ai-agent-defconfigs.patch
+
+**用途**：在 goldfish-arm64-v8a-ap 与 qemu-arm64-v8a-ap 两块模拟器板卡上开启 ai_agent 完整功能集（对应 vendor/openvela 提交 `75b5f8b`）。
+
+**改动内容**：
+- 两板共同：`CONFIG_EXAMPLES_AI_AGENT_VELA` + Shell 白名单、`CONFIG_AI_AGENT_LVGL_UI`、`CONFIG_AI_AGENT_NOTIFY_SERVICE`、`CONFIG_NETUTILS_MQTTC`（goldfish）/`CONFIG_NETUTILS_CJSON`（qemu-arm64）、`CONFIG_LV_FONT_MISANS_16_CJK`（静态编译中文字体）
+- goldfish 专有：`CONFIG_AI_AGENT_AUDIO_NUTTX_DIRECT`、`CONFIG_AI_AGENT_AUDIO_CAPTURE_GAIN=1`、`CONFIG_AI_AGENT_REMOTE_CTRL`、`CONFIG_AI_AGENT_MCP_MAX_TOOLS=48`、`CONFIG_PTHREAD_STACK_DEFAULT=65536`（notify/agent 线程栈）、`CONFIG_MQ_MAXMSGSIZE=4096`
+- qemu-arm64 专有：`CONFIG_AI_AGENT_MCP_MAX_SERVERS=4`、关闭 KASAN 三项（与本地 QEMU 10.0.0 兼容问题）、`CONFIG_SYSTEM_POPEN`、关闭 `LV_USE_TINY_TTF`（stb_truetype 运行时光栅化会破坏 NuttX mm 堆 → recursive assert，改用静态字体）
+
+**应用方法**（在 openvela 工作区 `vendor/openvela` 仓的 `dev-ai-contest-2026` 分支下；基线含 media framework defconfig 提交 f352617）：
+
+```bash
+cd vendor/openvela
+git apply /path/to/contest2026_272_tokenwujixian/docs/zhangyi101/patches/vendor_openvela-emulator-ai-agent-defconfigs.patch
+```
+
+**性质说明**：本 patch 未提交至 `open-vela/vendor_openvela` 官方仓库，仅作为团队内部保管、可复用的配置记录，存放于本专属仓库 `docs/zhangyi101/patches/` 目录下。
+
+## vendor_openvela-qemu-media-only-audio-mcp64.patch
+
+**用途**：qemu 板音频改为严格 media-only（证明出声即走 media 框架），并把 MCP 工具预算提到 64（对应 vendor/openvela 提交 `67afa7c`）。
+
+**改动内容**：
+- goldfish：移除 `CONFIG_AI_AGENT_AUDIO_NUTTX_DIRECT`（direct 后端关闭，能出声即证明走 media_player）；`CONFIG_AI_AGENT_MCP_MAX_TOOLS` 48 → 64
+- qemu-arm64：`CONFIG_AI_AGENT_MCP_MAX_TOOLS` 48 → 64（gerrit 16 + jira 24 + pc 16 + apps 8 = 64，正好顶满）
+
+**应用方法**（在 openvela 工作区 `vendor/openvela` 仓的 `dev-ai-contest-2026` 分支下，先应用上面的 ai-agent-defconfigs patch）：
+
+```bash
+cd vendor/openvela
+git apply /path/to/contest2026_272_tokenwujixian/docs/zhangyi101/patches/vendor_openvela-qemu-media-only-audio-mcp64.patch
+```
 
 **性质说明**：本 patch 未提交至 `open-vela/vendor_openvela` 官方仓库，仅作为团队内部保管、可复用的配置记录，存放于本专属仓库 `docs/zhangyi101/patches/` 目录下。
 
