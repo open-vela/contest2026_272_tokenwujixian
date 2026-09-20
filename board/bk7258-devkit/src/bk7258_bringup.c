@@ -374,6 +374,14 @@ static int bk7258_ap_amp_initialize(int argc, char *argv[])
     }
 #endif
 
+  /* No rpmsg netdev registration here: the NET_RPMSG_DRV client/server
+   * pair deadlocks on this platform (the AP's rpmsg_create_ept sends an
+   * NS announcement and waits synchronously; the CP's ns_bind handler
+   * answers it by creating the peer endpoint, whose own announcement
+   * waits for an ACK the blocked AP will never send).  Cross-core
+   * networking goes through the Vela-standard NET_RPMSG socket domain
+   * instead; the transport this kthread initialized above is shared. */
+
   /* Publish scheduler-running only after the AP-side RPTUN/RPMsg instance is
    * initialized.  CP uses the SWAP generation transition as the trigger to
    * tear down and rebuild its stale remote transport, so advertising this

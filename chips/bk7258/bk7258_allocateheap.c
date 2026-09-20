@@ -16,6 +16,12 @@
 #include "include/bk7258_memorymap.h"
 #include "include/bk7258_psram.h"
 
+/* The AP does not re-run the device bring-up; it sizes its half from the
+ * same device table bk7258_psram.c probes with.  Both known devices are
+ * 16MB on this board (APS128XXO); the split halves whatever is present. */
+#define BK7258_PSRAM_EXPECTED_SIZE \
+  (16u * 1024u * 1024u)
+
 /* Guard this component's RAM window against the cross-domain regions. The
  * linker script cannot do this: including the chip header there would drag in
  * stdint.h and UINT32_C() suffixes that the linker rejects, so the check lives
@@ -97,13 +103,30 @@ void arm_addregion(void)
 #ifdef CONFIG_BK7258_PSRAM
   size_t psram_size;
   uint16_t device_id;
+  uintptr_t region_base;
+  size_t region_size;
   int ret;
 
   /* Temporary CP-only PSRAM bring-up bracket.  arm_addregion() runs after
    * the F timer marker and before serial initialization's G marker, so this
    * identifies whether the added external-heap path returns at all. */
   BK7258_BOOT_MARK('P');
+#ifdef CONFIG_BK7258_COMPONENT_AP
+  /* AP: the CP has already configured the device and the 120MHz clock.  A
+   * plain read of the device answers only when that bring-up happened; do
+   * not pattern-write anything (the probe would smash the CP's half). */
+  {
+    volatile uint32_t *probe = (volatile uint32_t *)BK7258_PSRAM_BASE;
+    uint32_t dummy = *probe;
+
+    UNUSED(dummy);
+    psram_size = BK7258_PSRAM_EXPECTED_SIZE;
+    device_id  = 0;
+    ret        = OK;
+  }
+#else
   ret = bk7258_psram_initialize(&psram_size, &device_id);
+#endif
   BK7258_BOOT_MARK('R');
   if (ret < 0)
     {
@@ -113,9 +136,33 @@ void arm_addregion(void)
       return;
     }
 
-  kumm_addregion((void *)BK7258_PSRAM_BASE, psram_size);
-  syslog(LOG_INFO, "[BK7258] PSRAM id=0x%04x size=%lu added to heap\n",
-         device_id, (unsigned long)psram_size);
+  /* The PSRAM is a single 8/16MB device shared by both cores; neither core
+   * has an MPU partition (CONFIG_ARM_MPU unset), so the only thing keeping
+   * the two kernels' allocators apart is this software split.  Each core
+   * adds only its half: the CP owns the lower half, the AP the upper one.
+   * The CP brings the device up first (it boots first).  The AP must not
+   * re-run the bring-up: bk7258_psram_probe() pattern-writes the first
+   * CONFIG_BK7258_PSRAM_PROBE_SIZE bytes at the device base -- CP-owned
+   * heap by then -- and the configure/clock sequence is already settled.
+   * The AP trusts the CP's bring-up, checks that the device answers, and
+   * adds only its own half. */
+
+#if defined(CONFIG_BK7258_COMPONENT_CP)
+  region_base = BK7258_PSRAM_BASE;
+  region_size = psram_size / 2;
+#elif defined(CONFIG_BK7258_COMPONENT_AP)
+  region_base = BK7258_PSRAM_BASE + (psram_size / 2);
+  region_size = psram_size - (psram_size / 2);
+#else
+#error "PSRAM split requires a BK7258 component selection (CP or AP)"
+#endif
+
+  kumm_addregion((void *)region_base, region_size);
+  syslog(LOG_INFO, "[BK7258] PSRAM id=0x%04x size=%lu split: core region "
+         "%08lx-%08lx added to heap\n",
+         device_id, (unsigned long)psram_size,
+         (unsigned long)region_base,
+         (unsigned long)(region_base + region_size - 1));
 #endif
 }
 #endif

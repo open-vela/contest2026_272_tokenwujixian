@@ -29,8 +29,15 @@
 
 #define BK7258_RPTUN_VRINGS        2
 #define BK7258_RPTUN_VRING_ALIGN   8
-#define BK7258_RPTUN_VRING_NUM     8
-#define BK7258_RPTUN_BUFFER_SIZE   512
+/* 4 descriptors x 2048B payload buffers (36KB of the 44KB shared window)
+ * instead of the original 8 x 512B (24KB).  The usrsock-rpmsg server
+ * reassembles a request from up to NIOVEC payload buffers, so the old
+ * geometry capped a single request near 8 x ~480B ~= 3.8KB -- too small
+ * for the ai_agent's LLM POST bodies (10KB+), which died with
+ * "Request too large" on the CP.  4 x 2048B with NIOVEC=16 lifts that
+ * ceiling to ~30KB at the same vring-memory class. */
+#define BK7258_RPTUN_VRING_NUM     4
+#define BK7258_RPTUN_BUFFER_SIZE   2048
 
 struct bk7258_rptun_shmem_s
 {
@@ -156,7 +163,28 @@ bk7258_rptun_get_resource(struct rptun_dev_s *dev)
         (UINT32_C(1) << VIRTIO_RPMSG_F_ACK) |
         (UINT32_C(1) << VIRTIO_RPMSG_F_BUFSZ) |
         (UINT32_C(1) << VIRTIO_RPMSG_F_CPUNAME);
-      rsc->rpmsg_vdev.gfeatures = 0;
+      /* The device side (AP) derives its feature set from
+       * virtio_get_features() == dfeatures & gfeatures
+       * (rproc_virtio_get_features).  Leaving gfeatures at 0 -- as
+       * this dynamically-built table always did -- empties that AND
+       * on the device side, so rpmsg_virtio never registers the NS
+       * endpoint (support_ns = false) and every NS announcement the
+       * AP sends via rpmsg_create_ept() is silently dropped in
+       * rpmsg.c.  The RPMsg UART console survives because its
+       * endpoints do not depend on NS announcements; the rpmsg-net
+       * driver, whose peer must bind on the "rpmsg-net-rpmsg0"
+       * announcement, does not.  Declare the device-side acceptance
+       * of the same feature bits so the AND keeps them on both
+       * sides.  The CP (driver) side is unaffected: its
+       * negotiate_features() writes its own acceptance into gfeatures
+       * before setting DRIVER_OK, and the AP's create loop retries
+       * on -EAGAIN until that status appears, so it never reads the
+       * table before the negotiation has landed. */
+      rsc->rpmsg_vdev.gfeatures =
+        (UINT32_C(1) << VIRTIO_RPMSG_F_NS) |
+        (UINT32_C(1) << VIRTIO_RPMSG_F_ACK) |
+        (UINT32_C(1) << VIRTIO_RPMSG_F_BUFSZ) |
+        (UINT32_C(1) << VIRTIO_RPMSG_F_CPUNAME);
       rsc->rpmsg_vdev.config_len = sizeof(struct fw_rsc_config);
       rsc->rpmsg_vdev.status = 0;
       rsc->rpmsg_vdev.num_of_vrings = BK7258_RPTUN_VRINGS;

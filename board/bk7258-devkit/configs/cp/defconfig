@@ -128,6 +128,27 @@ CONFIG_SYSTEM_CUTERM=y
 CONFIG_SYSTEM_CUTERM_DEFAULT_DEVICE="/dev/ttyAP"
 CONFIG_SYSTEM_NSH=y
 CONFIG_TIMER=y
-CONFIG_TASK_NAME_SIZE=0
+CONFIG_TASK_NAME_SIZE=24
 CONFIG_USEC_PER_TICK=1000
 CONFIG_LIBM=y
+# Cross-core networking, Vela standard: the AP connects back to this core
+# through PF_RPMSG sockets; this core runs the listening side and owns
+# wlan0/NAT.  NET_RPMSG_DRV was abandoned (symmetric-create deadlock).
+CONFIG_NET_RPMSG=y
+CONFIG_EXAMPLES_RPMSGSOCKET=y
+# usrsock server: the AP's sockets execute on this core (NET_USRSOCK_RPMSG_SERVER,
+# initialized by drivers_initialize), which owns wlan0. Vela-standard cross-core
+# networking, mirroring the sim rpserver/rpproxy reference pair.
+CONFIG_NET_USRSOCK_RPMSG_SERVER=y
+# Let Ctrl+C deliver SIGINT to the foreground task group on this console.
+CONFIG_TTY_SIGINT=y
+CONFIG_TTY_SIGINT_CHAR=0x03
+# The usrsock server executes the AP's sockets on this core; TCP was never
+# needed before (DNS/DHCP=UDP, ping=ICMP) but the AP's SOCK_STREAM requests
+# now arrive here and inet_setup rejects them with EPROTONOSUPPORT.
+# Required for ws_server today and the MQTT channel later.
+CONFIG_NET_TCP=y
+# Reassembly slots for usrsock-rpmsg requests: 16 x ~2KB payload buffers
+# accommodates the AP's LLM POST bodies (was 8 x ~480B ~= 3.8KB ceiling,
+# "Request too large" on the first chat turn).
+CONFIG_NET_USRSOCK_RPMSG_SERVER_NIOVEC=16
