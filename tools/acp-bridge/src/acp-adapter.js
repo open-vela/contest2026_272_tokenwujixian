@@ -165,7 +165,15 @@ export class StdioAcpAdapter {
 }
 
 export function adapterFor(backend, options = {}) {
-  if (backend === "mimo") return new StdioAcpAdapter({ backend, command: process.env.DESKMATE_MIMO_BIN || "mimo", ...options });
+  if (backend === "mimo") {
+    /* MiMoCode 0.1.14 never answers `initialize` while any external plugin is
+     * installed under ~/.config/mimocode/plugins — even an empty one. --pure
+     * skips external plugins (mirrors src/stdio-verifier.js); set
+     * DESKMATE_MIMO_PURE=0 to spawn without it when debugging plugins. */
+    const args = options.args ?? ["acp"];
+    const withPure = process.env.DESKMATE_MIMO_PURE === "0" || args.includes("--pure") ? args : [...args, "--pure"];
+    return new StdioAcpAdapter({ backend, command: process.env.DESKMATE_MIMO_BIN || "mimo", ...options, args: withPure });
+  }
   if (backend === "kiro") return new StdioAcpAdapter({ backend, command: process.env.DESKMATE_KIRO_BIN || "kiro-cli", ...options });
   throw new TypeError("backend must be fake, mimo, or kiro");
 }
