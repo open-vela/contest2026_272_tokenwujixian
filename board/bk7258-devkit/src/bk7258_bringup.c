@@ -180,32 +180,18 @@ void board_late_initialize(void)
   else
     {
       syslog(LOG_INFO, "[AMP] CP RPTUN master initialized (Mailbox IRQ)\n");
-#ifdef CONFIG_NET_RPMSG_DRV
-      /* Cross-core Ethernet-over-RPMsg netdev; the AP side registers its
-       * peer from bk7258_ap_amp_initialize() after its own RPTUN is up.
-       * The endpoint name is derived from the netdev name (rpmsgdrv.c,
-       * NET_RPMSG_EPT_PREFIX), so both sides must agree on "rpmsg0".
-       * NET_LL_IEEE80211 keeps the 576-byte MTU contract of wlan0 instead
-       * of pulling in the 1500-byte Ethernet default on this RAM-tight
-         build.
-       *
-       * Deliberately NO address assignment and NO ifup here: rpmsgdrv's
-       * ifup is a cross-core RPC (net_rpmsg_drv_send_recv waits
-       * synchronously for the peer's response), so calling it from
-       * bring-up context deadlocks the CP before the scheduler runs and
-       * panics the AP waiting for a reply that never comes -- the exact
-       * failure of 8c0e227, reverted here.  The address pair is applied
-       * from userspace (ifconfig) once both endpoints are bound. */
-
-      if (net_rpmsg_drv_init("ap", "rpmsg0", NET_LL_IEEE80211) == NULL)
-        {
-          syslog(LOG_ERR, "[AMP] CP rpmsg0 netdev init failed\n");
-        }
-      else
-        {
-          syslog(LOG_INFO, "[AMP] CP rpmsg0 netdev registered\n");
-        }
-#endif
+      /* No rpmsg0 client registration on the CP.  This core runs the
+       * net rpmsg SERVER only (CONFIG_NET_RPMSG_DRV_SERVER, initialized
+       * by drivers_initialize()): when the AP's client announces the
+       * "rpmsg0" endpoint, ns_bind allocates this core's peer netdev
+       * automatically (rpmsgdrv.c net_rpmsg_drv_alloc).  Running BOTH
+       * roles on both cores -- which the first cut of this feature did
+       * -- double-creates the endpoint on each core (the client's
+       * device_created callback and the server's ns_bind both call
+       * rpmsg_create_ept on the same struct) and corrupts the endpoint
+       * tree; the first cross-core RPC then lands on corrupted state
+       * (observed: AP panic at the first ifup RPC, CP blocked forever
+       * waiting for the response that never comes back). */
 #ifdef CONFIG_BK7258_MB_IPC_RPMSG
       ret = bk7258_mb_ipc_initialize();
       if (ret != 0)
@@ -404,13 +390,23 @@ static int bk7258_ap_amp_initialize(int argc, char *argv[])
 #endif
 
 #ifdef CONFIG_NET_RPMSG_DRV
-  /* Peer of the CP-side rpmsg0 created in board_late_initialize(); the
-   * endpoint is announced through RPMsg name service and bound on the
-   * other core.  Must run after this core's RPTUN is up (this kthread)
-   * and before userspace starts issuing ifconfig/DHCP on rpmsg0.
+  /* This core is the rpmsg net CLIENT: register "rpmsg0" toward the CP
+   * and announce the endpoint via RPMsg name service.  The CP (server,
+   * CONFIG_NET_RPMSG_DRV_SERVER, no client call -- see the matching
+   * comment in board_late_initialize) allocates its peer netdev when
+   * this announcement arrives.  One client, one server: never both
+   * roles on the same netdev name, or the endpoint gets created twice
+   * and the first cross-core RPC lands on corrupted state.
    *
-   * No ifup here either, for the same cross-core-RPC reason recorded on
-   * the CP side: the deadlock of 8c0e227. */
+   * NET_LL_IEEE80211 keeps this side's MTU at the 576-byte wlan0
+   * contract; the CP's server-allocated netdev is NET_LL_ETHERNET
+   * (1500), which only bounds CP-generated frames -- acceptable, since
+   * traffic toward this core answers requests this core sent at 576.
+   *
+   * Must run after this core's RPTUN is up (this kthread), and NO ifup
+   * here: rpmsgdrv's ifup is a cross-core RPC answered by the peer, so
+   * it only works from userspace once both endpoints are bound (the
+   * deadlock of 8c0e227). */
 
   if (net_rpmsg_drv_init("cp", "rpmsg0", NET_LL_IEEE80211) == NULL)
     {
