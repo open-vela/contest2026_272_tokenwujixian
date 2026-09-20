@@ -121,3 +121,15 @@ CONFIG_NET_ICMP_SOCKET=y
 # the CP; no netdev, no IP address on this core (NET_RPMSG_DRV abandoned).
 CONFIG_NET_RPMSG=y
 CONFIG_EXAMPLES_RPMSGSOCKET=y
+# usrsock client: this core's applications use normal sockets, executed by the
+# CP's usrsock server over RPMSG (NET_USRSOCK_RPMSG + CPUNAME "cp"). Mirrors the
+# sim rpproxy reference; replaces the abandoned NET_RPMSG_DRV netdev approach.
+CONFIG_NET_USRSOCK=y
+CONFIG_NET_USRSOCK_RPMSG=y
+CONFIG_NET_USRSOCK_RPMSG_CPUNAME="cp"
+CONFIG_NET_USRSOCK_TCP=y
+CONFIG_NET_USRSOCK_UDP=y
+CONFIG_NET_USRSOCK_ICMP=y
+# Let Ctrl+C deliver SIGINT to the foreground task group on this console.
+CONFIG_TTY_SIGINT=y
+CONFIG_TTY_SIGINT_CHAR=0x03

@@ -136,3 +136,10 @@ CONFIG_LIBM=y
 # wlan0/NAT.  NET_RPMSG_DRV was abandoned (symmetric-create deadlock).
 CONFIG_NET_RPMSG=y
 CONFIG_EXAMPLES_RPMSGSOCKET=y
+# usrsock server: the AP's sockets execute on this core (NET_USRSOCK_RPMSG_SERVER,
+# initialized by drivers_initialize), which owns wlan0. Vela-standard cross-core
+# networking, mirroring the sim rpserver/rpproxy reference pair.
+CONFIG_NET_USRSOCK_RPMSG_SERVER=y
+# Let Ctrl+C deliver SIGINT to the foreground task group on this console.
+CONFIG_TTY_SIGINT=y
+CONFIG_TTY_SIGINT_CHAR=0x03
