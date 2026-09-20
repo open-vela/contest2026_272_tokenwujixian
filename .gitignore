@@ -24,3 +24,8 @@ research/
 compile_commands.json
 .mimocode/
 .env
+
+# vendor/ = symlink scaffolding that plugs the contest chip/board layers into
+# the openvela build (vendor/beken/chips/bk7258 -> chips/bk7258, etc.).
+# Local-only build glue, never committed.
+vendor/
