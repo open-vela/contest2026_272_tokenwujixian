@@ -2,6 +2,9 @@ import { spawn } from "node:child_process";
 import readline from "node:readline";
 
 const READY_DELAY_MS = 1_000;
+/* A real agent coding turn (read specs, edit, run, verify) runs for minutes;
+ * only initialize/session/new are fast control requests that keep the 30 s cap. */
+const PROMPT_TIMEOUT_MS = 600_000;
 
 function delay(milliseconds) { return new Promise((resolve) => setTimeout(resolve, milliseconds)); }
 
@@ -49,7 +52,7 @@ export class StdioAcpAdapter {
   }
 
   async submit(text) {
-    return this.request("session/prompt", { sessionId: this.sessionId, prompt: [{ type: "text", text }] });
+    return this.request("session/prompt", { sessionId: this.sessionId, prompt: [{ type: "text", text }] }, PROMPT_TIMEOUT_MS);
   }
 
   async respondPermission(id, result) { this.send({ jsonrpc: "2.0", id, result }); }
@@ -59,11 +62,11 @@ export class StdioAcpAdapter {
     try { process.kill(-this.child.pid, "SIGTERM"); } catch { this.child.kill("SIGTERM"); }
   }
 
-  request(method, params) {
+  request(method, params, timeoutMs = 30_000) {
     const id = this.nextId++;
     this.send({ jsonrpc: "2.0", id, method, params });
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => { this.pending.delete(id); reject(new Error(`${method}_timeout`)); }, 30_000);
+      const timer = setTimeout(() => { this.pending.delete(id); reject(new Error(`${method}_timeout`)); }, timeoutMs);
       this.pending.set(id, { resolve, reject, timer, method, params });
     });
   }
@@ -162,7 +165,15 @@ export class StdioAcpAdapter {
 }
 
 export function adapterFor(backend, options = {}) {
-  if (backend === "mimo") return new StdioAcpAdapter({ backend, command: process.env.DESKMATE_MIMO_BIN || "mimo", ...options });
+  if (backend === "mimo") {
+    /* MiMoCode 0.1.14 never answers `initialize` while any external plugin is
+     * installed under ~/.config/mimocode/plugins — even an empty one. --pure
+     * skips external plugins (mirrors src/stdio-verifier.js); set
+     * DESKMATE_MIMO_PURE=0 to spawn without it when debugging plugins. */
+    const args = options.args ?? ["acp"];
+    const withPure = process.env.DESKMATE_MIMO_PURE === "0" || args.includes("--pure") ? args : [...args, "--pure"];
+    return new StdioAcpAdapter({ backend, command: process.env.DESKMATE_MIMO_BIN || "mimo", ...options, args: withPure });
+  }
   if (backend === "kiro") return new StdioAcpAdapter({ backend, command: process.env.DESKMATE_KIRO_BIN || "kiro-cli", ...options });
   throw new TypeError("backend must be fake, mimo, or kiro");
 }

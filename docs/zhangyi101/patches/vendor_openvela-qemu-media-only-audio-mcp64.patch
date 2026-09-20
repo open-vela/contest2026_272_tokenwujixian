@@ -1,0 +1,31 @@
+diff --git a/boards/vela/configs/goldfish-arm64-v8a-ap/defconfig b/boards/vela/configs/goldfish-arm64-v8a-ap/defconfig
+index 09b2a0a..b0609ea 100644
+--- a/boards/vela/configs/goldfish-arm64-v8a-ap/defconfig
++++ b/boards/vela/configs/goldfish-arm64-v8a-ap/defconfig
+@@ -77,12 +77,11 @@ CONFIG_ETC_ROMFS=y
+ CONFIG_EVENT_FD=y
+ CONFIG_EXAMPLES_AI_AGENT_VELA=y
+ CONFIG_EXAMPLES_AI_AGENT_VELA_SHELL_ALLOWLIST=y
+-CONFIG_AI_AGENT_AUDIO_NUTTX_DIRECT=y
+ CONFIG_AI_AGENT_AUDIO_CAPTURE_GAIN=1
+ CONFIG_AI_AGENT_LVGL_UI=y
+ CONFIG_AI_AGENT_REMOTE_CTRL=y
+ CONFIG_AI_AGENT_NOTIFY_SERVICE=y
+-CONFIG_AI_AGENT_MCP_MAX_TOOLS=48
++CONFIG_AI_AGENT_MCP_MAX_TOOLS=64
+ CONFIG_LV_FONT_MISANS_16_CJK=y
+ CONFIG_EXAMPLES_FB=y
+ CONFIG_EXAMPLES_FTPD=y
+diff --git a/boards/vela/configs/qemu-arm64-v8a-ap/defconfig b/boards/vela/configs/qemu-arm64-v8a-ap/defconfig
+index 2e3e339..669655b 100644
+--- a/boards/vela/configs/qemu-arm64-v8a-ap/defconfig
++++ b/boards/vela/configs/qemu-arm64-v8a-ap/defconfig
+@@ -67,7 +67,7 @@ CONFIG_EXAMPLES_AI_AGENT_VELA=y
+ CONFIG_EXAMPLES_AI_AGENT_VELA_SHELL_ALLOWLIST=y
+ CONFIG_AI_AGENT_LVGL_UI=y
+ CONFIG_AI_AGENT_MCP_MAX_SERVERS=4
+-CONFIG_AI_AGENT_MCP_MAX_TOOLS=48
++CONFIG_AI_AGENT_MCP_MAX_TOOLS=64
+ CONFIG_AI_AGENT_NOTIFY_SERVICE=y
+ CONFIG_EXAMPLES_FB=y
+ CONFIG_EXAMPLES_FTPD=y
