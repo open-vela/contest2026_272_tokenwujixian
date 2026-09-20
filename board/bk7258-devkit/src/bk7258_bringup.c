@@ -398,17 +398,22 @@ static int bk7258_ap_amp_initialize(int argc, char *argv[])
    * roles on the same netdev name, or the endpoint gets created twice
    * and the first cross-core RPC lands on corrupted state.
    *
-   * NET_LL_IEEE80211 keeps this side's MTU at the 576-byte wlan0
-   * contract; the CP's server-allocated netdev is NET_LL_ETHERNET
-   * (1500), which only bounds CP-generated frames -- acceptable, since
-   * traffic toward this core answers requests this core sent at 576.
+   * NET_LL_ETHERNET, not NET_LL_IEEE80211: the IEEE80211 case in
+   * netdev_register() is compiled only under CONFIG_DRIVERS_IEEE80211,
+   * which this AP image does not carry -- with the wrong type the
+   * registration falls to the default: branch and returns -EINVAL, and
+   * net_rpmsg_drv_alloc() swallows that error, so the "registered" log
+   * line below lies (observed: no rpmsg0 in ifconfig, ifup Failed,
+   * /proc/net/rpmsg0 ENOENT).  The 576-byte MTU contract is preserved
+   * through CONFIG_NET_ETH_PKTSIZE=590 in configs/ap-net (590 -
+   * ETH_HDRLEN 14 = 576).
    *
    * Must run after this core's RPTUN is up (this kthread), and NO ifup
    * here: rpmsgdrv's ifup is a cross-core RPC answered by the peer, so
    * it only works from userspace once both endpoints are bound (the
    * deadlock of 8c0e227). */
 
-  if (net_rpmsg_drv_init("cp", "rpmsg0", NET_LL_IEEE80211) == NULL)
+  if (net_rpmsg_drv_init("cp", "rpmsg0", NET_LL_ETHERNET) == NULL)
     {
       syslog(LOG_ERR, "[AMP] AP rpmsg0 netdev init failed\n");
     }
