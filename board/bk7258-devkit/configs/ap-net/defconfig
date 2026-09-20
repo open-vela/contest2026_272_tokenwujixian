@@ -138,3 +138,32 @@ CONFIG_TTY_SIGINT_CHAR=0x03
 # the AP has no gethostip at all and every hostname command fails before
 # reaching the network.
 CONFIG_NETDB_DNSCLIENT=y
+# --- minimal ai_agent support layer ---
+# ai_agent's Phase-0 bootstrap mounts /data as tmpfs itself when the
+# directory is absent (agent_main.c:541); it only needs the fs type
+# registered. tmpfs also gives a writable /etc for openssl config.
+CONFIG_FS_TMPFS=y
+# TLS + JSON: the remaining config-only dependencies for the minimal
+# agent (channels all off); needed later by MQTT anyway.
+CONFIG_CRYPTO_MBEDTLS=y
+CONFIG_NETUTILS_CJSON=y
+# Minimal ai_agent: core only, every channel (MQTT/Feishu/MCP/Node/Weixin)
+# off. Runs on the AP over usrsock; /data is self-mounted as tmpfs.
+CONFIG_EXAMPLES_AI_AGENT_VELA=y
+CONFIG_EXAMPLES_AI_AGENT_VELA_STACKSIZE=32768
+# CONFIG_AI_AGENT_MQTT is not set
+# CONFIG_AI_AGENT_FEISHU is not set
+# CONFIG_AI_AGENT_MCP is not set
+# CONFIG_AI_AGENT_NODE is not set
+# CONFIG_AI_AGENT_WEIXIN is not set
+# ai_agent runs on this core over usrsock (no local wlan0); its
+# wifi_connect takes the rpmsg path instead of shelling out to wapi.
+CONFIG_AI_AGENT_NET_RPMSG=y
+# Trim the agent to what this board can use: no local media player,
+# no wearable sensors, no quickapp runtime on the AP, and the ws server
+# accept thread does not fit the post-loop heap (ENOMEM at 25K free).
+# MQTT stays enabled -- it is the channel this board will actually use.
+# CONFIG_AI_AGENT_WS_SERVER is not set
+# CONFIG_AI_AGENT_TOOLS_WEARABLE is not set
+# CONFIG_AI_AGENT_TOOLS_MEDIA is not set
+# CONFIG_AI_AGENT_TOOLS_QUICKAPP is not set
