@@ -20,6 +20,7 @@
 #include <nuttx/signal.h>
 #ifdef CONFIG_NET_RPMSG_DRV
 #  include <nuttx/net/rpmsgdrv.h>
+#  include <nuttx/net/netdev.h>
 #endif
 
 #ifdef CONFIG_INPUT_BUTTONS_LOWER
@@ -413,6 +414,8 @@ static int bk7258_ap_amp_initialize(int argc, char *argv[])
    * it only works from userspace once both endpoints are bound (the
    * deadlock of 8c0e227). */
 
+  syslog(LOG_INFO, "[AMP] AP rpmsg0 client init enter\n");
+
   if (net_rpmsg_drv_init("cp", "rpmsg0", NET_LL_ETHERNET) == NULL)
     {
       syslog(LOG_ERR, "[AMP] AP rpmsg0 netdev init failed\n");
@@ -421,6 +424,16 @@ static int bk7258_ap_amp_initialize(int argc, char *argv[])
     {
       syslog(LOG_INFO, "[AMP] AP rpmsg0 netdev registered\n");
     }
+
+  /* TEMPORARY AMP BRING-UP DIAGNOSTIC -- remove with the rest of the
+   * ap-net instrumentation.  The "registered" line has stopped appearing
+   * while the console stays alive, which means this kthread blocks
+   * somewhere inside net_rpmsg_drv_init(); these two lines bracket where.
+   * The findbyname probe tells whether the netdev made it into the
+   * kernel list even when the init call never returns. */
+
+  syslog(LOG_INFO, "[AMP] AP rpmsg0 init returned, dev=%p\n",
+         netdev_findbyname("rpmsg0"));
 #endif
 
   /* Publish scheduler-running only after the AP-side RPTUN/RPMsg instance is
