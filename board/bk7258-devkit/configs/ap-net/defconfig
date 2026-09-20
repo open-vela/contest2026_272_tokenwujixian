@@ -133,3 +133,8 @@ CONFIG_NET_USRSOCK_ICMP=y
 # Let Ctrl+C deliver SIGINT to the foreground task group on this console.
 CONFIG_TTY_SIGINT=y
 CONFIG_TTY_SIGINT_CHAR=0x03
+# DNS resolution on the AP: the usrsock rpmsg transport carries DNS requests
+# to the CP's resolver (usrsock_rpmsg_dns_handler); without NETDB_DNSCLIENT
+# the AP has no gethostip at all and every hostname command fails before
+# reaching the network.
+CONFIG_NETDB_DNSCLIENT=y
