@@ -172,3 +172,9 @@ CONFIG_AI_AGENT_NET_RPMSG=y
 # Needed for the ai_agent's LLM response buffers: 244KB SRAM is not enough.
 CONFIG_BK7258_PSRAM=y
 CONFIG_MM_REGIONS=2
+# More serial poll slots: with the agent running, console readers (nsh,
+# agent CLI thread, syslog forwarding) can occupy all 4 default slots and
+# trip the DEBUGASSERT in uart_poll_notify (serial.c:217) during heavy
+# boot logging.  The known 2-in-26 intermittent becomes likely under the
+# agent's startup load.
+CONFIG_SERIAL_NPOLLWAITERS=8
