@@ -143,3 +143,8 @@ CONFIG_NET_USRSOCK_RPMSG_SERVER=y
 # Let Ctrl+C deliver SIGINT to the foreground task group on this console.
 CONFIG_TTY_SIGINT=y
 CONFIG_TTY_SIGINT_CHAR=0x03
+# The usrsock server executes the AP's sockets on this core; TCP was never
+# needed before (DNS/DHCP=UDP, ping=ICMP) but the AP's SOCK_STREAM requests
+# now arrive here and inet_setup rejects them with EPROTONOSUPPORT.
+# Required for ws_server today and the MQTT channel later.
+CONFIG_NET_TCP=y
