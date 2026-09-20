@@ -167,3 +167,8 @@ CONFIG_AI_AGENT_NET_RPMSG=y
 # CONFIG_AI_AGENT_TOOLS_WEARABLE is not set
 # CONFIG_AI_AGENT_TOOLS_MEDIA is not set
 # CONFIG_AI_AGENT_TOOLS_QUICKAPP is not set
+# PSRAM: the AP gets the upper half of the 16MB device (the CP owns the
+# lower half; see the split in chips/bk7258/bk7258_allocateheap.c).
+# Needed for the ai_agent's LLM response buffers: 244KB SRAM is not enough.
+CONFIG_BK7258_PSRAM=y
+CONFIG_MM_REGIONS=2

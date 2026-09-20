@@ -99,7 +99,7 @@ config BK7258_TIMER0
 
 config BK7258_PSRAM
 	bool "Initialize DevKit PSRAM as an additional heap"
-	depends on BK7258_COMPONENT_CP && MM_REGIONS > 1
+	depends on MM_REGIONS > 1
 	default y
 	help
 		Initialize the PSRAM fitted to the BK7258 DevKit and add the detected
