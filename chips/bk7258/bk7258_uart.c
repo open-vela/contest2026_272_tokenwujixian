@@ -189,12 +189,39 @@ static bool bk7258_uart_txempty(struct uart_dev_s *dev)
 static int bk7258_uart_interrupt(int irq, void *context, void *arg)
 {
   struct uart_dev_s *dev = arg;
+  struct bk7258_uart_s *priv = dev->priv;
+  uint32_t raw;
   uint32_t status;
 
   (void)irq;
   (void)context;
-  status = getreg32(BK7258_UART_INT_STATUS) & 0xff;
-  putreg32(status, BK7258_UART_INT_STATUS);
+
+  /* Clear every pending source, but dispatch only the ones this driver has
+   * enabled.  The raw write-back has to stay unmasked: a bit left set in
+   * INT_STATUS while its INT_ENABLE bit is clear would latch and re-trigger
+   * the line forever.
+   *
+   * Filtering the dispatch is what matters here.  TX_READY reports FIFO write
+   * space, so it is asserted almost all the time, including long after
+   * bk7258_uart_txint(dev, false) has taken TX_READY out of priv->ie and out
+   * of INT_ENABLE.  Without the mask, every RX interrupt also ran
+   * uart_xmitchars() with an empty transmit buffer.
+   *
+   * That mattered because uart_xmitchars() takes uart_spinlock(dev, true),
+   * i.e. spin_lock plus sched_lock, and the matching unlock runs
+   * nxsched_unlock() -> nxsched_merge_pending() when the count returns to
+   * zero, which can switch tasks from interrupt context.  Running that on
+   * every RX interrupt rather than only when there is something to send is
+   * what made an assert at drivers/serial/serial.c:2064 reachable during large
+   * NSH writes (2 hits in 26 board runs, from ping and ifconfig output).
+   *
+   * The in-tree drivers gate the same way -- stm32_serial.c tests priv->ie
+   * alongside the status bit in every arm of its ISR. */
+
+  raw = getreg32(BK7258_UART_INT_STATUS) & 0xff;
+  putreg32(raw, BK7258_UART_INT_STATUS);
+
+  status = raw & priv->ie;
 
   if (status & (BK7258_UART_INT_RX_READY | BK7258_UART_INT_RX_FINISH))
     {
@@ -221,10 +248,16 @@ void arm_serialinit(void)
    * registering the console so NSH can receive input as well as emit early
    * polling output. */
 
+  bk7258_lowputc('G');
+
   (void)bk7258_uart_setup(&g_uartport);
+
+  bk7258_lowputc('H');
 
   uart_register("/dev/console", &g_uartport);
   uart_register("/dev/ttyS0", &g_uartport);
+
+  bk7258_lowputc('I');
 }
 
 void up_putc(int ch)

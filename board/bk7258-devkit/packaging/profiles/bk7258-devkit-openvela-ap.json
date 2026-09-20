@@ -39,6 +39,20 @@
       "raw_max_bytes": 2752512
     }
   },
+  "reserved_data_regions": {
+    "sys_rf": {
+      "physical_offset": "0x007fe000",
+      "physical_size": "0x00001000",
+      "access": "runtime-read-only",
+      "source": "Armino projects/app/partitions/bk7258/auto_partitions.csv"
+    },
+    "sys_net": {
+      "physical_offset": "0x007ff000",
+      "physical_size": "0x00001000",
+      "access": "runtime-read-only",
+      "source": "Armino projects/app/partitions/bk7258/auto_partitions.csv"
+    }
+  },
   "ap_execution": {
     "component": "openvela-ap-dual-core-smp",
     "security_domain": "secure-spe",

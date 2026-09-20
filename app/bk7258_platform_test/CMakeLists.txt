@@ -4,4 +4,6 @@ if(CONFIG_LVX_USE_DEMO_CONTEST2026_272_BK7258_PLATFORM_TEST)
     NAME bk7258_platform_test
     SRCS bk7258_platform_test_main.c
     STACKSIZE 4096)
+  target_include_directories(apps_bk7258_platform_test PRIVATE
+                             ${NUTTX_BOARD_ABS_DIR}/include)
 endif()

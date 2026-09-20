@@ -1,0 +1,125 @@
+#
+# chips/bk7258/wifi/Kconfig
+#
+# BK7258 Wi-Fi skeleton configuration. The MAC/PHY/RF runtime is an external
+# vendor input; these symbols select the team-owned NuttX integration only.
+# Vendor library path/hash and Beken patch metadata are tracked in
+# beken_patch_manifest.md, not here.
+
+menu "BK7258 Wi-Fi"
+
+config BK7258_WIFI
+	bool "BK7258 Wi-Fi (NuttX lower-half skeleton)"
+	default n
+	depends on BK7258_COMPONENT_CP
+	depends on NET
+	depends on NETDEVICES
+	select DRIVERS_WIRELESS
+	select NETDEV_WIRELESS_IOCTL
+	select NETDEV_WIRELESS_HANDLER
+	select DRIVERS_IEEE80211
+	select SCHED_HPWORK
+	select SCHED_LPWORK
+	select ARCH_HAVE_NETDEV_STATISTICS
+	help
+		Team-owned BK7258 Wi-Fi integration: netdev_lowerhalf +
+		wireless_ops_s data/control plane over the Beken MAC/PHY/RF runtime.
+		This is a skeleton milestone; it does not link the vendor library
+		until a NuttX-buildable vendor library and ABI are available. The
+		high-priority worker runs vendor HISR/timer bottom halves; the
+		low-priority worker runs the periodic SARADC/PHY temperature task.
+
+if BK7258_WIFI
+
+config BK7258_WIFI_STA
+	bool "Wi-Fi station (STA) support"
+	default y
+	help
+		Enable station mode skeleton. SoftAP/P2P/monitor are out of scope
+		for the first milestone.
+
+config BK7258_WIFI_AP
+	bool "BK7258 Wi-Fi SoftAP support"
+	default n
+	depends on BK7258_WIFI
+	help
+		Enable the separate SoftAP provider closure. Keep disabled while the
+		STA scan/connect milestone is being brought up.
+
+config BK7258_WIFI_OSAL
+	bool "BK7258 Wi-Fi OSAL (NuttX mapping)"
+	default y
+	help
+		Thin wrappers mapping thread/queue/timer/lock/irq/memory onto NuttX
+		primitives. Must not create a second scheduler and must not provide
+		semantic-empty stubs.
+
+config BK7258_WIFI_VENDOR_PACKET
+	bool "BK7258 vendor packet shim"
+	default y
+	help
+		Minimal packet container satisfying the Beken MAC data-path contract
+		(next/payload/len/tot_len + private reserve). Distinct from netpkt;
+		the lower half converts at the boundary.
+
+config BK7258_WIFI_DEBUG
+	bool "BK7258 Wi-Fi skeleton debug logging"
+	default n
+	depends on DEBUG_FEATURES
+	help
+		Enable skeleton-stage diagnostics. Must not print passphrase/PMK.
+
+config BK7258_WIFI_VENDOR_LINK
+	bool "Link BK7258 vendor Wi-Fi/PHY archives"
+	default n
+	depends on BK7258_WIFI
+	help
+		Add the pinned libwifi.a and libbk_phy.a archives to the link.
+		This option only brings in the archives; starting the runtime is
+		the separate BK7258_WIFI_VENDOR_RUNTIME switch. Do not enable
+		this one alone: rw_msg_rx.c is compiled unconditionally and calls
+		wpa_clear_scan_results(), which lives in hostapd_intf.c and is
+		only compiled under VENDOR_RUNTIME, so LINK=y with RUNTIME=n
+		fails to link.
+
+config BK7258_WIFI_VENDOR_RUNTIME
+	bool "Start BK7258 vendor Wi-Fi runtime"
+	default n
+	depends on BK7258_WIFI_VENDOR_LINK
+	help
+		Compile the vendor runtime and its WPA closure. The BK7258
+		board starts it before userspace from a dedicated large-stack
+		worker. User-space control is through the standard wapi CLI.
+
+config BK7258_WIFI_WPA_TASK_PRIORITY
+	int "WPA task priority"
+	default 5
+	depends on BK7258_WIFI_VENDOR_RUNTIME
+	help
+		Armino logical WPA task priority. Its public RTOS API reverses the
+		FreeRTOS-native 0..9 priority range, while NuttX uses increasing
+		numeric priorities directly. The OSAL therefore reverses this
+		logical value while projecting it onto the NuttX scheduler range.
+
+comment "Vendor packet private reserve (beken_genie BK7258 profile)"
+
+config BK7258_WIFI_MSDU_RESV_HEAD_LENGTH
+	int "MSDU reserve head length"
+	default 108
+	depends on BK7258_WIFI_VENDOR_PACKET
+	help
+		MAC headroom before the Ethernet payload. Locked beken_genie profile
+		value; treat as a versioned vendor input, not a silicon constant.
+
+config BK7258_WIFI_MSDU_RESV_DESC_LENGTH
+	int "MSDU reserve descriptor length"
+	default 600
+	depends on BK7258_WIFI_VENDOR_PACKET
+	help
+		Descriptor private area holding sk_buff + tx descriptor + SG entries.
+		The lower half and packet shim must verify that these reserves are
+		not exceeded at runtime.
+
+endif # BK7258_WIFI
+
+endmenu

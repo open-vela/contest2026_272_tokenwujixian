@@ -79,6 +79,31 @@ SECTIONS
     _sdata = ABSOLUTE(.);
     *(.data .data.*)
     *(.gnu.linkonce.d.*)
+
+    /* Armino marks some objects __attribute__((section(".dtcm_sec_data"))) to
+     * place them in the SoC's DTCM.  This port has no DTCM region -- MEMORY
+     * declares only sram and flash -- so without this line the linker kept
+     * .dtcm_sec_data as an orphan output section placed immediately after
+     * .data: inside ordinary SRAM, but OUTSIDE _sdata.._edata.
+     *
+     * That is a silent-corruption trap rather than a layout detail.  The
+     * startup copy loop walks _sdata.._edata only (bk7258_start.c:114-115) and
+     * .bss clearing starts at _sbss, so anything landing in the gap between
+     * them is neither initialised from flash nor zeroed -- it keeps whatever
+     * reset left behind, with no diagnostic anywhere.
+     *
+     * Board-observed consequence: ipc_route_tbl (mb_ipc.c:179) sat at
+     * 0x28070778 while _edata was 0x28070238, so mb_chnl_open() read
+     * log_chnl == 0, computed phy_chnl_idx 0 != 1 and returned BK_ERR_PARAM.
+     * That is the "[AMP] CP mailbox IPC init failed: -4097" line.
+     *
+     * Folded here rather than by dropping the attribute in
+     * mb_ipc/authority/middleware/driver/mailbox/mb_ipc.c: that file is
+     * imported authority source and stays byte-identical.  Nothing is lost by
+     * the fold, because the DTCM those objects were meant for does not exist in
+     * this port either way. */
+
+    *(.dtcm_sec_data .dtcm_sec_data.*)
     CONSTRUCTORS
     . = ALIGN(4);
     _edata = ABSOLUTE(.);

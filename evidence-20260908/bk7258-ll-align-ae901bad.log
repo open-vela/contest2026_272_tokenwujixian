@@ -1,0 +1,1791 @@
+
+nsh> [Kbk7258_wifi_runtime init
+[BK7258] Wi-Fi runtime task started pid=9
+nsh> [K[BK7258] Wi-Fi application init starting
+[BK7258-WIFI] dvfs pre-vote r0=0x00000033 vcore=0xb
+[BK7258-WIFI] dvfs pre-vote sel=3 div=3 bus=0
+[BK7258-WIFI] pmq: cpu_freq vote module=41 freq=3 ret=0
+[BK7258-WIFI] dvfs post-vote r0=0x00000033 vcore=0xc
+[BK7258-WIFI] dvfs post-vote sel=3 div=3 bus=0
+[BK7258-WIFI] boot: cpu_freq vote 120M ret=0
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x70000000
+[BK7258] power gate mask=0x00000200 enable=1 ret=0 reg=0x70000000
+[BK7258] clock gate mask=0x08000000 enable=1 ret=0 reg=0x08088284
+[BK7258] clock gate mask=0x04000000 enable=1 ret=0 reg=0x0c088284
+[initseq] osal mutex-init enter
+[initseq] osal mutex-init leave ret=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[BK7258-WIFI] pmq: lpo_src set to ROSC (pre-adapter) r41=0x00000002
+[aonrtc] pre-init tick=0 -> 0
+[aon_rtc] bk_aon_rtc_driver_init[+]
+[aon_rtc] aon_rtc_hw_init[+]cur_tick=0
+[BK7258] ICU attach source=54 irq=70 ret=0
+[BK7258] ICU enable source=54 irq=70 ret=0 int_en=0x00000010
+[aon_rtc] aon_rtc_hw_init[-]cur_tick=422
+[aon_rtc] bk_aon_rtc_driver_init[-]
+[aonrtc] post-init tick=612 -> 677
+[BK7258-WIFI] runtime: bind adapters
+[nv] vnd_cal_version = 24-04-10 00:00:00
+[BK7258-WIFI] vnd_cal overlay applied
+[BK7258-WIFI] runtime: bk_wifi_init begin
+[BK7258-WIFI] int init: lo=0xa0000010 hi=0x8040001f
+[wifi] wifi initing
+[BK7258] power gate mask=0x00000200 enable=1 ret=0 reg=0x70000000
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x70000000
+[BK7258-WIFI] clk id=26 en=1 first
+[BK7258-WIFI] clk id=27 en=1 first
+rwnx_cal_set_rfconfig(0x102) phy on; rf off
+[initseq] 87a rwnxl_init enter
+[BK7258] ICU attach source=36 irq=52 ret=0
+[BK7258] ICU enable source=36 irq=52 ret=0 int_en=0xa0000010
+[BK7258] ICU attach source=35 irq=51 ret=0
+[BK7258] ICU enable source=35 irq=51 ret=0 int_en=0xa0000010
+[BK7258] ICU attach source=34 irq=50 ret=0
+[BK7258] ICU enable source=34 irq=50 ret=0 int_en=0xa0000010
+[BK7258] ICU attach source=33 irq=49 ret=0
+[BK7258] ICU enable source=33 irq=49 ret=0 int_en=0xa0000010
+[BK7258] ICU attach source=31 irq=47 ret=0
+[BK7258] ICU enable source=31 irq=47 ret=0 int_en=0xa0000010
+[initseq] osal queue-init enter 'fhost_txbuf'
+[initseq] osal queue-init leave 'fhost_txbuf' ret=0
+[initseq] osal queue-init enter 'fhost_txbuf'
+[initseq] osal queue-init leave 'fhost_txbuf' ret=0
+[initseq] osal queue-init enter 'fhost_txbuf'
+[initseq] osal queue-init leave 'fhost_txbuf' ret=0
+[initseq] osal queue-init enter 'fhost_txbuf'
+[initseq] osal queue-init leave 'fhost_txbuf' ret=0
+[initseq] osal queue-init enter 'fhost_txbuf'
+[initseq] osal queue-init leave 'fhost_txbuf' ret=0
+[initseq] osal queue-init enter 'fhost_rxbuf'
+[initseq] osal queue-init leave 'fhost_rxbuf' ret=0
+[initseq] osal queue-init enter 'fhost_uf_rxbuf'
+[initseq] osal queue-init leave 'fhost_uf_rxbuf' ret=0
+[initseq] osal queue-init enter 'rxdesc_queue'
+[initseq] osal queue-init leave 'rxdesc_queue' ret=0
+[BK7258] ICU attach source=29 irq=45 ret=0
+[BK7258] ICU enable source=29 irq=45 ret=0 int_en=0xa0000010
+[BK7258] ICU attach source=30 irq=46 ret=0
+[BK7258] ICU enable source=30 irq=46 ret=0 int_en=0xe0000010
+[BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[initseq] 87b rwnxl_init leave
+[initseq] 90a calibration_init enter
+[BK7258-WIFI] clk id=5 en=1 first
+[cal] load polar tab magic code error 0xffffffff
+[cal] get rfcali_mode:1
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002010
+[adc] release
+[cal] temp in otp is:563
+[cal] temp_code=34,dmodldosel=4,Dgmdc=7
+[cal] cali bias(e)
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002008
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[cal] retry_count=4,dlypc_i=2,stateI=[0,60,30,0],dlypc_q=2,stateQ=[0,59,27,0]
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002018
+[adc] release
+[cal] cali bias(e)
+[cal] calibration_main(e1c2bcd) over
+[cal] rf cali flag in flash: valid
+flash txpwr table:0xf
+[cal] load polar tab magic code error 0xffffffff
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002008
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002018
+[adc] release
+[cal] retry_count=5,dlypc_i=2,stateI=[0,0,30,0],dlypc_q=2,stateQ=[0,0,28,0]
+[cal] temp_code:35 - adc_code:517 - adc_trend:[13]:563->[15]:517
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002008
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002018
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+xtal_cali:45
+[cal] --init_xtal = 45
+[cal] gtx_dcorPA=0x15->0x15
+[cal] -----pwr_gain:40, rate=54, g_idx:40, shift_b:0, shift_g:1
+[cal] idx:41=40+(1),r:54,xtal:45,pwr_gain:a8ab7131
+[initseq] 90b calibration_init leave ret=0
+[initseq] 97a cfg_param_init enter
+[initseq] 97b cfg_param_init leave ret=0
+[initseq] 105a rwnx_intf_init enter
+[initseq] osal mutex-init enter
+[initseq] osal mutex-init leave ret=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[initseq] osal thread-create enter 'kmsgbk'
+[initseq] osal thread-create leave 'kmsgbk' ret=0
+[initseq] osal queue-init enter 'core_queue'
+[initseq] osal queue-init leave 'core_queue' ret=0
+[initseq] osal thread-create enter 'core_thread'
+[initseq] osal thread-create leave 'core_thread' ret=0
+[initseq] 1245a rwnxl_sleep enter
+[BK7258] power gate mask=0x00000400 enable=0 ret=0 reg=0x70002418
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=1) slept=0x220
+[initseq] 1245b rwnxl_sleep leave
+[initseq] 105b rwnx_intf_init leave ret=0
+[initseq] 120a fhost_rxbuf_push enter
+[initseq] 120b fhost_rxbuf_push leave ret=0
+[initseq] 123a wpas_thread_start enter
+[initseq] osal queue-init enter 'wpah_queue'
+[initseq] osal queue-init leave 'wpah_queue' ret=0
+[initseq] osal thread-create enter 'wpas_thread'
+[initseq] osal thread-create leave 'wpas_thread' ret=0
+[initseq] osal mutex-init enter
+[initseq] osal mutex-init leave ret=0
+[initseq] osal mutex-init enter
+[initseq] osal mutex-init leave ret=0
+[initseq] 123b wpas_thread_start leave
+[initseq] 126a coex_ictw_report enter
+[initseq] 126b coex_ictw_report leave
+[wifi] wifi inited(1) ret(0)
+[BK7258-WIFI] runtime: bk_wifi_init complete
+[BK7258-WIFI] parity: null-vs-authoritative: (none)
+[BK7258-WIFI] pmq: cpu_freq vote module=41 freq=1 ret=0
+[BK7258-WIFI] dvfs post-init-60m r0=0x00000037 vcore=0xb
+[BK7258-WIFI] dvfs post-init-60m sel=3 div=7 bus=0
+[BK7258-WIFI] init done: cpu_freq vote 60M ret=0
+[BK7258] Wi-Fi application init completed
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x200
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70002408
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70002418
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x220
+bk7258_wifi_runtime connect Luv <PSK-REDACTED>
+[bk7258_wifi_runtime] connect: ssid="Luv", psk 8 chars
+  state=IDLE(0) reason=SUCCESS(262)
+[BK7258-WIFI] connect: ssid="Luv" (3), psk 8 chars
+[wifi] sta configuring
+[wifi] sta config, ssid=Luv password=<PSK-REDACTED> security=0
+[wifi] sta configured(5)
+[wifi] sta starting
+[BK7258-WIFI] mac: flash c8:47:8c:46:02:15
+[wifi] sta get sta_config, ssid=Luv password=<PSK-REDACTED> security=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[wifi] sta disconnecting
+[wifi] sta disconnected(5)
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[wifi] init 1st vif
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x70002018
+[BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[BK7258-WIFI] pmq: phy_wakeup_reinit done
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=0) slept=0x20
+[rwnx] bmsg_ioctl_handler
+[BK7258] ICU disable source=36 irq=52 ret=0 int_en=0xe0000010
+[BK7258] ICU attach source=36 irq=52 ret=0
+[BK7258] ICU enable source=36 irq=52 ret=0 int_en=0xe0000010
+[BK7258] ICU disable source=35 irq=51 ret=0 int_en=0xe0000010
+[BK7258] ICU attach source=35 irq=51 ret=0
+[BK7258] ICU enable source=35 irq=51 ret=0 int_en=0xe0000010
+[BK7258] ICU disable source=34 irq=50 ret=0 int_en=0xe0000010
+[BK7258] ICU attach source=34 irq=50 ret=0
+[BK7258] ICU enable source=34 irq=50 ret=0 int_en=0xe0000010
+[BK7258] ICU disable source=33 irq=49 ret=0 int_en=0xe0000010
+[BK7258] ICU attach source=33 irq=49 ret=0
+[BK7258] ICU enable source=33 irq=49 ret=0 int_en=0xe0000010
+[BK7258] ICU disable source=31 irq=47 ret=0 int_en=0x60000010
+[BK7258] ICU attach source=31 irq=47 ret=0
+[BK7258] ICU enable source=31 irq=47 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000400 enable=0 ret=0 reg=0x70002418
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=1) slept=0x220
+[rwnx] bmsg_ioctl_sender
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x70002018
+[BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[BK7258-WIFI] pmq: phy_wakeup_reinit done
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=0) slept=0x20
+[rwnx] bmsg_ioctl_handler
+[BK7258] power gate mask=0x00000400 enable=0 ret=0 reg=0x70002418
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=1) slept=0x220
+[rwnx] bmsg_ioctl_sender
+[rwnx] PHY features: [NSS=1][CHBW=40][LDPC][VHT][HE][BFMEE][MUMIMORX]ü¨
+[rwnx] FW features: [BCN][AUTOBCN][HWSCAN][CMON][MROLE][PS][DPSM][AMPDU][CHNL_CTXT][REORD][P2P][P2P_GO][UMAC][VHT][HE][BFMEE][WAPI][MFP][MU_MIMO_RX][TWT][PM_DSSS_ONLY]
+[rwnx] HT supp 1, VHT supp 1, HE supp 1
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x70002018
+[BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[BK7258-WIFI] pmq: phy_wakeup_reinit done
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=0) slept=0x20
+[rwnx] bmsg_ioctl_handler
+[BK7258] power gate mask=0x00000400 enable=0 ret=0 reg=0x70002418
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=1) slept=0x220
+[rwnx] bmsg_ioctl_sender
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x70002018
+[BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[BK7258-WIFI] pmq: phy_wakeup_reinit done
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=0) slept=0x20
+[rwnx] bmsg_ioctl_handler
+[BK7258] power gate mask=0x00000400 enable=0 ret=0 reg=0x70002418
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=1) slept=0x220
+[rwnx] bmsg_ioctl_sender
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x70002018
+[BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[BK7258-WIFI] pmq: phy_wakeup_reinit done
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=0) slept=0x20
+[rwnx] bmsg_ioctl_handler
+[BK7258] ICU disable source=29 irq=45 ret=0 int_en=0xc0000010
+[BK7258] ICU attach source=29 irq=45 ret=0
+[BK7258] ICU enable source=29 irq=45 ret=0 int_en=0xe0000010
+[BK7258] ICU disable source=30 irq=46 ret=0 int_en=0xa0000010
+[BK7258] ICU attach source=30 irq=46 ret=0
+[BK7258] ICU enable source=30 irq=46 ret=0 int_en=0xe0000010
+[BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[BK7258-WIFI] pmq: lpo_src=2
+[BK7258] power gate mask=0x00000400 enable=0 ret=0 reg=0x70002418
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=1) slept=0x220
+[rwnx] bmsg_ioctl_sender
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[wpa] sizeof(wpa_supplicant)=1096
+[wpa] wpa_supplicant v2.10
+[wpa] Successfully initialized wpa_supplicant
+[wpa] Initializing interface 'wlan0' conf 'N/A' driver 'default' ctrl_interface 'N/A' bridge 'N/A'
+[wpa] Priority group 0
+[wpa]    id=0 ssid=''
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x70002018
+[BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[BK7258-WIFI] pmq: phy_wakeup_reinit done
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=0) slept=0x20
+[rwnx] bmsg_ioctl_handler
+[wifid] mm_add_if_req: vif_idx=0, type=0, p2p=0, status=0
+[BK7258] power gate mask=0x00000400 enable=0 ret=0 reg=0x70002418
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=1) slept=0x220
+[rwnx] bmsg_ioctl_sender
+[hitf] add vif0, type=2, status=0
+[wpa] create fsocket_init:4
+[wpa] create fsocket_init:23
+[wpa] Add interface wlan0 to a new radio N/A
+[wpa] wpa_dInit
+[wpa] create fsocket_init:34978
+[wpa] Own MAC address: c8:47:8c:46:02:15
+[hitf] del hw key idx=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x70002018
+[BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[BK7258-WIFI] pmq: phy_wakeup_reinit done
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=0) slept=0x20
+[rwnx] bmsg_ioctl_handler
+[BK7258] power gate mask=0x00000400 enable=0 ret=0 reg=0x70002418
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=1) slept=0x220
+[rwnx] bmsg_ioctl_sender
+[hitf] del hw key idx=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x70002018
+[BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[BK7258-WIFI] pmq: phy_wakeup_reinit done
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=0) slept=0x20
+[rwnx] bmsg_ioctl_handler
+[BK7258] power gate mask=0x00000400 enable=0 ret=0 reg=0x70002418
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=1) slept=0x220
+[rwnx] bmsg_ioctl_sender
+[hitf] del hw key idx=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x70002018
+[BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[BK7258-WIFI] pmq: phy_wakeup_reinit done
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=0) slept=0x20
+[rwnx] bmsg_ioctl_handler
+[BK7258] power gate mask=0x00000400 enable=0 ret=0 reg=0x70002418
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=1) slept=0x220
+[rwnx] bmsg_ioctl_sender
+[hitf] del hw key idx=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x70002018
+[BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[BK7258-WIFI] pmq: phy_wakeup_reinit done
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=0) slept=0x20
+[rwnx] bmsg_ioctl_handler
+[BK7258] power gate mask=0x00000400 enable=0 ret=0 reg=0x70002418
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=1) slept=0x220
+[rwnx] bmsg_ioctl_sender
+[hitf] del hw key idx=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x70002018
+[BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[BK7258-WIFI] pmq: phy_wakeup_reinit done
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=0) slept=0x20
+[rwnx] bmsg_ioctl_handler
+[BK7258] power gate mask=0x00000400 enable=0 ret=0 reg=0x70002418
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=1) slept=0x220
+[rwnx] bmsg_ioctl_sender
+[hitf] del hw key idx=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x70002018
+[BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[BK7258-WIFI] pmq: phy_wakeup_reinit done
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=0) slept=0x20
+[rwnx] bmsg_ioctl_handler
+[BK7258] power gate mask=0x00000400 enable=0 ret=0 reg=0x70002418
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=1) slept=0x220
+[rwnx] bmsg_ioctl_sender
+[wpa] RSN: flushing PMKID list in the driver
+[wpa] No enabled networks (1 disabled networks)
+[wpa] State: DISCONNECTED -> INACTIVE
+[wpa] Added interface wlan0
+[wpa] State: INACTIVE -> DISCONNECTED
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[wpa] auto_reconnect: count 0, timeout 0, disable_auto_reconnect_after_disconnect 0
+[wifi] sta started(7)
+[wifi] sta connecting
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[wifi] sta disconnecting
+[wifi] sta disconnected(7)
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[wpa] CTRL_IFACE: SELECT_NETWORK id=0
+[wpa] Setting scan request: 0.000000 sec
+[wpa] wpa_supplicant_scan
+[wpa] State: DISCONNECTED -> SCANNING
+[wpa] Scan SSID - hexdump_ascii(len=3):
+[wpa]     
+[(null)]  4c
+[(null)]  75
+[(null)]  76
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)] L
+[(null)] u
+[(null)] v
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[wpa] 
+[wpa] Starting AP scan for specific SSID: Luv
+[wpa] Add radio work 'scan'@0x28099fa8
+[wpa] First radio work item in the queue - schedule start immediately
+[wpa] Starting radio work 'scan'@0x28099fa8 after 0.003000 second wait
+[wpa] scan work start, deinit=0
+[wpa] req driver to scan
+[wpa] wpa_driver_scan2: Scan specified BSSID ff:ff:ff:ff:ff:ff
+[hitf] send scan req to driver
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x70002018
+[BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[BK7258-WIFI] pmq: phy_wakeup_reinit done
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=0) slept=0x20
+[rwnx] bmsg_ioctl_handler
+[wifid] [KW:]scanu_start_req:src_id=15,vif=0,dur=0,chan_cnt=14,ssid_len=3,bssid=0xffff-ffff-ffff
+[wifid] [KW:]scanu_start_req:ssid=Luv
+[rwnx] bmsg_ioctl_sender
+[wpa] evtq SCAN_STARTED(201) ret=0
+[wpa] Event SCAN_STARTED (47) received
+[wpa] Own scan request started a scan in 0.002000 seconds
+  state=CONNECTING(1) reason=SUCCESS(262)
+[wifi] sta connected(f)
+[BK7258-WIFI] connect: request accepted
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70000008
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70000018
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70000008
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70000018
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[wpa] nl80211: Scan timeout - try to abort it
+[wpa] nl80211: Try to get scan results
+[wpa] Event SCAN_RESULTS (3) received
+[wpa] Scan completed in 10.005000 seconds
+[hitf] get scan result: empty
+[wpa] BSS: Start scan result update 1
+[wpa] BSS: last_scan_res_used=0/0
+[wpa] New scan results available (own=1 ext=0)
+[rwnx] released_scan_results
+[wpa] Radio work 'scan'@0x28099fa8 done in 10.090000 seconds
+[wpa] radio_work_free('scan'@0x28099fa8): num_active_works --> 0
+[wpa] No suitable network found
+[wpa] No suitable network found
+[wpa] Setting scan request: 2.000000 sec
+  state=DISCONNECTED(2) reason=NO_AP_FOUND(257)
+[wpa] wpa_supplicant_scan
+[wpa] Scan SSID - hexdump_ascii(len=3):
+[wpa]     
+[(null)]  4c
+[(null)]  75
+[(null)]  76
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)] L
+[(null)] u
+[(null)] v
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[wpa] 
+[wpa] Starting AP scan for specific SSID: Luv
+[wpa] Add radio work 'scan'@0x28092e88
+[wpa] First radio work item in the queue - schedule start immediately
+[wpa] Starting radio work 'scan'@0x28092e88 after 0.003000 second wait
+[wpa] scan work start, deinit=0
+[wpa] req driver to scan
+[wpa] wpa_driver_scan2: Scan specified BSSID ff:ff:ff:ff:ff:ff
+[hitf] send scan req to driver
+[rwnx] bmsg_ioctl_sender
+[wpa] evtq SCAN_STARTED(201) ret=0
+[wpa] Event SCAN_STARTED (47) received
+[wpa] Own scan request started a scan in 0.003000 seconds
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70000008
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70000018
+[adc] release
+[cal] temp_code:38 - adc_code:502 - adc_trend:[15]:517->[16]:494
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70000008
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70000018
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[wpa] nl80211: Scan timeout - try to abort it
+[wpa] nl80211: Try to get scan results
+[wpa] Event SCAN_RESULTS (3) received
+[wpa] Scan completed in 10.004000 seconds
+[hitf] get scan result: empty
+[wpa] BSS: Start scan result update 2
+[wpa] BSS: last_scan_res_used=0/0
+[wpa] New scan results available (own=1 ext=0)
+[rwnx] released_scan_results
+[wpa] Radio work 'scan'@0x28092e88 done in 10.048000 seconds
+[wpa] radio_work_free('scan'@0x28092e88): num_active_works --> 0
+[wpa] No suitable network found
+[wpa] No suitable network found
+[wpa] Setting scan request: 2.000000 sec
+[wpa] wpa_supplicant_scan
+[wpa] Scan SSID - hexdump_ascii(len=3):
+[wpa]     
+[(null)]  4c
+[(null)]  75
+[(null)]  76
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)] L
+[(null)] u
+[(null)] v
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[wpa] 
+[wpa] Starting AP scan for specific SSID: Luv
+[wpa] Add radio work 'scan'@0x28092e88
+[wpa] First radio work item in the queue - schedule start immediately
+[wpa] Starting radio work 'scan'@0x28092e88 after 0.003000 second wait
+[wpa] scan work start, deinit=0
+[wpa] req driver to scan
+[wpa] wpa_driver_scan2: Scan specified BSSID ff:ff:ff:ff:ff:ff
+[hitf] send scan req to driver
+[rwnx] bmsg_ioctl_sender
+[wpa] evtq SCAN_STARTED(201) ret=0
+[wpa] Event SCAN_STARTED (47) received
+[wpa] Own scan request started a scan in 0.002000 seconds
+[bk7258_wifi_runtime] connect: not connected after 30 s; final state=DISCONNECTED(2) reason=NO_AP_FOUND(257)
+nsh> [K[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70000008
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70000018
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70000008
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70000018
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[wpa] nl80211: Scan timeout - try to abort it
+[wpa] nl80211: Try to get scan results
+[wpa] Event SCAN_RESULTS (3) received
+[wpa] Scan completed in 10.005000 seconds
+[hitf] get scan result: empty
+[wpa] BSS: Start scan result update 3
+[wpa] BSS: last_scan_res_used=0/0
+[wpa] New scan results available (own=1 ext=0)
+[rwnx] released_scan_results
+[wpa] Radio work 'scan'@0x28092e88 done in 10.049000 seconds
+[wpa] radio_work_free('scan'@0x28092e88): num_active_works --> 0
+[wpa] No suitable network found
+[wpa] No suitable network found
+[wpa] Setting scan request: 2.000000 sec
+[wpa] wpa_supplicant_scan
+[wpa] Scan SSID - hexdump_ascii(len=3):
+[wpa]     
+[(null)]  4c
+[(null)]  75
+[(null)]  76
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)] L
+[(null)] u
+[(null)] v
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[wpa] 
+[wpa] Starting AP scan for specific SSID: Luv
+[wpa] Add radio work 'scan'@0x28092e60
+[wpa] First radio work item in the queue - schedule start immediately
+[wpa] Starting radio work 'scan'@0x28092e60 after 0.004000 second wait
+[wpa] scan work start, deinit=0
+[wpa] req driver to scan
+[wpa] wpa_driver_scan2: Scan specified BSSID ff:ff:ff:ff:ff:ff
+[hitf] send scan req to driver
+[rwnx] bmsg_ioctl_sender
+[wpa] evtq SCAN_STARTED(201) ret=0
+[wpa] Event SCAN_STARTED (47) received
+[wpa] Own scan request started a scan in 0.002000 seconds
+[wpa] nl80211: Scan timeout - try to abort it
+[wpa] nl80211: Try to get scan results
+[wpa] Event SCAN_RESULTS (3) received
+[wpa] Scan completed in 10.004000 seconds
+[hitf] get scan result: empty
+[wpa] BSS: Start scan result update 4
+[wpa] BSS: last_scan_res_used=0/0
+[wpa] New scan results available (own=1 ext=0)
+[rwnx] released_scan_results
+[wpa] Radio work 'scan'@0x28092e60 done in 10.048000 seconds
+[wpa] radio_work_free('scan'@0x28092e60): num_active_works --> 0
+[wpa] No suitable network found
+[wpa] No suitable network found
+[wpa] Setting scan request: 2.000000 sec
+[wpa] wpa_supplicant_scan
+[wpa] Scan SSID - hexdump_ascii(len=3):
+[wpa]     
+[(null)]  4c
+[(null)]  75
+[(null)]  76
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)] L
+[(null)] u
+[(null)] v
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[wpa] 
+[wpa] Starting AP scan for specific SSID: Luv
+[wpa] Add radio work 'scan'@0x28099f80
+[wpa] First radio work item in the queue - schedule start immediately
+[wpa] Starting radio work 'scan'@0x28099f80 after 0.003000 second wait
+[wpa] scan work start, deinit=0
+[wpa] req driver to scan
+[wpa] wpa_driver_scan2: Scan specified BSSID ff:ff:ff:ff:ff:ff
+[hitf] send scan req to driver
+[rwnx] bmsg_ioctl_sender
+[wpa] evtq SCAN_STARTED(201) ret=0
+[wpa] Event SCAN_STARTED (47) received
+[wpa] Own scan request started a scan in 0.003000 seconds
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70000008
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70000018
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70000008
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70000018
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+echo LLALIVE
+LLALIVE
+nsh> [K[wpa] nl80211: Scan timeout - try to abort it
+[wpa] nl80211: Try to get scan results
+[wpa] Event SCAN_RESULTS (3) received
+[wpa] Scan completed in 10.004000 seconds
+[hitf] get scan result: empty
+[wpa] BSS: Start scan result update 5
+[wpa] BSS: last_scan_res_used=0/0
+[wpa] New scan results available (own=1 ext=0)
+[rwnx] released_scan_results
+[wpa] Radio work 'scan'@0x28099f80 done in 10.048000 seconds
+[wpa] radio_work_free('scan'@0x28099f80): num_active_works --> 0
+[wpa] No suitable network found
+[wpa] No suitable network found
+[wpa] Setting scan request: 2.000000 sec
+[wpa] wpa_supplicant_scan
+[wpa] Scan SSID - hexdump_ascii(len=3):
+[wpa]     
+[(null)]  4c
+[(null)]  75
+[(null)]  76
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)] L
+[(null)] u
+[(null)] v
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[wpa] 
+[wpa] Starting AP scan for specific SSID: Luv
+[wpa] Add radio work 'scan'@0x28099f80
+[wpa] First radio work item in the queue - schedule start immediately
+[wpa] Starting radio work 'scan'@0x28099f80 after 0.003000 second wait
+[wpa] scan work start, deinit=0
+[wpa] req driver to scan
+[wpa] wpa_driver_scan2: Scan specified BSSID ff:ff:ff:ff:ff:ff
+[hitf] send scan req to driver
+[rwnx] bmsg_ioctl_sender
+[wpa] evtq SCAN_STARTED(201) ret=0
+[wpa] Event SCAN_STARTED (47) received
+[wpa] Own scan request started a scan in 0.002000 seconds
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0xf0000008
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70000018
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70000008
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70000018
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[wpa] nl80211: Scan timeout - try to abort it
+[wpa] nl80211: Try to get scan results
+[wpa] Event SCAN_RESULTS (3) received
+[wpa] Scan completed in 10.004000 seconds
+[hitf] get scan result: empty
+[wpa] BSS: Start scan result update 6
+[wpa] BSS: last_scan_res_used=0/0
+[wpa] New scan results available (own=1 ext=0)
+[rwnx] released_scan_results
+[wpa] Radio work 'scan'@0x28099f80 done in 10.048000 seconds
+[wpa] radio_work_free('scan'@0x28099f80): num_active_works --> 0
+[wpa] No suitable network found
+[wpa] No suitable network found
+[wpa] Setting scan request: 2.000000 sec
+[wpa] wpa_supplicant_scan
+[wpa] Scan SSID - hexdump_ascii(len=3):
+[wpa]     
+[(null)]  4c
+[(null)]  75
+[(null)]  76
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)] L
+[(null)] u
+[(null)] v
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[wpa] 
+[wpa] Starting AP scan for specific SSID: Luv
+[wpa] Add radio work 'scan'@0x28099f80
+[wpa] First radio work item in the queue - schedule start immediately
+[wpa] Starting radio work 'scan'@0x28099f80 after 0.003000 second wait
+[wpa] scan work start, deinit=0
+[wpa] req driver to scan
+[wpa] wpa_driver_scan2: Scan specified BSSID ff:ff:ff:ff:ff:ff
+[hitf] send scan req to driver
+[rwnx] bmsg_ioctl_sender
+[wpa] evtq SCAN_STARTED(201) ret=0
+[wpa] Event SCAN_STARTED (47) received
+[wpa] Own scan request started a scan in 0.002000 seconds
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70000008
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70000018
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70000008
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70000018
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[wpa] nl80211: Scan timeout - try to abort it
+[wpa] nl80211: Try to get scan results
+[wpa] Event SCAN_RESULTS (3) received
+[wpa] Scan completed in 10.003000 seconds
+[hitf] get scan result: empty
+[wpa] BSS: Start scan result update 7
+[wpa] BSS: last_scan_res_used=0/0
+[wpa] New scan results available (own=1 ext=0)
+[rwnx] released_scan_results
+[wpa] Radio work 'scan'@0x28099f80 done in 10.048000 seconds
+[wpa] radio_work_free('scan'@0x28099f80): num_active_works --> 0
+[wpa] No suitable network found
+[wpa] No suitable network found
+[wpa] Setting scan request: 2.000000 sec
+[wpa] wpa_supplicant_scan
+[wpa] Scan SSID - hexdump_ascii(len=3):
+[wpa]     
+[(null)]  4c
+[(null)]  75
+[(null)]  76
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)] L
+[(null)] u
+[(null)] v
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[wpa] 
+[wpa] Starting AP scan for specific SSID: Luv
+[wpa] Add radio work 'scan'@0x28099f80
+[wpa] First radio work item in the queue - schedule start immediately
+[wpa] Starting radio work 'scan'@0x28099f80 after 0.004000 second wait
+[wpa] scan work start, deinit=0
+[wpa] req driver to scan
+[wpa] wpa_driver_scan2: Scan specified BSSID ff:ff:ff:ff:ff:ff
+[hitf] send scan req to driver
+[rwnx] bmsg_ioctl_sender
+[wpa] evtq SCAN_STARTED(201) ret=0
+[wpa] Event SCAN_STARTED (47) received
+[wpa] Own scan request started a scan in 0.002000 seconds
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70000008
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70000018
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70000008
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70000018
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[wpa] nl80211: Scan timeout - try to abort it
+[wpa] nl80211: Try to get scan results
+[wpa] Event SCAN_RESULTS (3) received
+[wpa] Scan completed in 10.005000 seconds
+[hitf] get scan result: empty
+[wpa] BSS: Start scan result update 8
+[wpa] BSS: last_scan_res_used=0/0
+[wpa] New scan results available (own=1 ext=0)
+[rwnx] released_scan_results
+[wpa] Radio work 'scan'@0x28099f80 done in 10.048000 seconds
+[wpa] radio_work_free('scan'@0x28099f80): num_active_works --> 0
+[wpa] No suitable network found
+[wpa] No suitable network found
+[wpa] Setting scan request: 2.000000 sec
+[wpa] wpa_supplicant_scan
+[wpa] Scan SSID - hexdump_ascii(len=3):
+[wpa]     
+[(null)]  4c
+[(null)]  75
+[(null)]  76
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)] L
+[(null)] u
+[(null)] v
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[wpa] 
+[wpa] Starting AP scan for specific SSID: Luv
+[wpa] Add radio work 'scan'@0x28099f80
+[wpa] First radio work item in the queue - schedule start immediately
+[wpa] Starting radio work 'scan'@0x28099f80 after 0.003000 second wait
+[wpa] scan work start, deinit=0
+[wpa] req driver to scan
+[wpa] wpa_driver_scan2: Scan specified BSSID ff:ff:ff:ff:ff:ff
+[hitf] send scan req to driver
+[rwnx] bmsg_ioctl_sender
+[wpa] evtq SCAN_STARTED(201) ret=0
+[wpa] Event SCAN_STARTED (47) received
+[wpa] Own scan request started a scan in 0.002000 seconds
+[wpa] nl80211: Scan timeout - try to abort it
+[wpa] nl80211: Try to get scan results
+[wpa] Event SCAN_RESULTS (3) received
+[wpa] Scan completed in 10.004000 seconds
+[hitf] get scan result: empty
+[wpa] BSS: Start scan result update 9
+[wpa] BSS: last_scan_res_used=0/0
+[wpa] New scan results available (own=1 ext=0)
+[rwnx] released_scan_results
+[wpa] Radio work 'scan'@0x28099f80 done in 10.048000 seconds
+[wpa] radio_work_free('scan'@0x28099f80): num_active_works --> 0
+[wpa] No suitable network found
+[wpa] No suitable network found
+[wpa] Setting scan request: 2.000000 sec
+[wpa] wpa_supplicant_scan
+[wpa] Scan SSID - hexdump_ascii(len=3):
+[wpa]     
+[(null)]  4c
+[(null)]  75
+[(null)]  76
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)] L
+[(null)] u
+[(null)] v
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[wpa] 
+[wpa] Starting AP scan for specific SSID: Luv
+[wpa] Add radio work 'scan'@0x28099f80
+[wpa] First radio work item in the queue - schedule start immediately
+[wpa] Starting radio work 'scan'@0x28099f80 after 0.003000 second wait
+[wpa] scan work start, deinit=0
+[wpa] req driver to scan
+[wpa] wpa_driver_scan2: Scan specified BSSID ff:ff:ff:ff:ff:ff
+[hitf] send scan req to driver
+[rwnx] bmsg_ioctl_sender
+[wpa] evtq SCAN_STARTED(201) ret=0
+[wpa] Event SCAN_STARTED (47) received
+[wpa] Own scan request started a scan in 0.002000 seconds
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70000008
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70000018
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70000008
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70000018
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[wpa] nl80211: Scan timeout - try to abort it
+[wpa] nl80211: Try to get scan results
+[wpa] Event SCAN_RESULTS (3) received
+[wpa] Scan completed in 10.005000 seconds
+[hitf] get scan result: empty
+[wpa] BSS: Start scan result update 10
+[wpa] BSS: last_scan_res_used=0/0
+[wpa] New scan results available (own=1 ext=0)
+[rwnx] released_scan_results
+[wpa] Radio work 'scan'@0x28099f80 done in 10.048000 seconds
+[wpa] radio_work_free('scan'@0x28099f80): num_active_works --> 0
+[wpa] No suitable network found
+[wpa] No suitable network found
+[wpa] Setting scan request: 2.000000 sec
+[wpa] wpa_supplicant_scan
+[wpa] Scan SSID - hexdump_ascii(len=3):
+[wpa]     
+[(null)]  4c
+[(null)]  75
+[(null)]  76
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)] L
+[(null)] u
+[(null)] v
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[wpa] 
+[wpa] Starting AP scan for specific SSID: Luv
+[wpa] Add radio work 'scan'@0x28099f80
+[wpa] First radio work item in the queue - schedule start immediately
+[wpa] Starting radio work 'scan'@0x28099f80 after 0.003000 second wait
+[wpa] scan work start, deinit=0
+[wpa] req driver to scan
+[wpa] wpa_driver_scan2: Scan specified BSSID ff:ff:ff:ff:ff:ff
+[hitf] send scan req to driver
+[rwnx] bmsg_ioctl_sender
+[wpa] evtq SCAN_STARTED(201) ret=0
+[wpa] Event SCAN_STARTED (47) received
+[wpa] Own scan request started a scan in 0.002000 seconds
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70000008
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70000018
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70000008
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70000018
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[wpa] nl80211: Scan timeout - try to abort it
+[wpa] nl80211: Try to get scan results
+[wpa] Event SCAN_RESULTS (3) received
+[wpa] Scan completed in 10.004000 seconds
+[hitf] get scan result: empty
+[wpa] BSS: Start scan result update 11
+[wpa] BSS: last_scan_res_used=0/0
+[wpa] New scan results available (own=1 ext=0)
+[rwnx] released_scan_results
+[wpa] Radio work 'scan'@0x28099f80 done in 10.048000 seconds
+[wpa] radio_work_free('scan'@0x28099f80): num_active_works --> 0
+[wpa] No suitable network found
+[wpa] No suitable network found
+[wpa] Setting scan request: 2.000000 sec
+[wpa] wpa_supplicant_scan
+[wpa] Scan SSID - hexdump_ascii(len=3):
+[wpa]     
+[(null)]  4c
+[(null)]  75
+[(null)]  76
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)] L
+[(null)] u
+[(null)] v
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[wpa] 
+[wpa] Starting AP scan for specific SSID: Luv
+[wpa] Add radio work 'scan'@0x28099f80
+[wpa] First radio work item in the queue - schedule start immediately
+[wpa] Starting radio work 'scan'@0x28099f80 after 0.003000 second wait
+[wpa] scan work start, deinit=0
+[wpa] req driver to scan
+[wpa] wpa_driver_scan2: Scan specified BSSID ff:ff:ff:ff:ff:ff
+[hitf] send scan req to driver
+[rwnx] bmsg_ioctl_sender
+[wpa] evtq SCAN_STARTED(201) ret=0
+[wpa] Event SCAN_STARTED (47) received
+[wpa] Own scan request started a scan in 0.002000 seconds
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70000008
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70000018
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70000008
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70000018
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[wpa] nl80211: Scan timeout - try to abort it
+[wpa] nl80211: Try to get scan results
+[wpa] Event SCAN_RESULTS (3) received
+[wpa] Scan completed in 10.005000 seconds
+[hitf] get scan result: empty
+[wpa] BSS: Start scan result update 12
+[wpa] BSS: last_scan_res_used=0/0
+[wpa] New scan results available (own=1 ext=0)
+[rwnx] released_scan_results
+[wpa] Radio work 'scan'@0x28099f80 done in 10.048000 seconds
+[wpa] radio_work_free('scan'@0x28099f80): num_active_works --> 0
+[wpa] No suitable network found
+[wpa] No suitable network found
+[wpa] Setting scan request: 2.000000 sec
+[wpa] wpa_supplicant_scan
+[wpa] Scan SSID - hexdump_ascii(len=3):
+[wpa]     
+[(null)]  4c
+[(null)]  75
+[(null)]  76
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)] L
+[(null)] u
+[(null)] v
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[wpa] 
+[wpa] Starting AP scan for specific SSID: Luv
+[wpa] Add radio work 'scan'@0x28099f80
+[wpa] First radio work item in the queue - schedule start immediately
+[wpa] Starting radio work 'scan'@0x28099f80 after 0.003000 second wait
+[wpa] scan work start, deinit=0
+[wpa] req driver to scan
+[wpa] wpa_driver_scan2: Scan specified BSSID ff:ff:ff:ff:ff:ff
+[hitf] send scan req to driver
+[rwnx] bmsg_ioctl_sender
+[wpa] evtq SCAN_STARTED(201) ret=0
+[wpa] Event SCAN_STARTED (47) received
+[wpa] Own scan request started a scan in 0.002000 seconds
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70000008
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70000018
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x70000008
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x70000018
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[wpa] nl80211: Scan timeout - try to abort it
+[wpa] nl80211: Try to get scan results
+[wpa] Event SCAN_RESULTS (3) received
+[wpa] Scan completed in 10.005000 seconds
+[hitf] get scan result: empty
+[wpa] BSS: Start scan result update 13
+[wpa] BSS: last_scan_res_used=0/0
+[wpa] New scan results available (own=1 ext=0)
+[rwnx] released_scan_results
+[wpa] Radio work 'scan'@0x28099f80 done in 10.048000 seconds
+[wpa] radio_work_free('scan'@0x28099f80): num_active_works --> 0
+[wpa] No suitable network found
+[wpa] No suitable network found
+[wpa] Setting scan request: 2.000000 sec

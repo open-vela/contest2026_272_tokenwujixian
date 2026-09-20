@@ -1,0 +1,2336 @@
+
+nsh> ?
+help usage:  help [-v] [<cmd>]
+
+    .           cp          expr        pkill       reboot      true        
+    [           cmp         false       ls          rm          truncate    
+    ?           dirname     fdinfo      mkdir       rmdir       uname       
+    alias       dd          free        mkrd        rpmsg       umount      
+    unalias     df          help        mount       rptun       unset       
+    arp         dmesg       hexdump     mv          set         uptime      
+    basename    echo        ifconfig    pidof       sleep       usleep      
+    break       env         ifdown      printf      source      watch       
+    cat         exec        ifup        ps          test        xd          
+    cd          exit        kill        pwd         time        wait        
+
+Builtin Apps:
+    bk7258_psram_test       sh                      bk7258_wifi_runtime     
+    cu                      ping                    lvgldemo                
+    renew                   bk7258_wifi_probe       
+    nsh                     bk7258_platform_test    
+nsh>     break       env         ifdown      printf      source      watch        
+nsh: break: too many arguments
+nsh> bk7258_wifi_runtime connectr Luv <PSK-REDACTED>
+[   20.881219] [BK7258] Wi-Fi application init starting
+[   20.884844] [BK7258-WIFI] dvfs pre-vote r0=0x00000033 vcore=0xb
+[   20.888688] [BK7258-WIFI] dvfs pre-vote sel=3 div=3 bus=0
+[   20.892407] [BK7258-WIFI] pmq: cpu_freq vote module=41 freq=3 ret=0
+[   20.896875] [BK7258-WIFI] dvfs post-vote r0=0x00000033 vcore=0xc
+[   20.900750] [BK7258-WIFI] dvfs post-vote sel=3 div=3 bus=0
+[   20.904219] [BK7258-WIFI] boot: cpu_freq vote 120M ret=0
+[   20.909157] [BK7258] clock gate mask=0x08000000 enable=1 ret=0 reg=0x08098284
+[   20.916125] [BK7258] clock gate mask=0x04000000 enable=1 ret=0 reg=0x0c098284
+[   20.924125] [init] bandgap_calm_in_otp=0x1c
+[   20.927438] [BK7258-WIFI] runtime: bandgap trim ret=0
+[   20.932688] [initseq] osal mutex-init enter
+[   20.936594] [initseq] osal mutex-init leave ret=0
+[   20.941250] [initseq] osal sem-init enter max_count ret=1
+[   20.946625] [initseq] osal sem-init leave ret=0
+[   20.951188] [BK7258-WIFI] pmq: lpo_src set to ROSC (pre-adapter) r41=0x00000232
+[   20.960407] [aonrtc] pre-init tick=0 -> 0
+[   20.963282] [aon_rtc] bk_aon_rtc_driver_init[+]
+[   20.966938] [aon_rtc] aon_rtc_hw_init[+]cur_tick=0
+[   20.971907] [aon_rtc] aon_rtc_hw_init[-]cur_tick=0
+[   20.976375] [aon_rtc] bk_aon_rtc_driver_init[-]
+[   20.982907] [aonrtc] post-init tick=288 -> 352
+[   20.986063] [BK7258-WIFI] runtime: bind adapters
+[nv] vnd_cal_ve[   20.991344] [BK7258-WIFI] vnd_cal overlay applied
+[   20.995844] [BK7258-WIFI] runtime: bk_wifi_init begin
+[   21.000907] [BK7258-WIFI] int init: lo=0xa0000010 hi=0x8040001f
+[   21.006750] [wifi] wifi initing
+[   21.010688] [BK7258-WIFI] clk id=26 en=1 first
+[   21.014313] [BK7258-WIFI] clk id=27 en=1 first
+rsion = 24-04-10 00:00:[   21.020125] [initseq] 87a rwnxl_init enter
+00
+rwnx_cal_set_rfconfig(0x102) phy on; rf off
+[   21.031219] [initseq] osal queue-init enter 'fhost_txbuf'
+[   21.034750] [initseq] osal queue-init leave 'fhost_txbuf' ret=0
+[   21.039469] [initseq] osal queue-init enter 'fhost_txbuf'
+[   21.044813] [initseq] osal queue-init leave 'fhost_txbuf' ret=0
+[   21.050688] [initseq] osal queue-init enter 'fhost_txbuf'
+[   21.056125] [initseq] osal queue-init leave 'fhost_txbuf' ret=0
+[   21.061938] [initseq] osal queue-init enter 'fhost_txbuf'
+[   21.067344] [initseq] osal queue-init leave 'fhost_txbuf' ret=0
+[   21.073188] [initseq] osal queue-init enter 'fhost_txbuf'
+[   21.078594] [initseq] osal queue-init leave 'fhost_txbuf' ret=0
+[   21.084532] [initseq] osal queue-init enter 'fhost_rxbuf'
+[   21.089844] [initseq] osal queue-init leave 'fhost_rxbuf' ret=0
+[   21.095688] [initseq] osal queue-init enter 'fhost_uf_rxbuf'
+[   21.101344] [initseq] osal queue-init leave 'fhost_uf_rxbuf' ret=0
+[   21.107563] [initseq] osal queue-init enter 'rxdesc_queue'
+[   21.112969] [initseq] osal queue-init leave 'rxdesc_queue' ret=0
+[   21.120063] [BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[   21.125125] [BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[   21.132250] [initseq] 87b rwnxl_init leave
+[   21.135563] [initseq] 90a calibration_init enter
+[   21.140125] [BK7258-WIFI] clk id=5 en=1 first
+[cal] load polar tab magic code error 0xffff[   21.153375] [adc] release
+ffff
+[cal] get rfcali_mode:1
+[cal] temp in otp is:563
+[cal] temp_code=39,dmodldosel=4,Dgmdc=7
+[cal] cali bias(f)
+[cal] retry_count=4,dlypc_i=2,stateI=[0,60,30,0],dlypc_q=2,stateQ=[0,60,30,0]
+[   21.264813] [adc] release
+[cal] cali bias(f)
+[cal] calibration_main(e1c2bcd) over
+[cal] rf cali flag in flash: valid
+flash txpwr table:0xf
+[cal] load polar tab magic code error 0xffffffff
+[   21.326094] [adc] release
+[cal] retry_count=5,dlypc_i=2,stateI=[0,0,36,0],dlypc_q=2,stateQ=[0,0,31,0]
+[cal] temp_code:39 - adc_code:496 - adc_trend:[13]:563->[16]:494
+[   21.338188] [adc] release
+xtal_cali:45
+[cal] --init_xtal = 45
+[cal] gtx_dcorPA=0x15->0x15
+[cal] -----pwr_gain:40, rate=54, g_idx:40, shift_b:1, shift_g:2
+[cal] idx:42=40+(2),r:54,xtal:45,pwr_gain:a8ab713a
+[   21.349282] [initseq] 90b calibration_init leave ret=0
+[   21.352938] [initseq] 97a cfg_param_init enter
+[   21.357219] [initseq] 97b cfg_param_init leave ret=0
+[   21.362094] [initseq] 105a rwnx_intf_init enter
+[   21.366563] [initseq] osal mutex-init enter
+[   21.370750] [initseq] osal mutex-init leave ret=0
+[   21.375375] [initseq] osal sem-init enter max_count ret=1
+[   21.380750] [initseq] osal sem-init leave ret=0
+[   21.385250] [initseq] osal thread-create enter 'kmsgbk'
+[   21.391250] [initseq] osal thread-create leave 'kmsgbk' ret=0
+[   21.396157] [initseq] osal queue-init enter 'core_queue'
+[   21.401532] [initseq] osal queue-init leave 'core_queue' ret=0
+[   21.407250] [initseq] osal thread-create enter 'core_thread'
+[   21.413250] [initseq] osal thread-create leave 'core_thread' ret=0
+[   21.419063] [initseq] 1245a rwnxl_sleep enter
+[   21.424188] [initseq] 1245b rwnxl_sleep leave
+[   21.427657] [initseq] 105b rwnx_intf_init leave ret=0
+[   21.432688] [initseq] 120a fhost_rxbuf_push enter
+[   21.437344] [initseq] 120b fhost_rxbuf_push leave ret=0
+[   21.442532] [initseq] 123a wpas_thread_start enter
+[   21.447344] [initseq] osal queue-init enter 'wpah_queue'
+[   21.452657] [initseq] osal queue-init leave 'wpah_queue' ret=0
+[   21.458407] [initseq] osal thread-create enter 'wpas_thread'
+[   21.464438] [initseq] osal thread-create leave 'wpas_thread' ret=0
+[   21.470157] [initseq] osal mutex-init enter
+[   21.474344] [initseq] osal mutex-init leave ret=0
+[   21.478969] [initseq] osal mutex-init enter
+[   21.483157] [initseq] osal mutex-init leave ret=0
+[   21.487813] [initseq] 123b wpas_thread_start leave
+[   21.492563] [initseq] 126a coex_ictw_report enter
+[   21.497250] [initseq] 126b coex_ictw_report leave
+[   21.501938] [wifi] wifi inited(1) ret(0)
+[   21.505844] [BK7258-WIFI] runtime: bk_wifi_init complete
+[   21.511563] [BK7258-WIFI] mac: flash c8:47:8c:46:02:15
+[   21.516688] [BK7258-WIFI] parity: null-vs-authoritative: (none)
+[   21.522313] [BK7258-WIFI] pmq: cpu_freq vote module=41 freq=1 ret=0
+[   21.528344] [BK7258-WIFI] dvfs post-init-60m r0=0x00000037 vcore=0xb
+[   21.534657] [BK7258-WIFI] dvfs post-init-60m sel=3 div=7 bus=0
+[   21.540500] [BK7258-WIFI] init done: cpu_freq vote 60M ret=0
+[   21.546125] [BK7258] Wi-Fi application init completed
+[bk7258_wifi_runtime] connect: ssid="Luv", psk 8 chars
+  state=IDLE(0) reason=SUCCESS(262)
+[   21.593907] [BK7258-WIFI] connect: ssid="Luv" (3), psk 8 chars
+[   21.598250] [wifi] sta configuring
+[   21.600813] [wifi] sta config, ssid=Luv password=<PSK-REDACTED> security=0
+[   21.604938] [wifi] sta configured(5)
+[   21.607594] [wifi] sta starting
+[   21.610063] [wifi] sta get sta_config, ssid=Luv password=<PSK-REDACTED> security=0
+[   21.615219] [initseq] osal sem-init enter max_count ret=1
+[   21.620594] [initseq] osal sem-init leave ret=0
+[   21.625500] [wifi] sta disconnecting
+[   21.628563] [wifi] sta disconnected(5)
+[   21.632282] [initseq] osal sem-init enter max_count ret=1
+[   21.637688] [initseq] osal sem-init leave ret=0
+[   21.642344] [wifi] init 1st vif
+[   21.645375] [initseq] osal sem-init enter max_count ret=1
+[   21.650688] [initseq] osal sem-init leave ret=0
+[   21.655469] [BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[   21.656438] [BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[   21.656438] [BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[   21.656782] [BK7258-WIFI] pmq: phy_wakeup_reinit done
+[   21.657094] [rwnx] bmsg_ioctl_handler
+[   21.664250] [rwnx] bmsg_ioctl_sender
+[   21.667282] [initseq] osal sem-init enter max_count ret=1
+[   21.671407] [initseq] osal sem-init leave ret=0
+[   21.675188] [BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[   21.676500] [BK7258-WIFI] pmq: phy_wakeup_reinit done
+[   21.677219] [rwnx] bmsg_ioctl_handler
+[   21.682407] [rwnx] bmsg_ioctl_sender
+[   21.685344] [rwnx] PHY features: [NSS=1][CHBW=40][LDPC][VHT][HE][BFMEE][MUMIMORX]x»
+[   21.689875] [rwnx] FW features: [BCN][AUTOBCN][HWSCAN][CMON][MROLE][PS][DPSM][AMPDU][CHNL_CTXT][REORD][P2P][P2P_GO][UMAC][VHT][HE][BFMEE][WAPI][MFP][MU_MIMO_RX][TWT][PM_DSSS_ONLY]
+[   21.702157] [rwnx] HT supp 1, VHT supp 1, HE supp 1
+[   21.706719] [initseq] osal sem-init enter max_count ret=1
+[   21.712125] [initseq] osal sem-init leave ret=0
+[   21.716782] [BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[   21.717719] [BK7258-WIFI] pmq: phy_wakeup_reinit done
+[   21.717782] [rwnx] bmsg_ioctl_handler
+[   21.722750] [rwnx] bmsg_ioctl_sender
+[   21.725657] [initseq] osal sem-init enter max_count ret=1
+[   21.729750] [initseq] osal sem-init leave ret=0
+[   21.733875] [BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[   21.734813] [BK7258-WIFI] pmq: phy_wakeup_reinit done
+[   21.734938] [rwnx] bmsg_ioctl_handler
+[   21.739750] [rwnx] bmsg_ioctl_sender
+[   21.742688] [initseq] osal sem-init enter max_count ret=1
+[   21.746782] [initseq] osal sem-init leave ret=0
+[   21.751000] [BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[   21.751938] [BK7258-WIFI] pmq: phy_wakeup_reinit done
+[   21.751938] [rwnx] bmsg_ioctl_handler
+[   21.756657] [BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[   21.761375] [BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[   21.768688] [BK7258-WIFI] pmq: lpo_src=2
+[   21.774563] [rwnx] bmsg_ioctl_sender
+[   21.777438] [initseq] osal sem-init enter max_count ret=1
+[   21.781657] [initseq] osal sem-init leave ret=0
+[   21.785313] [wpa] sizeof(wpa_supplicant)=1096
+[   21.788938] [wpa] wpa_supplicant v2.10
+[   21.792875] [wpa] Successfully initialized wpa_supplicant
+[   21.798532] [wpa] Initializing interface 'wlan0' conf 'N/A' driver 'default' ctrl_interface 'N/A' bridge 'N/A'
+[   21.808375] [wpa] Priority group 0
+[   21.811282] [wpa]    id=0 ssid=''
+[   21.814907] [initseq] osal sem-init enter max_count ret=1
+[   21.819813] [initseq] osal sem-init leave ret=0
+[   21.824625] [BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[   21.825407] [BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[   21.825563] [BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[   21.825938] [BK7258-WIFI] pmq: phy_wakeup_reinit done
+[   21.826657] [rwnx] bmsg_ioctl_handler
+[wifid] mm_add_if_req: vif_idx=0, type=0, p2p=0, status=0
+[   21.835907] [rwnx] bmsg_ioctl_sender
+[   21.838782] [hitf] add vif0, type=2, status=0
+[   21.842125] [wpa] create fsocket_init:4
+[   21.845407] [wpa] create fsocket_init:23
+[   21.849719] [wpa] Add interface wlan0 to a new radio N/A
+[   21.855344] [wpa] wpa_dInit
+[   21.857657] [wpa] create fsocket_init:34978
+[   21.862125] [wpa] Own MAC address: c8:47:8c:46:02:15
+[   21.866688] [hitf] del hw key idx=0
+[   21.869938] [initseq] osal sem-init enter max_count ret=1
+[   21.875250] [initseq] osal sem-init leave ret=0
+[   21.879969] [BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[   21.880000] [BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[   21.880000] [BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[   21.880344] [BK7258-WIFI] pmq: phy_wakeup_reinit done
+[   21.881063] [rwnx] bmsg_ioctl_handler
+[   21.886375] [rwnx] bmsg_ioctl_sender
+[   21.889407] [hitf] del hw key idx=0
+[   21.892157] [initseq] osal sem-init enter max_count ret=1
+[   21.896250] [initseq] osal sem-init leave ret=0
+[   21.900063] [BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[   21.900000] [BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[   21.900157] [BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[   21.900594] [BK7258-WIFI] pmq: phy_wakeup_reinit done
+[   21.900969] [rwnx] bmsg_ioctl_handler
+[   21.906157] [rwnx] bmsg_ioctl_sender
+[   21.909219] [hitf] del hw key idx=0
+[   21.911875] [initseq] osal sem-init enter max_count ret=1
+[   21.915969] [initseq] osal sem-init leave ret=0
+[   21.920313] [BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[   21.921063] [BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[   21.921313] [BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[   21.921688] [BK7258-WIFI] pmq: phy_wakeup_reinit done
+[   21.922157] [rwnx] bmsg_ioctl_handler
+[   21.927250] [rwnx] bmsg_ioctl_sender
+[   21.930282] [hitf] del hw key idx=0
+[   21.932938] [initseq] osal sem-init enter max_count ret=1
+[   21.937125] [initseq] osal sem-init leave ret=0
+[   21.941375] [BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[   21.942219] [BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[   21.942500] [BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[   21.942813] [BK7258-WIFI] pmq: phy_wakeup_reinit done
+[   21.943313] [rwnx] bmsg_ioctl_handler
+[   21.948469] [rwnx] bmsg_ioctl_sender
+[   21.951438] [hitf] del hw key idx=0
+[   21.954157] [initseq] osal sem-init enter max_count ret=1
+[   21.958250] [initseq] osal sem-init leave ret=0
+[   21.962625] [BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[   21.963344] [BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[   21.963625] [BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[   21.963938] [BK7258-WIFI] pmq: phy_wakeup_reinit done
+[   21.964407] [rwnx] bmsg_ioctl_handler
+[   21.969500] [rwnx] bmsg_ioctl_sender
+[   21.972500] [hitf] del hw key idx=0
+[   21.975157] [initseq] osal sem-init enter max_count ret=1
+[   21.979282] [initseq] osal sem-init leave ret=0
+[   21.983782] [BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[   21.984532] [BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[   21.984750] [BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[   21.984094] [BK7258-WIFI] pmq: phy_wakeup_reinit done
+[   21.985594] [rwnx] bmsg_ioctl_handler
+[   21.990688] [rwnx] bmsg_ioctl_sender
+[   21.993813] [wpa] RSN: flushing PMKID list in the driver
+[   21.996782] [wpa] No enabled networks (1 disabled networks)
+[   22.002375] [wpa] State: DISCONNECTED -> INACTIVE
+[   22.007250] [wpa] Added interface wlan0
+[   22.010813] [wpa] State: INACTIVE -> DISCONNECTED
+[   22.016250] [initseq] osal sem-init enter max_count ret=1
+[   22.020688] [initseq] osal sem-init leave ret=0
+[   22.025657] [initseq] osal sem-init enter max_count ret=1
+[   22.030563] [initseq] osal sem-init leave ret=0
+[   22.035438] [initseq] osal sem-init enter max_count ret=1
+[   22.040375] [initseq] osal sem-init leave ret=0
+[   22.045250] [initseq] osal sem-init enter max_count ret=1
+[   22.050250] [initseq] osal sem-init leave ret=0
+[   22.055125] [initseq] osal sem-init enter max_count ret=1
+[   22.060125] [initseq] osal sem-init leave ret=0
+[   22.064938] [initseq] osal sem-init enter max_count ret=1
+[   22.070063] [initseq] osal sem-init leave ret=0
+[   22.074844] [initseq] osal sem-init enter max_count ret=1
+[   22.079875] [initseq] osal sem-init leave ret=0
+[   22.084719] [initseq] osal sem-init enter max_count ret=1
+[   22.089719] [initseq] osal sem-init leave ret=0
+[   22.094313] [wpa] auto_reconnect: count 0, timeout 0, disable_auto_reconnect_after_disconnect 0
+[   22.103125] [wifi] sta started(7)
+[   22.106219] [wifi] sta connecting
+[   22.109532] [initseq] osal sem-init enter max_count ret=1
+[   22.114844] [initseq] osal sem-init leave ret=0
+[   22.119688] [wifi] sta disconnecting
+[   22.122875] [wifi] sta disconnected(7)
+[   22.126625] [initseq] osal sem-init enter max_count ret=1
+[   22.131969] [initseq] osal sem-init leave ret=0
+[   22.136813] [initseq] osal sem-init enter max_count ret=1
+[   22.141844] [initseq] osal sem-init leave ret=0
+[   22.146782] [wpa] CTRL_IFACE: SELECT_NETWORK id=0
+[   22.151407] [wpa] Setting scan request: 0.000000 sec
+[   22.156282] [wpa] wpa_supplicant_scan
+[   22.159813] [wpa] State: DISCONNECTED -> SCANNING
+[   22.164375] [wpa] Scan SSID - hexdump_ascii(len=3):
+[   22.169125] [wpa]     
+[   22.171438] [(null)]  4c
+[   22.173938] [(null)]  75
+[   22.176469] [(null)]  76
+[   22.178969] [(null)]    
+[   22.181532] [(null)]    
+[   22.183969] [(null)]    
+[   22.186532] [(null)]    
+[   22.189063] [(null)]    
+[   22.191532] [(null)]    
+[   22.194094] [(null)]    
+[   22.196563] [(null)]    
+[   22.199094] [(null)]    
+[   22.201594] [(null)]    
+[   22.204094] [(null)]    
+[   22.206594] [(null)]    
+[   22.209094] [(null)]    
+[   22.211625] [(null)]    
+[   22.214125] [(null)] L
+[   22.216438] [(null)] u
+[   22.218782] [(null)] v
+[   22.221125] [(null)]  
+[   22.223500] [(null)]  
+[   22.225782] [(null)]  
+[   22.228125] [(null)]  
+[   22.230500] [(null)]  
+[   22.232782] [(null)]  
+[   22.235125] [(null)]  
+[   22.237532] [(null)]  
+[   22.239813] [(null)]  
+[   22.242157] [(null)]  
+[   22.244532] [(null)]  
+[   22.246813] [(null)]  
+[   22.249157] [(null)]  
+[   22.251563] [wpa] 
+[   22.253813] [wpa] Starting AP scan for specific SSID: Luv
+[   22.259594] [wpa] Add radio work 'scan'@0x2809a5f0
+[   22.263969] [wpa] First radio work item in the queue - schedule start immediately
+[   22.271969] [wpa] Starting radio work 'scan'@0x2809a5f0 after 0.008000 second wait
+[   22.278657] [wpa] scan work start, deinit=0
+[   22.282782] [wpa] req driver to scan
+[   22.286438] [wpa] wpa_driver_scan2: Scan specified BSSID ff:ff:ff:ff:ff:ff
+[   22.293188] [hitf] send scan req to driver
+[   22.297969] [BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[   22.298375] [BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[   22.298563] [BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[   22.298844] [BK7258-WIFI] pmq: phy_wakeup_reinit done
+[   22.299594] [rwnx] bmsg_ioctl_handler
+[wifid] [KW:]scanu_start_req:src_id=15,vif=0,dur=0,chan_cnt=14,ssid_len=3,bssid=0xffff-ffff-ffff
+[wifid] [KW:]scanu_start_req:ssid=Luv
+[   22.319094] [rwnx] bmsg_ioctl_sender
+[   22.322875] [wpa] evtq SCAN_STARTED(201) ret=0
+[   22.328063] [wpa] Event SCAN_STARTED (47) received
+[   22.329938] [wpa] Own scan request started a scan in 0.002000 seconds
+  state=CONNECTING(1)[   22.333938] [wifi] sta connected(f)
+[   22.34018 reason=SUCCESS(262)
+[   22.345532] [adc] release
+[   22.353907] [adc] release
+8] [BK7258-WIFI] connect: request accepted
+[   22.441500] [rwnx] chan_survey busy 59 ms time 120 ms noise -93 freq 2412
+[   22.447407] [rwnx] rwnx_chan_survey_ind_handler chan_idx 0
+[   22.567657] [rwnx] chan_survey busy 45 ms time 120 ms noise -86 freq 2417
+[   22.573438] [rwnx] rwnx_chan_survey_ind_handler chan_idx 1
+[   22.694094] [rwnx] chan_survey busy 65 ms time 120 ms noise -74 freq 2422
+[   22.699938] [rwnx] rwnx_chan_survey_ind_handler chan_idx 2
+[   22.820407] [rwnx] chan_survey busy 69 ms time 120 ms noise -67 freq 2427
+[   22.826313] [rwnx] rwnx_chan_survey_ind_handler chan_idx 3
+[   22.947125] [rwnx] chan_survey busy 78 ms time 120 ms noise -85 freq 2432
+[   22.954438] [rwnx] rwnx_chan_survey_ind_handler chan_idx 4
+[   23.073344] [rwnx] chan_survey busy 83 ms time 120 ms noise -92 freq 2437
+[   23.079250] [rwnx] rwnx_chan_survey_ind_handler chan_idx 5
+[   23.199500] [rwnx] chan_survey busy 69 ms time 120 ms noise -82 freq 2442
+[   23.205407] [rwnx] rwnx_chan_survey_ind_handler chan_idx 6
+[   23.325938] [rwnx] chan_survey busy 59 ms time 120 ms noise -90 freq 2447
+[   23.331844] [rwnx] rwnx_chan_survey_ind_handler chan_idx 7
+[   23.361469] [adc] release
+[   23.368532] [adc] release
+[   23.452657] [rwnx] chan_survey busy 53 ms time 120 ms noise -88 freq 2452
+[   23.458563] [rwnx] rwnx_chan_survey_ind_handler chan_idx 8
+[   23.579125] [rwnx] chan_survey busy 59 ms time 120 ms noise -79 freq 2457
+[   23.584938] [rwnx] rwnx_chan_survey_ind_handler chan_idx 9
+[   23.704407] [rwnx] chan_survey busy 98 ms time 120 ms noise -69 freq 2462
+[   23.709657] [rwnx] rwnx_chan_survey_ind_handler chan_idx 10
+[   23.823375] [rwnx] chan_survey busy 64 ms time 120 ms noise -92 freq 2467
+[   23.828594] [rwnx] rwnx_chan_survey_ind_handler chan_idx 11
+[   23.942063] [rwnx] chan_survey busy 68 ms time 120 ms noise -94 freq 2472
+[   23.947219] [rwnx] rwnx_chan_survey_ind_handler chan_idx 12
+[wifid] [KW:]scanu_confirm:status=0,req_type=0,upload_cnt=10,recv_cnt=75,time=1753956us,result=1,rfcli=1
+[   24.062344] [rwnx] chan_survey busy 43 ms time 120 ms noise -91 freq 2484
+[   24.067688] [wpa] evtq SCAN_RESULTS(202) ret=0
+[   24.071125] [wpa] Event SCAN_RESULTS (3) received
+[   24.073094] [wpa] Scan completed in 1.743000 seconds
+[   24.075813] [hitf] get scan result:1
+[   24.077719] [wpa] BSS: Start scan result update 1
+[   24.082500] [wpa] BSS: Add new id 0 BSSID 6e:26:dd:7f:cc:cc SSID 'Luv' freq 2462
+[   24.089407] [wpa] BSS: last_scan_res_used=1/32
+[   24.093844] [wpa] New scan results available (own=1 ext=0)
+[   24.099719] [wpa] Radio work 'scan'@0x2809a5f0 done in 1.828000 seconds
+[   24.105938] [wpa] radio_work_free('scan'@0x2809a5f0): num_active_works --> 0
+[   24.112875] [wpa] Scan results matching the currently selected network
+[   24.119563] [wpa] cipher2security 2 2 16 16
+[   24.123563] [BK7258-WIFI] pmq: cpu_freq vote module=25 freq=4 ret=0
+[   26.862375] [BK7258-WIFI] pmq: cpu_freq vote module=25 freq=7 ret=0
+[   26.868094] [wpa] 0: 6e:26:dd:7f:cc:cc freq=2462 level=-27 snr=-27 est_throughput=1000
+[   26.870063] [wpa] Selecting BSS from priority group 0
+[   26.872688] [wpa] 0: 6e:26:dd:7f:cc:cc ssid='Luv' wpa_ie_len=0 rsn_ie_len=20 caps=0x1431 level=-27 freq=2462 
+[   26.880438] [wpa] cipher2security 2 2 16 16
+[   26.884594] [wpa]    selected based on RSN IE
+[   26.889250] [wpa]    selected BSS 6e:26:dd:7f:cc:cc ssid='Luv'
+[   26.894563] [wpa] wpa_supplicant_connect
+[   26.899938] [wpa] Considering connect request: reassociate: 1  selected: 6e:26:dd:7f:cc:cc  bssid: 00:00:00:00:00:00  pending: 00:00:00:00:00:00  wpa_state: SCANNING  ssid=0x28099638  current_ssid=0x28099638
+[   26.917188] [wpa] Request association with 6e:26:dd:7f:cc:cc
+[   26.922782] [wpa] No ongoing scan/p2p-scan found to abort
+[   26.928063] [wpa] Add radio work 'connect'@0x2808d600
+[   26.932969] [wpa] First radio work item in the queue - schedule start immediately
+[   26.941157] [wpa] Starting radio work 'connect'@0x2808d600 after 0.008000 second wait
+[   26.948250] [wpa] WPA: clearing own WPA/RSN IE
+[   26.952688] [wpa] RSN: clearing own RSNXE
+[   26.956782] [wpa] RSN: using IEEE 802.11i/D9.0
+[   26.961125] [wpa] WPA: Selected cipher suites: group 16 pairwise 16 key_mgmt 2 proto 2
+[   26.968844] [wpa] WPA: clearing AP WPA IE
+[   26.972688] [wpa] WPA: set AP RSN IE - hexdump(len=22):
+[   26.977813] [(null)]  30
+[   26.980282] [(null)]  14
+[   26.982813] [(null)]  01
+[   26.985313] [(null)]  00
+[   26.987813] [(null)]  00
+[   26.990344] [(null)]  0f
+[   26.992844] [(null)]  ac
+[   26.995344] [(null)]  04
+[   26.997875] [(null)]  01
+[   27.000375] [(null)]  00
+[   27.002875] [(null)]  00
+[   27.005407] [(null)]  0f
+[   27.007907] [(null)]  ac
+[   27.010438] [(null)]  04
+[   27.012938] [(null)]  01
+[   27.015500] [(null)]  00
+[   27.017938] [(null)]  00
+[   27.020532] [(null)]  0f
+[   27.022969] [(null)]  ac
+[   27.025532] [(null)]  02
+[   27.028063] [(null)]  0c
+[   27.030532] [(null)]  00
+[   27.033094] [wpa] 
+[   27.035250] [wpa] WPA: clearing AP RSNXE
+[   27.039313] [wpa] WPA: AP group 0x10 network profile group 0x18; available group 0x10
+[   27.046875] [wpa] WPA: using GTK CCMP
+[   27.050844] [wpa] WPA: AP pairwise 0x10 network profile pairwise 0x18; available pairwise 0x10
+[   27.059157] [wpa] WPA: using PTK CCMP
+[   27.062907] [wpa] WPA: AP key_mgmt 0x2 network profile key_mgmt 0x2; available key_mgmt 0x2
+[   27.071063] [wpa] WPA: using KEY_MGMT WPA-PSK
+[   27.075782] [wpa] WPA: AP mgmt_group_cipher 0x20 network profile mgmt_group_cipher 0x0; available mgmt_group_cipher 0x0
+[   27.086157] [wpa] WPA: not using MGMT group cipher
+[   27.090813] [wpa] WPA: Set own WPA IE default - hexdump(len=22):
+[   27.096657] [(null)]  30
+[   27.099157] [(null)]  14
+[   27.101657] [(null)]  01
+[   27.104188] [(null)]  00
+[   27.106688] [(null)]  00
+[   27.109188] [(null)]  0f
+[   27.111719] [(null)]  ac
+[   27.114219] [(null)]  04
+[   27.116719] [(null)]  01
+[   27.119250] [(null)]  00
+[   27.121750] [(null)]  00
+[   27.124250] [(null)]  0f
+[   27.126782] [(null)]  ac
+[   27.129282] [(null)]  04
+[   27.131782] [(null)]  01
+[   27.134313] [(null)]  00
+[   27.136813] [(null)]  00
+[   27.139313] [(null)]  0f
+[   27.141844] [(null)]  ac
+[   27.144344] [(null)]  02
+[   27.146844] [(null)]  00
+[   27.149375] [(null)]  00
+[   27.151875] [wpa] 
+[   27.153938] [wpa] RSN: Set own RSNXE default - hexdump(len=0):
+[   27.159657] [wpa] 
+[   27.161688] [wpa] WPA: Set PMK based on external data - hexdump(len=32):
+[   27.168313] [wpa]  [REMOVED]
+[   27.171188] [wpa] 
+[   27.173375] [wpa] Automatic auth_alg selection: 0x1
+[   27.178875] [wpa] Trying to associate with 6e:26:dd:7f:cc:cc (SSID='Luv' freq=2462 MHz)
+[   27.186125] [wpa] cancell scan request timer
+[   27.190563] [wpa] State: SCANNING -> ASSOCIATING
+[   27.195719] [wpa] Limit connection to BSSID 6e:26:dd:7f:cc:cc freq=2462 MHz based on scan results (bssid_set=0 wps=0)
+[   27.205625] [wpa] wpa_driver_associate: auth_alg 0x1
+[   27.210844] [rwnx] lmac_connect_req seq=0 vif=0 band=0 freq=2462 txpwr=127 flags=00000089 auth=0 ctrl=8e88 ie_len=35 bcn_len=177 bssid=6e:26:dd:7f:cc:cc
+[   27.223969] [initseq] osal sem-init enter max_count ret=1
+[   27.229313] [initseq] osal sem-init leave ret=0
+[   27.234250] [BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[   27.235063] [BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[   27.235063] [BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[   27.235438] [BK7258-WIFI] pmq: phy_wakeup_reinit done
+[   27.236344] [rwnx] bmsg_ioctl_handler
+[wifid] [KW:]conn vif0-0,auth_type:0,bssid:266e-7fdd-cccc,ssi[   27.243782] [BK7258-WIFI] dvfs: high-tier VDDDIG/clock vote freq=6
+[   27.244907] [BK7258-WIFI] pmq: cpu_freq vote module=26 freq=6 ret=0
+[   27.250688] [BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=6) ret=0
+d:Luv,is encryp:8.
+[wifid] chan_ctxt_add: CTXT0,freq2462MHz,bw20MHz,pwr127dBm
+[wifid] chan_reg_fix:VIF0,CTXT0,type3,ctxt_s0,nb_vif0
+[wifid] mm_sta_add:vif 0,sta 0,status 0
+[   27.286250] [rwnx] bmsg_ioctl_sender
+[   27.290063] [rwnx] lmac_connect_cfm ret=0 status=0
+[   27.293688] [[   27.296688] [rwnx] bmsg_rx_handler
+wpa] Setting authentication timeout: 10 sec 0 usec
+[   27.304875] [adc] release
+[   27.310438] [adc] release
+[wifid] [KW:]auth_send:seq1, txtype0, auth_type0, seq46
+[   27.397875] [rwnx] bmsg_rx_handler
+[wifid] [KW:]sm_auth_handler: status code 0, tx status 0x80800000
+[wifid] [KW:]assoc_req_send:is ht, seq_num:47
+[wifid] [KW:]assoc_rsp:status0,tx_s0x80800000
+[wifid] [KW:]mm_set_vif_state,vif=0,vif_type=0,is_active=1, aid=0x9,rssi=-40
+[   27.441219] [rwnx] conn[   27.444344] [rwnx] bmsg_rx_handler
+[   27.446907] [BK7258-WIFI] rx#1 len=113/113 dst=c8:47:8c:46:02:15 et=888e tail=02 03 00 5f 02 00
+[   27.452969] [wpa] ke_tx:34978,buf:0x28092704, len:113
+ect ok
+[   27.457313] [wpa] evtq CONNECT_IND(207) ret=0
+[   27.460188] [wpa] hapd_rx:34978,buf:0x28092698, len:512
+[   27.464094] [wpa] RX EAPOL from 6e:26:dd:7f:cc:cc
+[   27.465907] [wpa] Not associated - Delay processing of received EAPOL frame (state=ASSOCIATING bssid=00:00:00:00:00:00)
+[   27.476219] [wpa] Event ASSOC (0) received
+[   27.479969] [wpa] Association info event
+[   27.483938] [initseq] osal sem-init enter max_count ret=1
+[   27.489125] [initseq] osal sem-init leave ret=0
+[   27.493719] [rwnx] bmsg_hardware_ioctl_handler
+[   27.506344] [rwnx] bmsg_rx_handler
+[   27.509532] [rwnx] bmsg_hardware_ioctl_sender
+[   27.513188] [wpa] req_ies - hexdump(len=110):
+[   27.515844] [(null)]  00
+[   27.517313] [(null)]  03
+[   27.518844] [(null)]  4c
+[   27.520313] [(null)]  75
+[   27.521844] [(null)]  76
+[   27.523313] [(null)]  01
+[   27.525094] [(null)]  08
+[   27.527625] [(null)]  82
+[   27.530125] [(null)]  84
+[   27.532625] [(null)]  8b
+[   27.535125] [(null)]  96
+[   27.537657] [(null)]  0c
+[   27.540157] [(null)]  12
+[   27.543344] [(null)]  18
+[   27.545188] [(null)]  24
+[   27.547688] [(null)]  32
+[   27.550188] [(null)]  04
+[   27.552688] [(null)]  30
+[   27.555219] [(null)]  48
+[   27.557719] [(null)]  60
+[   27.560219] [(null)]  6c
+[   27.562750] [(null)]  30
+[   27.565250] [(null)]  14
+[   27.567750] [(null)]  01
+[   27.570282] [(null)]  00
+[   27.572782] [(null)]  00
+[   27.575282] [(null)]  0f
+[   27.577813] [(null)]  ac
+[   27.580313] [(null)]  04
+[   27.582813] [(null)]  01
+[   27.585344] [(null)]  00
+[   27.587844] [(null)]  00
+[   27.590344] [(null)]  0f
+[   27.592875] [(null)]  ac
+[   27.595375] [(null)]  04
+[   27.597875] [(null)]  01
+[   27.603813] [(null)]  00
+[   27.605250] [(null)]  00
+[   27.606782] [(null)]  0f
+[   27.608250] [(null)]  ac
+[   27.610469] [(null)]  02
+[   27.612938] [(null)]  00
+[   27.615532] [(null)]  00
+[   27.617969] [(null)]  7f
+[   27.620532] [(null)]  0b
+[   27.622969] [(null)]  04
+[   27.625532] [(null)]  00
+[   27.628063] [(null)]  00
+[   27.630500] [(null)]  00
+[   27.633063] [(null)]  00
+[   27.635532] [(null)]  00
+[   27.638094] [(null)]  40
+[   27.640563] [(null)]  00
+[   27.643094] [(null)]  00
+[   27.645563] [(null)]  00
+[   27.648094] [(null)]  20
+[   27.650625] [(null)]  dd
+[   27.653094] [(null)]  07
+[   27.655625] [(null)]  00
+[   27.658125] [(null)]  50
+[   27.660625] [(null)]  f2
+[   27.663157] [(null)]  02
+[   27.665657] [(null)]  00
+[   27.668157] [(null)]  01
+[   27.670688] [(null)]  00
+[   27.673188] [(null)]  2d
+[   27.675688] [(null)]  1a
+[   27.678188] [(null)]  2d
+[   27.680719] [(null)]  00
+[   27.683219] [(null)]  1c
+[   27.685719] [(null)]  ff
+[   27.688250] [(null)]  00
+[   27.690750] [(null)]  00
+[   27.693250] [(null)]  00
+[   27.695782] [(null)]  00
+[   27.699282] [(null)]  00
+[   27.700813] [(null)]  00
+[   27.706532] [(null)]  00
+[   27.708094] [(null)]  00
+[   27.709625] [(null)]  00
+[   27.711125] [(null)]  48
+[   27.713344] [(null)]  00
+[   27.715844] [(null)]  01
+[   27.718375] [(null)]  00
+[   27.720875] [(null)]  00
+[   27.723375] [(null)]  00
+[   27.725907] [(null)]  00
+[   27.728407] [(null)]  00
+[   27.730907] [(null)]  00
+[   27.733438] [(null)]  00
+[   27.735938] [(null)]  00
+[   27.738500] [(null)]  00
+[   27.740969] [(null)]  00
+[   27.743532] [(null)]  bf
+[   27.745969] [(null)]  0c
+[   27.748532] [(null)]  10
+[   27.751032] [(null)]  70
+[   27.753532] [(null)]  90
+[   27.756063] [(null)]  01
+[   27.758532] [(null)]  fd
+[   27.761094] [(null)]  ff
+[   27.763532] [(null)]  4e
+[   27.766094] [(null)]  00
+[   27.768563] [(null)]  fd
+[   27.771094] [(null)]  ff
+[   27.773594] [(null)]  4e
+[   27.776094] [(null)]  00
+[   27.778625] [(null)]  c7
+[   27.781125] [(null)]  01
+[   27.783625] [(null)]  00
+[   27.786157] [wpa] 
+[   27.788157] [wpa] resp_ies - hexdump(len=125):
+[   27.792563] [(null)]  01
+[   27.795094] [(null)]  08
+[   27.797563] [(null)]  82
+[   27.800094] [(null)]  84
+[   27.802594] [(null)]  8b
+[   27.807125] [(null)]  96
+[   27.808657] [(null)]  0c
+[   27.810157] [(null)]  12
+[   27.812625] [(null)]  18
+[   27.815125] [(null)]  24
+[   27.817657] [(null)]  32
+[   27.820157] [(null)]  04
+[   27.822657] [(null)]  30
+[   27.825157] [(null)]  48
+[   27.827688] [(null)]  60
+[   27.830188] [(null)]  6c
+[   27.832688] [(null)]  2d
+[   27.835219] [(null)]  1a
+[   27.837719] [(null)]  ad
+[   27.840219] [(null)]  01
+[   27.842750] [(null)]  13
+[   27.845250] [(null)]  ff
+[   27.847750] [(null)]  ff
+[   27.850282] [(null)]  00
+[   27.852782] [(null)]  00
+[   27.855282] [(null)]  00
+[   27.857813] [(null)]  00
+[   27.860313] [(null)]  00
+[   27.862813] [(null)]  00
+[   27.865344] [(null)]  00
+[   27.867844] [(null)]  00
+[   27.870344] [(null)]  00
+[   27.872844] [(null)]  00
+[   27.875375] [(null)]  00
+[   27.877875] [(null)]  00
+[   27.880375] [(null)]  00
+[   27.882907] [(null)]  00
+[   27.885438] [(null)]  00
+[   27.887907] [(null)]  00
+[   27.890469] [(null)]  00
+[   27.892938] [(null)]  00
+[   27.895500] [(null)]  00
+[   27.897969] [(null)]  00
+[   27.900532] [(null)]  00
+[   27.903907] [(null)]  3d
+[   27.905532] [(null)]  16
+[   27.908063] [(null)]  0b
+[   27.910532] [(null)]  00
+[   27.914313] [(null)]  15
+[   27.915875] [(null)]  00
+[   27.918094] [(null)]  00
+[   27.920563] [(null)]  00
+[   27.923094] [(null)]  00
+[   27.925563] [(null)]  00
+[   27.928094] [(null)]  00
+[   27.930594] [(null)]  00
+[   27.933094] [(null)]  00
+[   27.935625] [(null)]  00
+[   27.938125] [(null)]  00
+[   27.940625] [(null)]  00
+[   27.943125] [(null)]  00
+[   27.945657] [(null)]  00
+[   27.948157] [(null)]  00
+[   27.950657] [(null)]  00
+[   27.953188] [(null)]  00
+[   27.955688] [(null)]  00
+[   27.958188] [(null)]  00
+[   27.960719] [(null)]  00
+[   27.963219] [(null)]  dd
+[   27.965719] [(null)]  18
+[   27.968219] [(null)]  00
+[   27.970750] [(null)]  50
+[   27.973250] [(null)]  f2
+[   27.975750] [(null)]  02
+[   27.978282] [(null)]  01
+[   27.980782] [(null)]  01
+[   27.983282] [(null)]  81
+[   27.985813] [(null)]  00
+[   27.988313] [(null)]  03
+[   27.990813] [(null)]  a4
+[   27.993344] [(null)]  00
+[   27.995844] [(null)]  00
+[   27.998344] [(null)]  27
+[   28.000875] [(null)]  a4
+[   28.003375] [(null)]  00
+[   28.005875] [(null)]  00
+[   28.008407] [(null)]  42
+[   28.013344] [(null)]  43
+[   28.014875] [(null)]  5e
+[   28.016344] [(null)]  00
+[   28.018469] [(null)]  62
+[   28.020938] [(null)]  32
+[   28.023500] [(null)]  2f
+[   28.025969] [(null)]  00
+[   28.028532] [(null)]  bf
+[   28.030969] [(null)]  0c
+[   28.033532] [(null)]  92
+[   28.036063] [(null)]  79
+[   28.038532] [(null)]  81
+[   28.041063] [(null)]  33
+[   28.043532] [(null)]  fa
+[   28.046094] [(null)]  ff
+[   28.048563] [(null)]  62
+[   28.051094] [(null)]  03
+[   28.053563] [(null)]  fa
+[   28.056094] [(null)]  ff
+[   28.058594] [(null)]  62
+[   28.061094] [(null)]  23
+[   28.063625] [(null)]  c0
+[   28.066125] [(null)]  05
+[   28.068625] [(null)]  00
+[   28.071125] [(null)]  00
+[   28.073657] [(null)]  00
+[   28.076157] [(null)]  fa
+[   28.078657] [(null)]  ff
+[   28.081188] [(null)]  7f
+[   28.083688] [(null)]  08
+[   28.086188] [(null)]  05
+[   28.088719] [(null)]  00
+[   28.091219] [(null)]  00
+[   28.093719] [(null)]  00
+[   28.096250] [(null)]  00
+[   28.098750] [(null)]  00
+[   28.101250] [(null)]  00
+[   28.103750] [(null)]  40
+[   28.106282] [wpa] 
+[   28.109157] [wpa] freq=2462 MHz
+[   28.115750] [wpa] WPA: set own WPA/RSN IE - hexdump(len=22):
+[   28.119063] [(null)]  30
+[   28.120625] [(null)]  14
+[   28.122125] [(null)]  01
+[   28.124532] [(null)]  00
+[   28.127094] [(null)]  00
+[   28.129563] [(null)]  0f
+[   28.132094] [(null)]  ac
+[   28.134563] [(null)]  04
+[   28.137094] [(null)]  01
+[   28.139594] [(null)]  00
+[   28.142094] [(null)]  00
+[   28.144625] [(null)]  0f
+[   28.147125] [(null)]  ac
+[   28.149625] [(null)]  04
+[   28.152157] [(null)]  01
+[   28.154657] [(null)]  00
+[   28.157157] [(null)]  00
+[   28.159688] [(null)]  0f
+[   28.162188] [(null)]  ac
+[   28.164688] [(null)]  02
+[   28.167219] [(null)]  00
+[   28.169719] [(null)]  00
+[   28.172219] [wpa] 
+[   28.174719] [wpa] RSN: clearing own RSNXE
+[   28.178532] [initseq] osal sem-init enter max_count ret=1
+[   28.183625] [initseq] osal sem-init leave ret=0
+[   28.188219] [rwnx] bmsg_hardware_ioctl_handler
+[   28.193282] [rwnx] bmsg_hardware_ioctl_sender
+[   28.197157] [wpa] State: ASSOCIATING -> ASSOCIATED
+[   28.201875] [wpa] Associated to a new BSS: BSSID=6e:26:dd:7f:cc:cc
+[   28.207938] [initseq] osal sem-init enter max_count ret=1
+[   28.213094] [initseq] osal sem-init leave ret=0
+[   28.217688] [rwnx] bmsg_hardware_ioctl_handler
+[   28.222750] [rwnx] bmsg_hardware_ioctl_sender
+[   28.226657] [wpa] WPA: Update cipher suite selection based on IEs in driver-generated WPA/RSNE in AssocReq - hexdump(len=89):
+[   28.237563] [(null)]  30
+[   28.240094] [(null)]  14
+[   28.242594] [(null)]  01
+[   28.245094] [(null)]  00
+[   28.247625] [(null)]  00
+[   28.250125] [(null)]  0f
+[   28.252625] [(null)]  ac
+[   28.255125] [(null)]  04
+[   28.257657] [(null)]  01
+[   28.260157] [(null)]  00
+[   28.262657] [(null)]  00
+[   28.265188] [(null)]  0f
+[   28.267688] [(null)]  ac
+[   28.270188] [(null)]  04
+[   28.272719] [(null)]  01
+[   28.275219] [(null)]  00
+[   28.277719] [(null)]  00
+[   28.280219] [(null)]  0f
+[   28.282750] [(null)]  ac
+[   28.285250] [(null)]  02
+[   28.287750] [(null)]  00
+[   28.290282] [(null)]  00
+[   28.292782] [(null)]  7f
+[   28.295282] [(null)]  0b
+[   28.297813] [(null)]  04
+[   28.300313] [(null)]  00
+[   28.302813] [(null)]  00
+[   28.305344] [(null)]  00
+[   28.307844] [(null)]  00
+[   28.310344] [(null)]  00
+[   28.313844] [(null)]  40
+[   28.315375] [(null)]  00
+[   28.317875] [(null)]  00
+[   28.320407] [(null)]  00
+[   28.324188] [(null)]  20
+[   28.325719] [(null)]  dd
+[   28.327907] [(null)]  07
+[   28.330469] [(null)]  00
+[   28.336719] [(null)]  50
+[   28.338219] [(null)]  f2
+[   28.339782] [(null)]  02
+[   28.341250] [(null)]  00
+[   28.342969] [(null)]  01
+[   28.345625] [(null)]  00
+[   28.348063] [(null)]  2d
+[   28.350532] [(null)]  1a
+[   28.353063] [(null)]  2d
+[   28.355532] [(null)]  00
+[   28.358094] [(null)]  1c
+[   28.360563] [(null)]  ff
+[   28.363094] [(null)]  00
+[   28.365563] [(null)]  00
+[   28.368094] [(null)]  00
+[   28.370594] [(null)]  00
+[   28.373094] [(null)]  00
+[   28.375625] [(null)]  00
+[   28.378125] [(null)]  00
+[   28.380625] [(null)]  00
+[   28.383125] [(null)]  00
+[   28.385657] [(null)]  48
+[   28.388157] [(null)]  00
+[   28.390657] [(null)]  01
+[   28.393188] [(null)]  00
+[   28.395688] [(null)]  00
+[   28.398188] [(null)]  00
+[   28.400719] [(null)]  00
+[   28.403219] [(null)]  00
+[   28.405719] [(null)]  00
+[   28.408250] [(null)]  00
+[   28.410750] [(null)]  00
+[   28.413250] [(null)]  00
+[   28.415750] [(null)]  00
+[   28.418282] [(null)]  bf
+[   28.420782] [(null)]  0c
+[   28.423282] [(null)]  10
+[   28.425813] [(null)]  70
+[   28.430875] [(null)]  90
+[   28.432375] [(null)]  01
+[   28.433907] [(null)]  fd
+[   28.435844] [(null)]  ff
+[   28.438344] [(null)]  4e
+[   28.440875] [(null)]  00
+[   28.443375] [   28.446157] [rwnx] bmsg_rx_handler
+[   28.448719] [BK7258-WIFI] rx#2 len=113/113 dst=c8:47:8c:46:02:15 et=888e tail=02 03 00 5f 02 00
+[   28.456750] [wpa] ke_tx:34978,buf:0x28092d34, len:113
+[(null)]  fd
+[   28.462938] [(null)]  ff
+[   28.465500] [(null)]  4e
+[   28.467969] [(null)]  00
+[   28.470532] [(null)]  c7
+[   28.472969] [(null)]  01
+[   28.475563] [(null)]  00
+[   28.478063] [wpa] 
+[   28.480250] [wpa] WPA: AP key_mgmt 0x2 network key_mgmt 0x2; available key_mgmt 0x2
+[   28.487782] [wpa] WPA: using KEY_MGMT WPA2-PSK and proto 2
+[   28.493282] [wpa] WPA: AP pairwise cipher 0x10 network pairwise cipher 0x18; available pairwise cipher 0x10
+[   28.502875] [wpa] WPA: using PTK CCMP
+[   28.506813] [wpa] WPA: AP group cipher 0x10 network group cipher 0x18; available group cipher 0x10
+[   28.515500] [wpa] WPA: using GTK CCMP
+[   28.519250] [wpa] WPA: AP mgmt_group_cipher 0x20 network mgmt_group_cipher 0x0; available mgmt_group_cipher 0x20
+[   28.529688] [wpa] WPA: STA/AP is not MFP capable; AP RSNE caps 0xc
+[   28.535313] [wpa] WPA: not using MGMT group cipher
+[   28.540313] [wpa] Associated with 6e:26:dd:7f:cc:cc
+[   28.545782] [wpa] WPA: Association event - clear replay counter
+[   28.550844] [wpa] WPA: Clear old PTK
+[   28.555094] [wpa] Setting authentication timeout: 10 sec 0 usec
+[   28.560344] [wpa] cancell scan request timer
+[   28.564750] [wpa] CTRL-EVENT-SUBNET-STATUS-UPDATE status=0
+[   28.570188] [wpa] hapd_rx:34978,buf:0x280926c8, len:512
+[   28.575375] [wpa] RX EAPOL from 6e:26:dd:7f:cc:cc
+[   28.579875] [wpa] Setting authentication timeout: 10 sec 0 usec
+[   28.585813] [wpa] IEEE 802.1X RX: version=2 type=3 length=95
+[   28.591375] [wpa]   EAPOL-Key type=2
+[   28.595219] [wpa]   key_info 0x8a (ver=2 keyidx=0 rsvd=0 Pairwise Ack)
+[   28.601375] [wpa]   key_length=16 key_data_length=0
+[   28.606125] [wpa]   replay_counter - hexdump(len=8):
+[   28.611063] [(null)]  00
+[   28.613532] [(null)]  00
+[   28.616094] [(null)]  00
+[   28.618532] [(null)]  00
+[   28.621094] [(null)]  00
+[   28.626282] [(null)]  00
+[   28.627813] [(null)]  00
+[   28.629282] [(null)]  02
+[   28.631094] [wpa] 
+[   28.633094] [wpa]   key_nonce - hexdump(len=32):
+[   28.637657] [(null)]  74
+[   28.640188] [(null)]  50
+[   28.642688] [(null)]  2e
+[   28.645188] [(null)]  3d
+[   28.647688] [(null)]  b0
+[   28.650219] [(null)]  0d
+[   28.652719] [(null)]  9f
+[   28.655219] [(null)]  c2
+[   28.657750] [(null)]  e9
+[   28.660250] [(null)]  40
+[   28.662750] [(null)]  da
+[   28.665282] [(null)]  78
+[   28.667782] [(null)]  c7
+[   28.670282] [(null)]  81
+[   28.672813] [(null)]  52
+[   28.675313] [(null)]  00
+[   28.677813] [(null)]  6f
+[   28.680344] [(null)]  7d
+[   28.682844] [(null)]  78
+[   28.685344] [(null)]  9b
+[   28.687844] [(null)]  3c
+[   28.690375] [(null)]  e8
+[   28.692875] [(null)]  f9
+[   28.695375] [(null)]  fe
+[   28.697907] [(null)]  91
+[   28.700407] [(null)]  18
+[   28.702907] [(null)]  08
+[   28.705438] [(null)]  72
+[   28.707938] [(null)]  a7
+[   28.710500] [(null)]  0f
+[   28.712969] [(null)]  33
+[   28.715532] [(null)]  66
+[   28.717969] [wpa] 
+[   28.720063] [wpa]   key_iv - hexdump(len=16):
+[   28.724313] [(null)]  00
+[   28.730157] [(null)]  00
+[   28.732157] [(null)]  00
+[   28.733688] [(null)]  00
+[   28.735157] [(null)]  00
+[   28.736844] [(null)]  00
+[   28.739344] [(null)]  00
+[   28.741875] [(null)]  00
+[   28.744375] [(null)]  00
+[   28.746875] [(null)]  00
+[   28.749375] [(null)]  00
+[   28.751907] [(null)]  00
+[   28.754438] [(null)]  00
+[   28.756907] [(null)]  00
+[   28.759469] [(null)]  00
+[   28.761938] [(null)]  00
+[   28.764532] [wpa] 
+[   28.766594] [wpa]   key_rsc - hexdump(len=8):
+[   28.770782] [(null)]  00
+[   28.773282] [(null)]  00
+[   28.775782] [(null)]  00
+[   28.778282] [(null)]  00
+[   28.780813] [(null)]  00
+[   28.783313] [(null)]  00
+[   28.785813] [(null)]  00
+[   28.788344] [(null)]  00
+[   28.790844] [wpa] 
+[   28.792844] [wpa]   key_id (reserved) - hexdump(len=8):
+[   28.798094] [(null)]  00
+[   28.800532] [(null)]  00
+[   28.803094] [(null)]  00
+[   28.805563] [(null)]  00
+[   28.808094] [(null)]  00
+[   28.810563] [(null)]  00
+[   28.813094] [(null)]  00
+[   28.815594] [(null)]  00
+[   28.818125] [wpa] 
+[   28.820125] [wpa]   key_mic - hexdump(len=16):
+[   28.824532] [(null)]  00
+[   28.827063] [(null)]  00
+[   28.832282] [(null)]  00
+[   28.833813] [(null)]  00
+[   28.835250] [(null)]  00
+[   28.837094] [(null)]  00
+[   28.839563] [(null)]  00
+[   28.842094] [(null)]  00
+[   28.844594] [(null)]  00
+[   28.847094] [(null)]  00
+[   28.849625] [(null)]  00
+[   28.852125] [(null)]  00
+[   28.854625] [(null)]  00
+[   28.857125] [(null)]  00
+[   28.859657] [(null)]  00
+[   28.862157] [(null)]  00
+[   28.864688] [wpa] 
+[   28.867094] [initseq] osal sem-init enter max_count ret=1
+[   28.872125] [initseq] osal sem-init leave ret=0
+[   28.876657] [rwnx] bmsg_hardware_ioctl_handler
+[   28.881782] [rwnx] bmsg_hardware_ioctl_sender
+[   28.885657] [initseq] osal sem-init enter max_count ret=1
+[   28.890657] [initseq] osal sem-init leave ret=0
+[   28.895219] [rwnx] bmsg_hardware_ioctl_handler
+[   28.900188] [rwnx] bmsg_hardware_ioctl_sender
+[   28.904219] [wpa] State: ASSOCIATED -> 4WAY_HANDSHAKE
+[   28.909282] [wpa] WPA: RX message 1 of 4-Way Handshake from 6e:26:dd:7f:cc:cc (ver=2)
+[   28.916750] [wpa] RSN: msg 1/4 key data - hexdump(len=0):
+[   28.922094] [wpa] 
+[   28.924313] [wpa] WPA: Renewed SNonce - hexdump(len=32):
+[   28.929313] [(null)]  16
+[   28.934907] [(null)]  7a
+[   28.936375] [(null)]  1f
+[   28.937907] [(null)]  5b
+[   28.939375] [(null)]  31
+[   28.941875] [(null)]  fb
+[   28.944375] [(null)]  4b
+[   28.946875] [(null)]  60
+[   28.949375] [(null)]  23
+[   28.951907] [(null)]  ad
+[   28.954438] [(null)]  cb
+[   28.956907] [(null)]  23
+[   28.959469] [(null)]  9a
+[   28.961938] [(null)]  23
+[   28.964500] [(null)]  f3
+[   28.966969] [(null)]  77
+[   28.969532] [(null)]  66
+[   28.971969] [(null)]  dd
+[   28.974532] [(null)]  90
+[   28.977063] [(null)]  23
+[   28.979532] [(null)]  8c
+[   28.982063] [(null)]  cb
+[   28.984532] [(null)]  7e
+[   28.987094] [(null)]  31
+[   28.989563] [(null)]  2d
+[   28.992094] [(null)]  cb
+[   28.994563] [(null)]  99
+[   28.997094] [(null)]  36
+[   28.999594] [(null)]  4b
+[   29.002094] [(null)]  5c
+[   29.004625] [(null)]  b5
+[   29.007125] [(null)]  5a
+[   29.009625] [wpa] 
+[   29.011875] [wpa] WPA: PTK derivation using PRF(SHA1)
+[   29.019125] [wpa] WPA: PTK derivation - A1=c8:47:8c:46:02:15 A2=6e:26:dd:7f:cc:cc
+[   29.024125] [wpa] WPA: Nonce1 - hexdump(len=32):
+[   29.028688] [(null)]  16
+[   29.031188] [(null)]  7a
+[   29.033688] [(null)]  1f
+[   29.039344] [(null)]  5b
+[   29.040907] [(null)]  31
+[   29.042344] [(null)]  fb
+[   29.043875] [(null)]  4b
+[   29.046250] [(null)]  60
+[   29.048750] [(null)]  23
+[   29.051250] [(null)]  ad
+[   29.053782] [(null)]  cb
+[   29.056282] [(null)]  23
+[   29.058782] [(null)]  9a
+[   29.061313] [(null)]  23
+[   29.063813] [(null)]  f3
+[   29.066313] [(null)]  77
+[   29.068813] [(null)]  66
+[   29.071344] [(null)]  dd
+[   29.073844] [(null)]  90
+[   29.076344] [(null)]  23
+[   29.078875] [(null)]  8c
+[   29.081375] [(null)]  cb
+[   29.083875] [(null)]  7e
+[   29.086407] [(null)]  31
+[   29.088907] [(null)]  2d
+[   29.091438] [(null)]  cb
+[   29.093907] [(null)]  99
+[   29.096469] [(null)]  36
+[   29.098938] [(null)]  4b
+[   29.101500] [(null)]  5c
+[   29.103969] [(null)]  b5
+[   29.106532] [(null)]  5a
+[   29.109063] [wpa] 
+[   29.111063] [wpa] WPA: Nonce2 - hexdump(len=32):
+[   29.115563] [(null)]  74
+[   29.118094] [(null)]  50
+[   29.120563] [(null)]  2e
+[   29.123094] [(null)]  3d
+[   29.125594] [(null)]  b0
+[   29.128094] [(null)]  0d
+[   29.130625] [(null)]  9f
+[   29.133688] [(null)]  c2
+[   29.135625] [[   29.142907] [rwnx] bmsg_rx_handler
+(null)]  e9
+[   29.146282] [(null)]  40
+[   29.147813] [(null)]  da
+[   29.149282] [(null)]  78
+[   29.150813] [(null)]  c7
+[   29.152282] [(null)]  81
+[   29.154094] [(null)]  52
+[   29.156594] [(null)]  00
+[   29.159094] [(null)]  6f
+[   29.161625] [(null)]  7d
+[   29.164094] [(null)]  78
+[   29.166625] [(null)]  9b
+[   29.169125] [(null)]  3c
+[   29.171625] [(null)]  e8
+[   29.174157] [(null)]  f9
+[   29.176657] [(null)]  fe
+[   29.179157] [(null)]  91
+[   29.181688] [(null)]  18
+[   29.184188] [(null)]  08
+[   29.186688] [(null)]  72
+[   29.189219] [(null)]  a7
+[   29.191719] [(null)]  0f
+[   29.194219] [(null)]  33
+[   29.196719] [(null)]  66
+[   29.199250] [wpa] 
+[   29.201282] [wpa] WPA: PMK - hexdump(len=32):
+[   29.205563] [wpa]  [REMOVED]
+[   29.208469] [wpa] 
+[   29.210438] [wpa] WPA: PTK - hexdump(len=48):
+[   29.214750] [wpa]  [REMOVED]
+[   29.217625] [wpa] 
+[   29.219594] [wpa] WPA: KCK - hexdump(len=16):
+[   29.223907] [wpa]  [REMOVED]
+[   29.226782] [wpa] 
+[   29.228782] [wpa] WPA: KEK - hexdump(len=16):
+[   29.233094] [wpa]  [REMOVED]
+[   29.235938] [wpa] 
+[   29.237938] [wpa] WPA: TK - hexdump(len=16):
+[   29.243657] [wpa]  [REMOVED]
+[   29.245500] [wpa] 
+[   29.247094] [wpa] WPA: TK 0x28099b58b
+[   29.250782] [wpa] WPA: WPA IE for msg 2/4 - hexdump(len=22):
+[   29.256282] [(null)]  30
+[   29.258782] [(null)]  14
+[   29.261282] [(null)]  01
+[   29.263813] [(null)]  00
+[   29.266313] [(null)]  00
+[   29.268813] [(null)]  0f
+[   29.271344] [(null)]  ac
+[   29.273844] [(null)]  04
+[   29.276344] [(null)]  01
+[   29.278875] [(null)]  00
+[   29.281375] [(null)]  00
+[   29.283875] [(null)]  0f
+[   29.286375] [(null)]  ac
+[   29.288907] [(null)]  04
+[   29.291438] [(null)]  01
+[   29.293907] [(null)]  00
+[   29.296469] [(null)]  00
+[   29.298938] [(null)]  0f
+[   29.301500] [(null)]  ac
+[   29.303969] [(null)]  02
+[   29.306532] [(null)]  00
+[   29.308969] [(null)]  00
+[   29.311532] [wpa] 
+[   29.313625] [wpa] WPA: Replay Counter - hexdump(len=8):
+[   29.318688] [(null)]  00
+[   29.321188] [(null)]  00
+[   29.323688] [(null)]  00
+[   29.326188] [(null)]  00
+[   29.328719] [(null)]  00
+[   29.331219] [(null)]  00
+[   29.333719] [(null)]  00
+[   29.337625] [(null)]  02
+[   29.339125] [wpa] 
+[   29.344219] [wpa] WPA: Sending EAPOL-Key 2/4
+[   29.346125] [wpa] WPA: Send EAPOL-Key frame to 6e:26:dd:7f:cc:cc ver=2 mic_len=16 key_mgmt=0x2
+[   29.353688] [wpa] WPA: EAPOL-Key MIC using HMAC-SHA1
+[   29.359625] [wpa] WPA: KCK - hexdump(len=16):
+[   29.362813] [wpa]  [REMOVED]
+[   29.365688] [wpa] 
+[   29.367688] [wpa] WPA: Derived Key MIC - hexdump(len=16):
+[   29.373094] [(null)]  29
+[   29.375532] [(null)]  76
+[   29.378094] [(null)]  bb
+[   29.380563] [(null)]  f7
+[   29.383094] [(null)]  bd
+[   29.385563] [(null)]  7f
+[   29.388094] [(null)]  9e
+[   29.390594] [(null)]  e7
+[   29.393094] [(null)]  10
+[   29.395625] [(null)]  e9
+[   29.398125] [(null)]  22
+[   29.400625] [(null)]  c7
+[   29.403125] [(null)]  63
+[   29.405657] [(null)]  a4
+[   29.408157] [(null)]  ae
+[   29.410657] [(null)]  66
+[   29.413188] [wpa] 
+[   29.415344] [initseq] osal sem-init enter max_count ret=1
+[   29.420594] [initseq] osal sem-init leave ret=0
+[   29.425157] [wpa] hapd_tx:34978,buf:0x28092220, len:135
+[   29.430688] [rwnx] bmsg_skt_tx_handler
+[   29.434157] [wpa] ke_rx:34978,buf:0x28092c3c, len:135
+[   29.439063] [wpa] r1:34978,buf:0x28092c3c, len:135
+[   29.451063] [adc] release
+[   29[   29.462063] [BK7258-M2] id=0 cfm=00000009 q=0/3 tid=7 vif=0 sta=0 fl=00000000
+[   29.467063] [rwnx] eapol cfm st=00000009 q=3 tid=7 sta=0 d31=0 d33=2 d34=1 d35=0 d36=0
+[   29.472344] [rwnx] txcfm seq=0 kind=data q=3 st=00000009 ack=1 done=1 tid=7 vif=0 sta=0 fl=00000000 addr=28092c4a len=121 saddr=00000000 eth=8e88 dst=6e:26:dd:7f:cc:cc src=c8:47:8c:46:02:15
+[   29.483907] [rwnx] l2tx cfm seq=0 status=00000009 acked=1 done=1 retry=0 swretry=0
+[   29.492563] [rwnx] bmsg_rx_handler
+[   29.495157] [BK7258-WIFI] rx#3 len=113/113 dst=c8:47:8c:46:02:15 et=888e tail=02 03 00 5f 02 00
+[   29.502157] [wpa] ke_tx:34978,buf:0x28092cfc, len:113
+[   29.507375] [BK7258-WIFI] rx#4 len=169/169 dst=c8:47:8c:46:02:15 et=888e tail=02 03 00 97 02 13
+[   29.515750] [wpa] ke_tx:34978,buf:0x2809310c, len:169
+[   29.521750] [wpa] hapd_rx:34978,buf:0x280926c8, len:512
+[   29.526313] [wpa] RX EAPOL from 6e:26:dd:7f:cc:cc
+[   29.530782] [wpa] IEEE 802.1X RX: version=2 type=3 length=95
+[   29.536407] [wpa]   EAPOL-Key type=2
+[   29.540219] [wpa]   key_info 0x8a (ver=2 keyidx=0 rsvd=0 Pairwise Ack)
+[   29.549313] [wpa]   key_length=16 key_data_length=0
+[   29.551157] [wpa]   replay_counter - hexdump(len=8):
+[   29.556094] [(null)]  00
+[   29.558563] [(null)]  00
+[   29.561094] [(null)]  00
+[   29.563563] [(null)]  00
+[   29.566094] [(null)]  00
+[   29.568594] [(null)]  00
+[   29.571094] [(null)]  00
+[   29.573625] [(null)]  03
+[   29.576125] [wpa] 
+[   29.578125] [wpa]   key_nonce - hexdump(len=32):
+[   29.582688] [(null)]  74
+[   29.585219] [(null)]  50
+[   29.587719] [(null)]  2e
+[   29.590219] [(null)]  3d
+[   29.592719] [(null)]  b0
+[   29.595250] [(null)]  0d
+[   29.597750] [(null)]  9f
+[   29.600250] [(null)]  c2
+[   29.602782] [(null)]  e9
+[   29.605282] [(null)]  40
+[   29.607782] [(null)]  da
+[   29.610313] [(null)]  78
+[   29.612813] [(null)]  c7
+[   29.615313] [(null)]  81
+[   29.617844] [(null)]  52
+[   29.620344] [(null)]  00
+[   29.622844] [(null)]  6f
+[   29.625344] [(null)]  7d
+[   29.627875] [(null)]  78
+[   29.630375] [(null)]  9b
+[   29.632875] [(null)]  3c
+[   29.635407] [(null)]  e8
+[   29.637907] [(null)]  f9
+[   29.640438] [(null)]  fe
+[   29.642938] [(null)]  91
+[   29.645500] [(null)]  18
+[   29.651094] [(null)]  08
+[   29.652657] [(null)]  72
+[   29.654125] [(null)]  a7
+[   29.655657] [(null)]  0f
+[   29.658032] [(null)]  33
+[   29.660532] [(null)]  66
+[   29.663063] [wpa] 
+[   29.665063] [wpa]   key_iv - hexdump(len=16):
+[   29.669344] [(null)]  00
+[   29.671844] [(null)]  00
+[   29.674344] [(null)]  00
+[   29.676844] [(null)]  00
+[   29.679375] [(null)]  00
+[   29.681875] [(null)]  00
+[   29.684375] [(null)]  00
+[   29.686907] [(null)]  00
+[   29.689407] [(null)]  00
+[   29.691907] [(null)]  00
+[   29.694438] [(null)]  00
+[   29.696938] [(null)]  00
+[   29.699500] [(null)]  00
+[   29.701938] [(null)]  00
+[   29.704532] [(null)]  00
+[   29.706969] [(null)]  00
+[   29.709532] [wpa] 
+[   29.711563] [wpa]   key_rsc - hexdump(len=8):
+[   29.715813] [(null)]  00
+[   29.718313] [(null)]  00
+[   29.720813] [(null)]  00
+[   29.723313] [(null)]  00
+[   29.725844] [(null)]  00
+[   29.728344] [(null)]  00
+[   29.730844] [(null)]  00
+[   29.733375] [(null)]  00
+[   29.735875] [wpa] 
+[   29.737875] [wpa]   key_id (reserved) - hexdump(len=8):
+[   29.743094] [(null)]  00
+[   29.745563] [(null)]  00
+[   29.748219] [(null)]  00
+[   29.750625] [(null)]  00
+[   29.753094] [(null)]  00
+[   29.755625] [(null)]  00
+[   29.758657] [(null)]  00
+[   29.760625] [(null)]  00
+[   29.763157] [wpa] 
+[   29.768532] [wpa]   key_mic - hexdump(len=16):
+[   29.771657] [(null)]  00
+[   29.773125] [(null)]  00
+[   29.774657] [(null)]  00
+[   29.777094] [(null)]  00
+[   29.779594] [(null)]  00
+[   29.782094] [(null)]  00
+[   29.784625] [(null)]  00
+[   29.787125] [(null)]  00
+[   29.789625] [(null)]  00
+[   29.792125] [(null)]  00
+[   29.794657] [(null)]  00
+[   29.797157] [(null)]  00
+[   29.799657] [(null)]  00
+[   29.802188] [(null)]  00
+[   29.804688] [(null)]  00
+[   29.807188] [(null)]  00
+[   29.809719] [wpa] 
+[   29.812125] [initseq] osal sem-init enter max_count ret=1
+[   29.817125] [initseq] osal sem-init leave ret=0
+[   29.821688] [rwnx] bmsg_hardware_ioctl_handler
+[   29.826907] [rwnx] bmsg_hardware_ioctl_sender
+[   29.830688] [initseq] osal sem-init enter max_count ret=1
+[   29.835688] [initseq] osal sem-init leave ret=0
+[   29.840250] [rwnx] bmsg_hardware_ioctl_handler
+[   29.845219] [rwnx] bmsg_hardware_ioctl_sender
+[   29.849282] [wpa] State: 4WAY_HANDSHAKE -> 4WAY_HANDSHAKE
+[   29.856375] [wpa] WPA: RX message 1 of 4-Way Handshake from 6e:26:dd:7f:cc:cc (ver=2)
+[   29.862157] [wpa] RSN: msg 1/4 key data - hexdump(len=0):
+[   29.867469] [wpa] 
+[   29.869750] [wpa] WPA: PTK derivation using PRF(SHA1)
+[   29.876938] [wpa] WPA: PTK derivation - A1=c8:47:8c:46:02:15 A2=6e:26:dd:7f:cc:cc
+[   29.881938] [wpa] WPA: Nonce1 - hexdump(len=32):
+[   29.886563] [(null)]  16
+[   29.888969] [(null)]  7a
+[   29.891532] [(null)]  1f
+[   29.894032] [(null)]  5b
+[   29.896532] [(null)]  31
+[   29.899063] [(null)]  fb
+[   29.901532] [(null)]  4b
+[   29.904094] [(null)]  60
+[   29.906532] [(null)]  23
+[   29.909094] [(null)]  ad
+[   29.911563] [(null)]  cb
+[   29.914094] [(null)]  23
+[   29.916594] [(null)]  9a
+[   29.919094] [(null)]  23
+[   29.921625] [(null)]  f3
+[   29.924125] [(null)]  77
+[   29.926625] [(null)]  66
+[   29.929125] [(null)]  dd
+[   29.931625] [(null)]  90
+[   29.934157] [(null)]  23
+[   29.936657] [(null)]  8c
+[   29.939157] [(null)]  cb
+[   29.941688] [(null)]  7e
+[   29.944188] [(null)]  31
+[   29.946688] [(null)]  2d
+[   29.949219] [(null)]  cb
+[   29.952813] [(null)]  99
+[   29.954282] [(null)]  36
+[   29.959688] [(null)]  4b
+[   29.961157] [(null)]  5c
+[   29.962688] [(null)]  b5
+[   29.964250] [(null)]  5a
+[   29.966782] [wpa] 
+[   29.968782] [wpa] WPA: Nonce2 - hexdump(len=32):
+[   29.973344] [(null)]  74
+[   29.975875] [(null)]  50
+[   29.978375] [(null)]  2e
+[   29.980875] [(null)]  3d
+[   29.983375] [(null)]  b0
+[   29.985907] [(null)]  0d
+[   29.988438] [(null)]  9f
+[   29.990907] [(null)]  c2
+[   29.993469] [(null)]  e9
+[   29.995938] [(null)]  40
+[   29.998500] [(null)]  da
+[   30.000969] [(null)]  78
+[   30.003532] [(null)]  c7
+[   30.005969] [(null)]  81
+[   30.008532] [(null)]  52
+[   30.011063] [(null)]  00
+[   30.013532] [(null)]  6f
+[   30.016063] [(null)]  7d
+[   30.018532] [(null)]  78
+[   30.021094] [(null)]  9b
+[   30.023532] [(null)]  3c
+[   30.026094] [(null)]  e8
+[   30.028563] [(null)]  f9
+[   30.031094] [(null)]  fe
+[   30.033594] [(null)]  91
+[   30.036094] [(null)]  18
+[   30.038625] [(null)]  08
+[   30.041125] [(null)]  72
+[   30.043625] [(null)]  a7
+[   30.046125] [(null)]  0f
+[   30.048657] [(null)]  33
+[   30.051157] [(null)]  66
+[   30.053657] [wpa] 
+[   30.055657] [wpa] WPA: PMK - hexdump(len=32):
+[   30.061969] [wpa]  [REMOVED]
+[   30.063875] [wpa] 
+[   30.065188] [wpa] WPA: PTK - hexdump(len=48):
+[   30.069157] [wpa]  [REMOVED]
+[   30.072063] [wpa] 
+[   30.074063] [wpa] WPA: KCK - hexdump(len=16):
+[   30.078344] [wpa]  [REMOVED]
+[   30.081188] [wpa] 
+[   30.083188] [wpa] WPA: KEK - hexdump(len=16):
+[   30.087532] [wpa]  [REMOVED]
+[   30.090375] [wpa] 
+[   30.092375] [wpa] WPA: TK - hexdump(len=16):
+[   30.096594] [wpa]  [REMOVED]
+[   30.099532] [wpa] 
+[   30.101532] [wpa] WPA: TK 0x28099b58b
+[   30.105219] [wpa] WPA: WPA IE for msg 2/4 - hexdump(len=22):
+[   30.110688] [(null)]  30
+[   30.113188] [(null)]  14
+[   30.115719] [(null)]  01
+[   30.118219] [(null)]  00
+[   30.120719] [(null)]  00
+[   30.123250] [(null)]  0f
+[   30.125750] [(null)]  ac
+[   30.128250] [(null)]  04
+[   30.130750] [(null)]  01
+[   30.133282] [(null)]  00
+[   30.135782] [(null)]  00
+[   30.138282] [(null)]  0f
+[   30.140813] [(null)]  ac
+[   30.143313] [(null)]  04
+[   30.145813] [(null)]  01
+[   30.148344] [(null)]  00
+[   30.150844] [(null)]  00
+[   30.153344] [(null)]  0f
+[   30.156907] [(null)]  ac
+[   30.158375] [(null)]  02
+[   30.164344] [(null)]  00
+[   30.165875] [(null)]  00
+[   30.167344] [wpa] 
+[   30.168844] [wpa] WPA: Replay Counter - hexdump(len=8):
+[   30.173125] [(null)]  00
+[   30.175625] [(null)]  00
+[   30.178094] [(null)]  00
+[   30.180625] [(null)]  00
+[   30.183125] [(null)]  00
+[   30.185625] [(null)]  00
+[   30.188125] [(null)]  00
+[   30.190657] [(null)]  03
+[   30.193157] [wpa] 
+[   30.195282] [wpa] WPA: Sending EAPOL-Key 2/4
+[   30.199875] [wpa] WPA: Send EAPOL-Key frame to 6e:26:dd:7f:cc:cc ver=2 mic_len=16 key_mgmt=0x2
+[   30.208157] [wpa] WPA: EAPOL-Key MIC using HMAC-SHA1
+[   30.213875] [wpa] WPA: KCK - hexdump(len=16):
+[   30.217219] [wpa]  [REMOVED]
+[   30.220094] [wpa] 
+[   30.222125] [wpa] WPA: Derived Key MIC - hexdump(len=16):
+[   30.227500] [(null)]  61
+[   30.229938] [(null)]  2a
+[   30.232500] [(null)]  1a
+[   30.234969] [(null)]  39
+[   30.237532] [(null)]  a6
+[   30.239969] [(null)]  02
+[   30.242532] [(null)]  e1
+[   30.245063] [(null)]  1e
+[   30.247532] [(null)]  23
+[   30.250063] [(null)]  4c
+[   30.252532] [(null)]  e9
+[   30.255094] [(null)]  47
+[   30.257532] [(null)]  ce
+[   30.260094] [(null)]  ea
+[   30.262563] [(null)]  b0
+[   30.265094] [(null)]  22
+[   30.267594] [wpa] 
+[   30.272313] [initseq] osal sem-init enter max_count ret=1
+[   30.276094] [initseq] osal sem-init leave ret=0
+[   30.279625] [wpa] hapd_tx:34978,buf:0x280921b8, len:135
+[   30.284907] [rwnx] bmsg_skt_tx_handler
+[   30.288563] [wpa] ke_rx:34978,buf:0x28092c3c, len:135
+[   30.293407] [wpa] r1:34978,buf:0x28092c3c, len:135
+[   30.300907] [BK7258-M2] id=1 cfm=00000009 q=0/3 tid=7 vif=0 sta=0 fl=00000000
+[   30.305844] [rwnx] eapol cfm st=00000009 q=3 tid=7 sta=0 d31=0 d33=0 d34=1 d35=0 d36=0
+[   30.313125] [rwnx] txcfm seq=1 kind=data q=3 st=00000009 ack=1 done=1 tid=7 vif=0 sta=0 fl=00000000 addr=28092c4a len=121 saddr=00000000 eth=8e88 dst=6e:26:dd:7f:cc:cc src=c8:47:8c:46:02:15
+[   30.329938] [rwnx] l2tx cfm seq=1 status=00000009 acked=1 done=1 retry=0 swretry=0
+[   30.338750] [wpa] hapd_rx:34978,buf:0x280926c8, len:512
+[   30.342938] [wpa] RX EAPOL from 6e:26:dd:7f:cc:cc
+[   30.347657] [wpa] IEEE 802.1X RX: version=2 type=3 length=151
+[   30.353219] [wpa]   EAPOL-Key type=2
+[   30.356969] [wpa]   key_info 0x13ca (ver=2 keyidx=0 rsvd=0 Pairwise Install Ack MIC Secure Encr)
+[   30.368688] [wpa]   key_length=16 key_data_length=56
+[   30.370282] [wpa]   replay_counter - hexdump(len=8):
+[   30.375157] [(null)]  00
+[   30.377657] [(null)]  00
+[   30.380157] [(null)]  00
+[   30.382657] [(null)]  00
+[   30.385188] [(null)]  00
+[   30.387688] [(null)]  00
+[   30.390188] [(null)]  00
+[   30.392719] [(null)]  04
+[   30.395219] [wpa] 
+[   30.397219] [wpa]   key_nonce - hexdump(len=32):
+[   30.401813] [(null)]  74
+[   30.404313] [(null)]  50
+[   30.406813] [(null)]  2e
+[   30.409313] [(null)]  3d
+[   30.411844] [(null)]  b0
+[   30.414344] [(null)]  0d
+[   30.416844] [(null)]  9f
+[   30.419375] [(null)]  c2
+[   30.421875] [(null)]  e9
+[   30.424375] [(null)]  40
+[   30.426875] [(null)]  da
+[   30.429407] [(null)]  78
+[   30.431907] [(null)]  c7
+[   30.434438] [(null)]  81
+[   30.436938] [(null)]  52
+[   30.439500] [(null)]  00
+[   30.441938] [(null)]  6f
+[   30.444532] [(null)]  7d
+[   30.446969] [(null)]  78
+[   30.449532] [(null)]  9b
+[   30.452063] [(null)]  3c
+[   30.454532] [(null)]  e8
+[   30.457063] [(null)]  f9
+[   30.459500] [(null)]  fe
+[   30.462063] [(null)[   30.465250] [rwnx] bmsg_rx_handler
+[   30.468157] [BK7258-WIFI] rx#5 len=169/169 dst=c8:47:8c:46:02:15 et=888e tail=02 03 00 97 02 13
+[   30.476063] [wpa] ke_tx:34978,buf:0x28092cfc, len:169
+]  91
+[   30.484563] [(null)]  18
+[   30.486094] [(null)]  08
+[   30.487657] [(null)]  72
+[   30.489125] [(null)]  a7
+[   30.491625] [(null)]  0f
+[   30.494125] [(null)]  33
+[   30.496625] [(null)]  66
+[   30.499157] [wpa] 
+[   30.501157] [wpa]   key_iv - hexdump(len=16):
+[   30.505532] [(null)]  00
+[   30.507969] [(null)]  00
+[   30.510532] [(null)]  00
+[   30.513063] [(null)]  00
+[   30.515532] [(null)]  00
+[   30.518063] [(null)]  00
+[   30.520532] [(null)]  00
+[   30.523094] [(null)]  00
+[   30.525532] [(null)]  00
+[   30.528094] [(null)]  00
+[   30.530563] [(null)]  00
+[   30.533094] [(null)]  00
+[   30.535563] [(null)]  00
+[   30.538094] [(null)]  00
+[   30.540594] [(null)]  00
+[   30.543094] [(null)]  00
+[   30.545625] [wpa] 
+[   30.547657] [wpa]   key_rsc - hexdump(len=8):
+[   30.551938] [(null)]  00
+[   30.554500] [(null)]  00
+[   30.556938] [(null)]  00
+[   30.559532] [(null)]  00
+[   30.561969] [(null)]  00
+[   30.564532] [(null)]  00
+[   30.567375] [(null)]  00
+[   30.569532] [(null)]  00
+[   30.572063] [wpa] 
+[   30.574094] [wpa]   key_id (reserved) - hexdump(len=8):
+[   30.579219] [(null)]  00
+[   30.581688] [(null)]  00
+[   30.584219] [(null)]  00
+[   30.586719] [(null)]  00
+[   30.592125] [(null)]  00
+[   30.593688] [(null)]  00
+[   30.595125] [(null)]  00
+[   30.596750] [(null)]  00
+[   30.599282] [wpa] 
+[   30.601282] [wpa]   key_mic - hexdump(len=16):
+[   30.605688] [(null)]  b9
+[   30.608188] [(null)]  59
+[   30.610688] [(null)]  e8
+[   30.613188] [(null)]  dd
+[   30.615719] [(null)]  94
+[   30.618219] [(null)]  59
+[   30.620719] [(null)]  06
+[   30.623250] [(null)]  b3
+[   30.625750] [(null)]  18
+[   30.628250] [(null)]  dc
+[   30.630750] [(null)]  9d
+[   30.633282] [(null)]  38
+[   30.635782] [(null)]  e0
+[   30.638282] [(null)]  ba
+[   30.640813] [(null)]  2c
+[   30.643313] [(null)]  b0
+[   30.645844] [wpa] 
+[   30.648125] [wpa] WPA: EAPOL-Key MIC using HMAC-SHA1
+[   30.653907] [wpa] RSN: encrypted key data - hexdump(len=56):
+[   30.658375] [(null)]  c4
+[   30.660875] [(null)]  4f
+[   30.663407] [(null)]  7c
+[   30.665907] [(null)]  42
+[   30.668438] [(null)]  6f
+[   30.670907] [(null)]  8e
+[   30.673469] [(null)]  74
+[   30.675938] [(null)]  b1
+[   30.678500] [(null)]  95
+[   30.680969] [(null)]  5b
+[   30.683532] [(null)]  8a
+[   30.685969] [(null)]  77
+[   30.688532] [(null)]  df
+[   30.691063] [(null)]  08
+[   30.693532] [(null)]  d9
+[   30.696063] [(null)]  26
+[   30.698532] [(null)]  b3
+[   30.701094] [(null)]  5c
+[   30.703532] [(null)]  28
+[   30.706094] [(null)]  da
+[   30.708563] [(null)]  d9
+[   30.711094] [(null)]  64
+[   30.713594] [(null)]  12
+[   30.716094] [(null)]  57
+[   30.718625] [(null)]  59
+[   30.721125] [(null)]  e1
+[   30.723625] [(null)]  1b
+[   30.726125] [(null)]  a7
+[   30.728657] [(null)]  e8
+[   30.731157] [(null)]  85
+[   30.733657] [(null)]  2a
+[   30.736157] [(null)]  02
+[   30.738688] [(null)]  e3
+[   30.741188] [(null)]  93
+[   30.743688] [(null)]  e7
+[   30.746219] [(null)]  1b
+[   30.748719] [(null)]  48
+[   30.751219] [(null)]  24
+[   30.753750] [(null)]  b0
+[   30.756250] [(null)]  1b
+[   30.758750] [(null)]  1f
+[   30.761282] [(null)]  6e
+[   30.763782] [(null)]  1d
+[   30.766282] [(null)]  3f
+[   30.768782] [(null)]  09
+[   30.772125] [(null)]  22
+[  [   30.779969] [rwnx] bmsg_rx_handler
+ 30.773813] [(null)]  3a
+[   30.784157] [(null)]  f7
+[   30.785688] [(null)]  07
+[   30.787157] [(null)]  ea
+[   30.788688] [(null)]  78
+[   30.790157] [(null)]  27
+[   30.792250] [(null)]  4f
+[   30.794750] [(null)]  db
+[   30.797282] [(null)]  16
+[   30.799782] [(null)]  1c
+[   30.802282] [wpa] 
+[   30.804532] [wpa] WPA: Decrypt Key Data using AES-UNWRAP (KEK length 16)
+[   30.839844] [wpa] WPA: decrypted EAPOL-Key key data - hexdump(len=48):
+[   30.842688] [wpa]  [REMOVED]
+[   30.844563] [wpa] 
+[   30.846063] [wpa] State: 4WAY_HANDSHAKE -> 4WAY_HANDSHAKE
+[   30.847875] [wpa] WPA: RX message 3 of 4-Way Handshake from 6e:26:dd:7f:cc:cc (ver=2)
+[   30.852969] [wpa] WPA: IE KeyData - hexdump(len=48):
+[   30.857875] [(null)]  30
+[   30.860375] [(null)]  14
+[   30.862875] [(null)]  01
+[   30.865407] [(null)]  00
+[   30.867907] [(null)]  00
+[   30.870438] [(null)]  0f
+[   30.872907] [(null)]  ac
+[   30.875469] [(null)]  04
+[   30.881094] [(null)]  01
+[   30.882657] [(null)]  00
+[   30.884125] [(null)]  00
+[   30.885657] [(null)]  0f
+[   30.887969] [(null)]  ac
+[   30.890532] [(null)]  04
+[   30.893063] [(null)]  01
+[   30.895532] [(null)]  00
+[   30.898063] [(null)]  00
+[   30.900532] [(null)]  0f
+[   30.903094] [(null)]  ac
+[   30.905563] [(null)]  02
+[   30.908094] [(null)]  0c
+[   30.910563] [(null)]  00
+[   30.913094] [(null)]  dd
+[   30.915594] [(null)]  16
+[   30.918094] [(null)]  00
+[   30.920625] [(null)]  0f
+[   30.923125] [(null)]  ac
+[   30.925625] [(null)]  01
+[   30.928125] [(null)]  01
+[   30.930657] [(null)]  00
+[   30.933157] [(null)]  0c
+[   30.935657] [(null)]  79
+[   30.938188] [(null)]  7d
+[   30.940688] [(null)]  31
+[   30.943188] [(null)]  21
+[   30.945688] [(null)]  5b
+[   30.948219] [(null)]  24
+[   30.950719] [(null)]  b7
+[   30.953219] [(null)]  9a
+[   30.955750] [(null)]  c9
+[   30.958250] [(null)]  1e
+[   30.960750] [(null)]  12
+[   30.963282] [(null)]  a3
+[   30.965782] [(null)]  46
+[   30.968282] [(null)]  de
+[   30.970813] [(null)]  a3
+[   30.973313] [(null)]  dd
+[   30.976500] [(null)]  00
+[   30.978344] [wpa] 
+[   30.984063] [wpa] WPA: RSN IE in EAPOL-Key - hexdump(len=22):
+[   30.986844] [(null)]  30
+[   30.988532] [(null)]  14
+[   30.991094] [(null)]  01
+[   30.993563] [(null)]  00
+[   30.996094] [(null)]  00
+[   30.998594] [(null)]  0f
+[   31.001094] [(null)]  ac
+[   31.003625] [(null)]  04
+[   31.006094] [(null)]  01
+[   31.008625] [(null)]  00
+[   31.011125] [(null)]  00
+[   31.013625] [(null)]  0f
+[   31.016157] [(null)]  ac
+[   31.018657] [(null)]  04
+[   31.021157] [(null)]  01
+[   31.023688] [(null)]  00
+[   31.026188] [(null)]  00
+[   31.028688] [(null)]  0f
+[   31.031219] [(null)]  ac
+[   31.033719] [(null)]  02
+[   31.036219] [(null)]  0c
+[   31.038719] [(null)]  00
+[   31.041250] [wpa] 
+[   31.043344] [wpa] WPA: GTK in EAPOL-Key - hexdump(len=24):
+[   31.048688] [wpa]  [REMOVED]
+[   31.051532] [wpa] 
+[   31.053907] [wpa] WPA: Sending EAPOL-Key 4/4
+[   31.058188] [wpa] WPA: Send EAPOL-Key frame to 6e:26:dd:7f:cc:cc ver=2 mic_len=16 key_mgmt=0x2
+[   31.066657] [wpa] WPA: EAPOL-Key MIC using HMAC-SHA1
+[   31.072282] [wpa] WPA: KCK - hexdump(len=16):
+[   31.075625] [wpa]  [REMOVED]
+[   31.078532] [wpa] 
+[   31.080563] [wpa] WPA: Derived Key MIC - hexdump(len=16):
+[   31.085813] [(null)]  11
+[   31.088313] [(null)]  16
+[   31.093250] [(null)]  bc
+[   31.094782] [(null)]  fd
+[   31.096250] [(null)]  1b
+[   31.098375] [(null)]  6d
+[   31.100875] [(null)]  05
+[   31.103375] [(null)]  59
+[   31.105907] [(null)]  29
+[   31.108407] [(null)]  8f
+[   31.110907] [(null)]  a7
+[   31.113438] [(null)]  6b
+[   31.115938] [(null)]  65
+[   31.118500] [(null)]  7a
+[   31.120938] [(null)]  b1
+[   31.123532] [(null)]  aa
+[   31.125969] [wpa] 
+[   31.128219] [initseq] osal sem-init enter max_count ret=1
+[   31.133375] [initseq] osal sem-init leave ret=0
+[   31.137907] [wpa] hapd_tx:34978,buf:0x28092370, len:113
+[   31.143344] [rwnx] bmsg_skt_tx_handler
+[   31.146875] [wpa] ke_rx:34978,buf:0x28092c3c, len:113
+[   31.151813] [wpa] r1:34978,buf:0x28092c3c, len:113
+.456657] [adc] release
+[   31.162344] [BK7258-M2] id=2 cfm=00000009 q=0/3 tid=7 vif=0 sta=0 fl=00000000
+[   31.167313] [rwnx] eapol cfm st=00000009 q=3 tid=7 sta=0 d31=0 d33=0 d34=1 d35=0 d36=0
+[   31.173625] [rwnx] txcfm seq=2 kind=data q=3 st=00000009 ack=1 done=1 tid=7 vif=0 sta=0 fl=00000000 addr=28092c4a len=99 saddr=00000000 eth=8e88 dst=6e:26:dd:7f:cc:cc src=c8:47:8c:46:02:15
+[   31.190344] [rwnx] l2tx cfm seq=2 status=00000009 acked=1 done=1 retry=0 swretry=0
+[   31.204250] [wpa] WPA: Installing PTK to the driver
+[   31.206188] [hitf] add CCMP
+[   31.208094] [hitf] add sta_mgmt_get_sta
+[   31.210657] [hitf] add key, sta=0, vif=0, key=0
+[   31.214282] [initseq] osal sem-init enter max_count ret=1
+[   31.219125] [initseq] osal sem-init leave ret=0
+[   31.223782] [rwnx] bmsg_ioctl_handler
+[   31.228657] [rwnx] bmsg_ioctl_sender
+[   31.231157] [hitf] add hw key idx=8
+[   31.234688] [wpa] State: 4WAY_HANDSHAKE -> GROUP_HANDSHAKE
+[   31.239813] [wpa] RSN: received GTK in pairwise handshake - hexdump(len=18):
+[   31.246719] [wpa]  [REMOVED]
+[   31.249563] [wpa] 
+[   31.251563] [wpa] WPA: GTK 0x280921b9b
+[   31.255375] [wpa] WPA: Group Key - hexdump(len=16):
+[   31.260125] [wpa]  [REMOVED]
+[   31.262969] [wpa] 
+[   31.265125] [wpa] WPA: Installing GTK to the driver (keyidx=1 tx=0 len=16)
+[   31.271844] [wpa] WPA: RSC - hexdump(len=6):
+[   31.276094] [(null)]  00
+[   31.278532] [(null)]  00
+[   31.281094] [(null)]  00
+[   31.283563] [(null)]  00
+[   31.288969] [(null)]  00
+[   31.290500] [(null)]  00
+[   31.292063] [wpa] 
+[   31.293719] [hitf] add CCMP
+[   31.295875] [hitf] add is_broadcast_ether_addr
+[   31.300282] [hitf] add key, sta=255, vif=0, key=1
+[   31.305094] [initseq] osal sem-init enter max_count ret=1
+[   31.310344] [initseq] osal sem-init leave ret=0
+[   31.315063] [rwnx] bmsg_ioctl_handler
+[   31.319813] [rwnx] bmsg_ioctl_sender
+[   31.322219] [hitf] add hw key idx=1
+[   31.325969] [wpa] WPA: Key negotiation completed with 6e:26:dd:7f:cc:cc [PTK=CCMP GTK=CCMP]
+[   31.333907] [wpa] Cancelling authentication timeout
+[   31.338844] [wpa] State: GROUP_HANDSHAKE -> COMPLETED
+[   31.343938] [wpa] Radio work 'connect'@0x2808d600 done in 4.403000 seconds
+[   31.350750] [wpa] radio_work_free('connect'@0x2808d600): num_active_works --> 0
+[   31.357969] [initseq] osal sem-init enter max_count ret=1
+[   31.363125] [initseq] osal sem-init leave ret=0
+[   31.367782] [rwnx] bmsg_ioctl_handler
+[   31.372219] [rwnx] bmsg_ioctl_sender
+[   31.375250] [wpa] CTRL-EVENT-CONNECTED - Connection to 6e:26:dd:7f:cc:cc completed [id=0 id_str=]
+[   31.383938] [BK7258-WIFI] connected: carrier on, vif=0
+[   31.393844] [wpa] hapd_rx:34978,buf:0x280926c8, len:512
+[   31.397782] [wpa] RX EAPOL from 6e:26:dd:7f:cc:cc
+[   31.399313] [wpa] IEEE 802.1X RX: version=2 type=3 length=151
+[   31.404657] [wpa]   EAPOL-Key type=2
+[   31.408282] [wpa]   key_info 0x13ca (ver=2 keyidx=0 rsvd=0 Pairwise Install Ack MIC Secure Encr)
+[   31.416719] [wpa]   key_length=16 key_data_length=56
+[   31.421563] [wpa]   replay_counter - hexdump(len=8):
+[   31.426532] [(null)]  00
+[   31.428969] [(null)]  00
+[   31.431532] [(null)]  00
+[   31.433969] [(null)]  00
+[   31.436532] [(null)]  00
+[   31.439063] [(null)]  00
+[   31.441532] [(null)]  00
+[   31.444063] [(null)]  05
+[   31.446532] [wpa] 
+[   31.448532] [wpa]   key_nonce - hexdump(len=32):
+[   31.453125] [(null)]  74
+[   31.455625] [(null)]  50
+[   31.458125] [(null)]  2e
+[   31.460625] [(null)]  3d
+[   31.463157] [(null)]  b0
+[   31.465657] [(null)]  0d
+[   31.468157] [(null)]  9f
+[   31.470657] [(null)]  c2
+[   31.473188] [(null)]  e9
+[   31.475688] [(null)]  40
+[   31.478188] [(null)]  da
+[   31.480719] [(null)]  78
+[   31.483219] [(null)]  c7
+[   31.485719] [(null)]  81
+[   31.488250] [(null)]  52
+[   31.494500] [(null)]  00
+[   31.496094] [(null)]  6f
+[   31.497625] [(null)]  7d
+[   31.499094] [(null)]  78
+[   31.500782] [(null)]  9b
+[   31.503313] [(null)]  3c
+[   31.505813] [(null)]  e8
+[   31.508313] [(null)]  f9
+[   31.510844] [(null)]  fe
+[   31.513344] [(null)]  91
+[   31.515844] [(null)]  18
+[   31.518344] [(null)]  08
+[   31.520875] [(null)]  72
+[   31.523375] [(null)]  a7
+[   31.525875] [(null)]  0f
+[   31.528407] [(null)]  33
+[   31.530907] [(null)]  66
+[   31.533438] [wpa] 
+[   31.535500] [wpa]   key_iv - hexdump(len=16):
+[   31.539750] [(null)]  00
+[   31.542250] [(null)]  00
+[   31.544750] [(null)]  00
+[   31.547250] [(null)]  00
+[   31.549782] [(null)]  00
+[   31.552282] [(null)]  00
+[   31.554782] [(null)]  00
+[   31.557313] [(null)]  00
+[   31.559813] [(null)]  00
+[   31.562313] [(null)]  00
+[   31.564844] [(null)]  00
+[   31.567344] [(null)]  00
+[   31.569844] [(null)]  00
+[   31.572375] [(null)]  00
+[   31.574875] [(null)]  00
+[   31.577375] [(null)]  00
+[   31.579907] [wpa] 
+[   31.581907] [wpa]   key_rsc - hexdump(len=8):
+[   31.586219] [(null)]  00
+[   31.588719] [(null)]  00
+[   31.591469] [(null)]  00
+[   31.596719] [(null)]  00
+[   31.598188] [(null)]  00
+[   31.599719] [(null)]  00
+[   31.601282] [(null)]  00
+[   31.603782] [(null)]  00
+[   31.606282] [wpa] 
+[   31.608313] [wpa]   key_id (reserved) - hexdump(len=8):
+[   31.613532] [(null)]  00
+[   31.615969] [(null)]  00
+[   31.618532] [(null)]  00
+[   31.621063] [(null)]  00
+[   31.623532] [(null)]  00
+[   31.626063] [(null)]  00
+[   31.628532] [(null)]  00
+[   31.631094] [(null)]  00
+[   31.633563] [wpa] 
+[   31.635563] [wpa]   key_mic - hexdump(len=16):
+[   31.639969] [(null)]  dd
+[   31.642532] [(null)]  fb
+[   31.644969] [(null)]  ea
+[   31.647532] [(null)]  19
+[   31.650063] [(null)]  b8
+[   31.652532] [(null)]  08
+[   31.655063] [(null)]  eb
+[   31.657532] [(null)]  32
+[   31.660094] [(null)]  bd
+[   31.662532] [(null)]  2c
+[   31.665094] [(null)]  f9
+[   31.667563] [(null)]  f2
+[   31.670094] [(null)]  32
+[   31.672594] [(null)]  98
+[   31.675094] [(null)]  6d
+[   31.677625] [(null)]  2e
+[   31.680125] [wpa] 
+[   31.682344] [wpa] WPA: EAPOL-Key MIC using HMAC-SHA1
+[   31.688188] [wpa] RSN: encrypted key data - hexdump(len=56):
+[   31.692688] [(null)]  c4
+[   31.698969] [(null)]  4f
+[   31.700657] [(null)]  7c
+[   31.702125] [(null)]  42
+[   31.703688] [(null)]  6f
+[   31.705219] [(null)]  8e
+[   31.707719] [(null)]  74
+[   31.710219] [(null)]  b1
+[   31.712750] [(null)]  95
+[   31.715250] [(null)]  5b
+[   31.717750] [(null)]  8a
+[   31.720282] [(null)]  77
+[   31.722782] [(null)]  df
+[   31.725282] [(null)]  08
+[   31.727782] [(null)]  d9
+[   31.730313] [(null)]  26
+[   31.732813] [(null)]  b3
+[   31.735313] [(null)]  5c
+[   31.737844] [(null)]  28
+[   31.740344] [(null)]  da
+[   31.742844] [(null)]  d9
+[   31.745375] [(null)]  64
+[   31.747875] [(null)]  12
+[   31.750375] [(null)]  57
+[   31.752907] [(null)]  59
+[   31.755407] [(null)]  e1
+[   31.757907] [(null)]  1b
+[   31.760438] [(null)]  a7
+[   31.762938] [(null)]  e8
+[   31.765500] [(null)]  85
+[   31.767938] [(null)]  2a
+[   31.770532] [(null)]  02
+[   31.772969] [(null)]  e3
+[   31.775532] [(null)]  93
+[   31.778063] [(null)]  e7
+[   31.780532] [(null)]  1b
+[   31.783063] [(null)]  48
+[   31.785532] [(null)]  24
+[   31.788094] [(null)]  b0
+[   31.790532] [(null)]  1b
+[   31.793094] [(null)]  1f
+[   31.795969] [(null)][   31.802469] [rwnx] bmsg_rx_handler
+[   31.805157] [BK7258-WIFI] rx#6 len=291/291 dst=01:00:5e:00:00:fb et=0800 tail=45 00 01 15 ea d6
+[   31.812375] netdev_upper_rxpoll_work: ERROR: Dropped frame due to lower dev not up
+[   31.818219] [rwnx] bmsg_rx_handler
+[   31.820688] [BK7258-WIFI] rx#7 len=311/311 dst=33:33:00:00:00:fb et=86dd tail=60 0a c2 81 01 01
+  6e
+[   31.830219] netdev_upper_rxpoll_work: ERROR: Dropped frame due to lower dev not up
+[   31.829938] [(null)]  1d
+[   31.839688] [(null)]  3f
+[   31.842188] [(null)]  09
+[   31.844719] [(null)]  22
+[   31.847219] [(null)]  3a
+[   31.849719] [(null)]  f7
+[   31.852250] [(null)]  07
+[   31.854750] [(null)]  ea
+[   31.857250] [(null)]  78
+[   31.859782] [(null)]  27
+[   31.862282] [(null)]  4f
+[   31.864782] [(null)]  db
+[   31.867313] [(null)]  16
+[   31.869813] [(null)]  1c
+[   31.872313] [wpa] 
+[   31.874657] [wpa] WPA: Decrypt Key Data using AES-UNWRAP (KEK length 16)
+[   31.912969] [wpa] WPA: decrypted EAPOL-Key key data - hexdump(len=48):
+[   31.915844] [wpa]  [REMOVED]
+[   31.917750] [wpa] 
+[   31.919282] [wpa] State: COMPLETED -> 4WAY_HANDSHAKE
+[   31.921094] [wpa] WPA: RX message 3 of 4-Way Handshake from 6e:26:dd:7f:cc:cc (ver=2)
+[   31.925750] [wpa] WPA: IE KeyData - hexdump(len=48):
+[   31.930625] [(null)]  30
+[   31.933125] [(null)]  14
+[   31.935657] [(null)]  01
+[   31.938157] [(null)]  00
+[   31.940657] [(null)]  00
+[   31.943188] [(null)]  0f
+[   31.945688] [(null)]  ac
+[   31.948188] [(null)]  04
+[   31.950719] [(null)]  01
+[   31.953219] [(null)]  00
+[   31.955719] [(null)]  00
+[   31.958219] [(null)]  0f
+[   31.960750] [(null)]  ac
+[   31.963250] [(null)]  04
+[   31.965750] [(null)]  01
+[   31.968282] [(null)]  00
+[   31.970782] [(null)]  00
+[   31.973282] [(null)]  0f
+[   31.975813] [(null)]  ac
+[   31.978313] [(null)]  02
+[   31.980813] [(null)]  0c
+[   31.983344] [(null)]  00
+[   31.985844] [(null)]  dd
+[   31.988344] [(null)]  16
+[   31.990844] [(null)]  00
+[   31.993375] [(null)]  0f
+[   31.995875] [(null)]  ac
+[   31.998375] [(null)]  01
+[   32.001500] [(null)]  01
+[   32.006844] [(null)]  00
+[   32.008313] [(null)]  0c
+[   32.009875] [(null)]  79
+[   32.011344] [(null)]  7d
+[   32.013500] [(null)]  31
+[   32.015969] [(null)]  21
+[   32.018532] [(null)]  5b
+[   32.020969] [(null)]  24
+[   32.023532] [(null)]  b7
+[   32.026032] [(null)]  9a
+[   32.028532] [(null)]  c9
+[   32.031063] [(null)]  1e
+[   32.033532] [(null)]  12
+[   32.036094] [(null)]  a3
+[   32.038532] [(null)]  46
+[   32.041094] [(null)]  de
+[   32.043563] [(null)]  a3
+[   32.046094] [(null)]  dd
+[   32.048594] [(null)]  00
+[   32.051094] [wpa] 
+[   32.053157] [wpa] WPA: RSN IE in EAPOL-Key - hexdump(len=22):
+[   32.058813] [(null)]  30
+[   32.061313] [(null)]  14
+[   32.063813] [(null)]  01
+[   32.066344] [(null)]  00
+[   32.068844] [(null)]  00
+[   32.071344] [(null)]  0f
+[   32.073844] [(null)]  ac
+[   32.076375] [(null)]  04
+[   32.078875] [(null)]  01
+[   32.081375] [(null)]  00
+[   32.083907] [(null)]  00
+[   32.086407] [(null)]  0f
+[   32.088907] [(null)]  ac
+[   32.091438] [(null)]  04
+[   32.093938] [(null)]  01
+[   32.096500] [(null)]  00
+[   32.098938] [(null)]  00
+[   32.101532] [(null)]  0f
+[   32.103969] [(null)]  ac
+[   32.108219] [(null)]  02
+[   32.109782] [(null)]  0c
+[   32.111532] [(null)]  00
+[   32.114063] [wpa] 
+[   32.116188] [wpa] WPA: GTK in EAPOL-Key - hexdump(len=24):
+[   32.121532] [wpa]  [REMOVED]
+[   32.124313] [wpa] 
+[   32.126750] [wpa] WPA: Sending EAPOL-Key 4/4
+[   32.130875] [wpa] WPA: Send EAPOL-Key frame to 6e:26:dd:7f:cc:cc ver=2 mic_len=16 key_mgmt=0x2
+[   32.139219] [wpa] WPA: EAPOL-Key MIC using HMAC-SHA1
+[   32.144938] [wpa] WPA: KCK - hexdump(len=16):
+[   32.148375] [wpa]  [REMOVED]
+[   32.151219] [wpa] 
+[   32.153250] [wpa] WPA: Derived Key MIC - hexdump(len=16):
+[   32.158594] [(null)]  61
+[   32.161157] [(null)]  ea
+[   32.163594] [(null)]  5e
+[   32.166094] [(null)]  4f
+[   32.168625] [(null)]  58
+[   32.171125] [(null)]  7c
+[   32.173625] [(null)]  b6
+[   32.176157] [(null)]  a0
+[   32.178657] [(null)]  bf
+[   32.181157] [(null)]  0c
+[   32.183688] [(null)]  b1
+[   32.186188] [(null)]  8a
+[   32.188688] [(null)]  f4
+[   32.191188] [(null)]  06
+[   32.193719] [(null)]  79
+[   32.196219] [(null)]  58
+[   32.198750] [wpa] 
+[   32.200875] [initseq] osal sem-init enter max_count ret=1
+[   32.206907] [initseq] osal sem-init leave ret=0
+[   32.213938] [wpa] hapd_tx:34978,buf:0x28092550, len:113
+[   32.217782] [rwnx] bmsg_skt_tx_handler
+[   32.220313] [wpa] ke_rx:34978,buf:0x28092c3c, len:113
+[   32.224563] [wpa] r1:34978,buf:0x28092c3c, len:113
+[   32.233375] [BK7258-M2] id=3 cfm=00000009 q=0/3 tid=7 vif=0 sta=0 fl=00000000
+[   32.238313] [rwnx] eapol cfm st=00000009 q=3 tid=7 sta=0 d31=0 d33=0 d34=1 d35=0 d36=0
+[   32.244282] [rwnx] txcfm seq=3 kind=data q=3 st=00000009 ack=1 done=1 tid=7 vif=0 sta=0 fl=00000000 addr=28092c4a len=99 saddr=00000000 eth=8e88 dst=6e:26:dd:7f:cc:cc src=c8:47:8c:46:02:15
+[   32.261094] [rwnx] l2tx cfm seq=3 status=00000009 acked=1 done=1 retry=0 swretry=0
+[   32.269250] [wpa] WPA: Do not re-install same PTK to the driver
+[   32.274750] [wpa] State: 4WAY_HANDSHAKE -> GROUP_HANDSHAKE
+[   32.279969] [wpa] RSN: received GTK in pairwise handshake - hexdump(len=18):
+[   32.286844] [wpa]  [REMOVED]
+[   32.289688] [wpa] 
+[   32.291688] [wpa] WPA: GTK 0x28092531b
+[   32.295782] [wpa] WPA: Not reinstalling already in-use GTK to the driver (keyidx=1 tx=0 len=16)
+[   32.304657] [wpa] WPA: Key negotiation completed with 6e:26:dd:7f:cc:cc [PTK=CCMP GTK=CCMP]
+[   32.314250] [wpa] Cancelling authentication timeout
+[   32.317407] [wpa] State: GROUP_HANDSHAKE -> COMPLETED
+[   32.322375] [hitf] STA 6e:26:dd:7f:cc:ccalready opened
+  state=CONNECTED(3) reason=SU[   32.335094] [adc] release
+CCESS(262)
+[bk7258_wifi_runtime] connect: CONNECTED
+[cal] cal_bias!
+[cal] cali bias(f)
+[cal] temp_code:42 - adc_code:481 - adc_trend:[16]:494->[17]:471
+[   32.348313] [adc] release
+nsh> [   33.234969] [rwnx] bmsg_rx_handler
+[   33.355282] [adc] release
+[   33.360844] [adc] release
+[   33.373313] [rwnx] bmsg_rx_handler
+[   34.258625] [rwnx] bmsg_rx_handler
+[   34.261219] [BK7258-WIFI] rx#8 len=82/82 dst=01:00:5e:00:00:fb et=0800 tail=45 00 00 44 eb 17
+[   [   34.268344] netdev_upper_rxpoll_work: ERROR: Dropped frame due to lower dev not up
+34.267750] [BK7258-WIFI] rx#9 len=102/102 dst=33:33:00:00:00:fb et=86dd tail=60 0a c2 81 00 30
+[   34.279188] netdev_upper_rxpoll_work: ERROR: Dropped frame due to lower dev not up
+[   34.367157] [adc] release
+[   34.372813] [adc] release
+[   35.379125] [adc] release
+[   35.388625] [adc] release
+[   35.491407] [rwnx] bmsg_rx_handler
+[   35.494063] [BK7258-WIFI] rx#10 len=81/81 dst=01:00:5e:00:00:fb et=0800 tail=45 00 00 43 da 06
+[   35.501344] netdev_upper_rxpoll_work: ERROR: Dropped frame due to lower dev not up
+[   35.506094] [rwnx] bmsg_rx_handler
+[   35.508438] [BK7258-WIFI] rx#11 len=101/101 dst=33:33:00:00:00:fb et=86dd tail=60 06 6a 70 00 2f
+[   35.515219] netdev_upper_rxpoll_work: ERROR: Dropped frame due to lower dev not up
+[   35.746625] [rwnx] bmsg_rx_handler
+[   35.749250] [BK7258-WIFI] rx#12 len=291/291 dst=01:00:5e:00:00:fb et=0800 tail=45 00 01 15 ec 41
+[   35.756313] netdev_upper_rxpoll_work: ERROR: Dropped frame due to lower dev not up
+[   35.761313] [rwnx] bmsg_rx_handler
+[   35.763750] [BK7258-WIFI] rx#13 len=311/311 dst=33:33:00:00:00:fb et=86dd tail=60 0a c2 81 01 01
+[   35.770250] netdev_upper_rxpoll_work: ERROR: Dropped frame due to lower dev not up
+[   36.395157] [adc] release
+[   36.400813] [adc] release
+
+nsh> [   37.330594] [rwnx] bmsg_rx_handler
+[   37.407219] [adc] release
+[   37.412782] [adc] release
+[   37.452907] [rwnx] bmsg_rx_handler
+
+nsh> [   38.419157] [adc] release
+[   38.424875] [adc] release
+
+nsh> 
+nsh> [   39.431157] [adc] release
+[   39.436782] [adc] release
+
+nsh> 
+nsh> [   40.443157] [adc] release
+[   40.448813] [adc] release
+
+nsh> [   41.426344] [rwnx] bmsg_rx_handler
+[   41.455250] [adc] release
+[   41.460844] [adc] release
+
+nsh> [   42.347375] [rwnx] bmsg_rx_handler
+[   42.469188] [adc] release
+[   42.474844] [adc] release
+[   43.268688] [rwnx] bmsg_rx_handler
+[   43.271282] [BK7258-WIFI] rx#14 len=82/82 dst=01:00:5e:00:00:fb et=0800 tail=45 00 00 44 ed 4b
+[ [   43.278375] netdev_upper_rxpoll_work: ERROR: Dropped frame due to lower dev not up
+  43.277844] [BK7258-WIFI] rx#15 len=102/102 dst=33:33:00:00:00:fb et=86dd tail=60 0a c2 81 00 30
+[   43.289219] netdev_upper_rxpoll_work: ERROR: Dropped frame due to lower dev not up
+[   43.481157] [adc] release
+[   43.486813] [adc] release
+[   43.883813] [rwnx] bmsg_rx_handler
+[   43.886532] [BK7258-WIFI] rx#16 len=291/291 dst=01:00:5e:00:00:fb et=0800 tail=45 00 01 15 ed d6
+[   43.893344] netdev_upper_rxpoll_work: ERROR: Dropped frame due to lower dev not up
+[   43.898844] [rwnx] bmsg_rx_handler
+[   43.901282] [BK7258-WIFI] rx#17 len=311/311 dst=33:33:00:00:00:fb et=86dd tail=60 0a c2 81 01 01
+[   43.908250] netdev_upper_rxpoll_work: ERROR: Dropped frame due to lower dev not up
+[   44.495938] [adc] release
+[   44.501750] [adc] release
+[   45.506094] [rwnx] bmsg_rx_handler
+[   45.508688] [BK7258-WIFI] rx#18 len=81/81 dst=01:00:5e:00:00:fb et=0800 tail=45 00 00 43 e2 a8
+[   45.515344] netdev_upper_rxpoll_work: ERROR: Dropped frame due to lower dev not up
+[   45.519750] [BK7258-WIFI] rx#19 len=101/101 dst=33:33:00:00:00:fb et=86dd tail=60 06 6a 70 00 2f
+[   45.526188] netdev_upper_rxpoll_work: ERROR: Dropped frame due to lower dev not up
+[   45.537344] [rwnx] bmsg_rx_handler
+[   45.540188] [rwnx] bmsg_rx_handler
+[   45.546719] [adc] release
+[   45.552157] [adc] release
+[   46.442375] [rwnx] bmsg_rx_handler
+[   46.559094] [adc] release
+[   46.564813] [adc] release
+[   47.571688] [adc] release
+[   47.577250] [adc] release
+[   48.585063] [adc] release
+[   48.590657] [adc] release
+[   49.597125] [adc] release
+[   49.602750] [adc] release
+[   49.616782] [rwnx] bmsg_rx_handler
+[   50.609157] [adc] release
+[   50.614844] [adc] release
+[   51.621063] [adc] release
+[   51.626657] [adc] release
+[   52.277469] [rwnx] bmsg_rx_handler
+[   52.280125] [BK7258-WIFI] rx#20 len=42/42 dst=ff:ff:ff:ff:ff:ff et=0806 tail=00 01 08 00 06 04
+[   52.287313] netdev_upper_rxpoll_work: ERROR: Dropped frame due to lower dev not up
+[   52.483250] [rwnx] bmsg_rx_handler
+[   52.633188] [adc] release
+[   52.638782] [adc] release
+[   53.645094] [adc] release
+[   53.650657] [adc] release
+[   54.657094] [adc] release
+[   54.662719] [adc] release
+[   55.554282] [rwnx] bmsg_rx_handler
+[   55.556938] [BK7258-WIFI] rx#21 len=81/81 dst=01:00:5e:00:00:fb et=0800 tail=45 00 00 43 e7 cc
+[   55.563[   55.564344] netdev_upper_rxpoll_work: ERROR: Dropped frame due to lower dev not up
+344] [BK7258-WIFI] rx#22 len=101/101 dst=33:33:00:00:00:fb et=86dd tail=60 06 6a 70 00 2f
+[   55.574188] netdev_upper_rxpoll_work: ERROR: Dropped frame due to lower dev not up
+[   55.669125] [adc] release
+[   55.674719] [adc] release
+[   56.683907] [adc] release
+[   56.689594] [adc] release
+
+nsh> ifup wlan0
+ifup wlan0...OK
+nsh> [   60.058782] [rwnx] bmsg_rx_handler
+[   60.061438] [BK7258-WIFI] rx#23 len=291/291 dst=01:00:5e:00:00:fb et=0800 tail=45 00 01 15 f1 e9
+[   60.070313] [rwnx] bmsg_rx_handler
+[   60.072782] [BK7258-WIFI] rx#24 len=311/311 dst=33:33:00:00:00:fb et=86dd tail=60 0a c2 81 01 01
+[   60.267938] [rwnx] bmsg_rx_handler
+[   61.287688] [rwnx] bmsg_rx_handler
+[   62.106969] [rwnx] bmsg_rx_handler
+[   62.519125] [rwnx] bmsg_rx_handler
+[   64.154625] [rwnx] bmsg_rx_handler
+[   65.486938] [rwnx] bmsg_rx_handler
+[   65.492063] [rwnx] bmsg_rx_handler
+[   66.202063] [rwnx] bmsg_rx_handler
+[   66.424719] [rwnx] bmsg_rx_handler
+
+nsh> ifconfig wlan0 192.168.190.200 netmask 255.255.255.0[   70.297344] [rwnx] bmsg_rx_handler
+
+nsh> [   70.706969] [rwnx] bmsg_rx_handler
+[   71.696188] [adc] release
+[   71.701875] [adc] release
+
+nsh> ping [   75.523250] [rwnx] bmsg_rx_handler
+[   75.526750] [rwnx] bmsg_rx_handler
+-c 192.168.190.241
+ERROR: Missing required <ip-address> argument
+
+Usage: ping [-c <count>] [-i <interval>] [-W <timeout>] [-s <size>] <ip-address>
+       ping -h
+
+Where:
+  <ip-address> is the IPv4 address request the ICMP ECHO reply.
+  -c <count> determines the number of pings.  Default 10.
+  -i <interval> is the default delay between pings (milliseconds).
+    Default 1000.
+  -W <timeout> is the timeout for wait response (milliseconds).
+    Default 1000.
+  -s <size> specifies the number of data bytes to be sent.  Default 56.
+  -I <interface> is the bind device for traffic
+  -h shows this text and exits.
+nsh> [   85.618188] [rwnx] bmsg_rx_handler
+[   85.621625] [rwnx] bmsg_rx_handler
+[   86.708219] [adc] release
+[   86.713938] [adc] release
+
+nsh> ping -c 4 19[   93.534375] [rwnx] bmsg_rx_handler
+2.168[   95.478688] [rwnx] bmsg_rx_handler
+[   95.566157] [rwnx] bmsg_rx_handler
+[   95.570657] [rwnx] bmsg_rx_handler
+.190.241[   98.246438] [rwnx] bmsg_rx_handler
+
+PING 192.168.190.241 56 bytes of data
+[   98.272750] [rwnx] bmsg_tx_handler
+[   98.293532] [rwnx] txcfm seq=4 kind=data q=1 st=00000009 ack=1 done=1 tid=0 vif=0 sta=0 fl=00000000 addr=28091ad2 len=84 saddr=00000000 eth=0008 dst=6e:26:dd:7f:cc:cc src=c8:47:8c:46:02:15
+[   98.304782] [rwnx] l2tx cfm seq=4 status=00000009 acked=1 done=1 retry=0 swretry=0
+[   98.561094] [rwnx] bmsg_rx_handler
+[   98.565782] [rwnx] bmsg_tx_handler
+[   98.570844] [rwnx] txcfm seq=5 kind=data q=1 st=00000009 ack=1 done=1 tid=0 vif=0 sta=0 fl=00000000 addr=28091e9a len=28 saddr=00000000 eth=0608 dst=6e:26:dd:7f:cc:cc src=c8:47:8c:46:02:15
+[   98.582125] [rwnx] l2tx cfm seq=5 status=00000009 acked=1 done=1 retry=0 swretry=0
+[   98.595969] [rwnx] bmsg_rx_handler
+56 bytes from 192.168.190.241: icmp_seq=0 time=330.0 ms
+[   99.273094] [rwnx] bmsg_tx_handler
+[   99.297500] [rwnx] txcfm seq=6 kind=data q=1 st=00000009 ack=1 done=1 tid=0 vif=0 sta=0 fl=00000000 addr=28091ad2 len=84 saddr=00000000 eth=0008 dst=6e:26:dd:7f:cc:cc src=c8:47:8c:46:02:15
+[   99.308782] [rwnx] l2tx cfm seq=6 status=00000009 acked=1 done=1 retry=0 swretry=0
+[   99.427750] [rwnx] bmsg_rx_handler
+56 bytes from 192.168.190.241: icmp_seq=1 time=161.0 ms
+[  100.273969] [rwnx] bmsg_tx_handler
+[  100.316313] [rwnx] txcfm seq=7 kind=data q=1 st=00000009 ack=1 done=1 tid=0 vif=0 sta=0 fl=00002000 addr=28091ad2 len=84 saddr=00000000 eth=0008 dst=6e:26:dd:7f:cc:cc src=c8:47:8c:46:02:15
+[  100.327688] [rwnx] l2tx cfm seq=7 status=00000009 acked=1 done=1 retry=0 swretry=0
+[  100.346782] [rwnx] bmsg_rx_handler
+56 bytes from 192.168.190.241: icmp_seq=2 time=79.0 ms
+[  101.274938] [rwnx] bmsg_tx_handler
+[  101.280344] [rwnx] txcfm seq=8 kind=data q=1 st=00000009 ack=1 done=1 tid=0 vif=0 sta=0 fl=00002000 addr=28091ad2 len=84 saddr=00000000 eth=0008 dst=6e:26:dd:7f:cc:cc src=c8:47:8c:46:02:15
+[  101.291719] [rwnx] l2tx cfm seq=8 status=00000009 acked=1 done=1 retry=0 swretry=0
+[  101.314625] [rwnx] bmsg_rx_handler
+56 bytes from 192.168.190.241: icmp_seq=3 time=46.0 ms
+[  101.722125] [adc] release
+[  101.727844] [adc] release
+4 packets transmitted, 4 received, 0% packet loss, time 4006 ms
+rtt min/avg/max/mdev = 46.000/154.000/330.000/59.064 ms
+nsh> 
+nsh> 

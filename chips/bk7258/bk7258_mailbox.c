@@ -45,6 +45,7 @@
 #define BK7258_MBOX_FIFO_EMPTY                (UINT32_C(1) << 1)
 
 #define BK7258_MBOX_CHANNELS 3
+#define BK7258_MBOX_SUBSCRIBERS 4
 
 struct bk7258_mbox_fifo_s
 {
@@ -60,8 +61,17 @@ static const struct bk7258_mbox_fifo_s g_bk7258_mbox_fifo[] =
 };
 
 static spinlock_t g_bk7258_mbox_lock = SP_UNLOCKED;
-static bk7258_mbox_callback_t g_bk7258_mbox_callback;
-static void *g_bk7258_mbox_callback_arg;
+#define BK7258_MBOX_SUBSCRIBERS 4
+
+struct bk7258_mbox_subscriber_s
+{
+  uint32_t magic;
+  bk7258_mbox_callback_t callback;
+  void *arg;
+};
+
+static struct bk7258_mbox_subscriber_s
+  g_bk7258_mbox_subscribers[BK7258_MBOX_SUBSCRIBERS];
 static bk7258_mbox_callback_t g_bk7258_mbox_ipi_callback;
 static void *g_bk7258_mbox_ipi_callback_arg;
 static bool g_bk7258_mbox_initialized;
@@ -147,10 +157,20 @@ static void bk7258_mbox_drain(bool dispatch)
           g_bk7258_mbox_ipi_callback(src, data0, data1,
                                      g_bk7258_mbox_ipi_callback_arg);
         }
-      else if (g_bk7258_mbox_callback != NULL)
+      else
         {
-          g_bk7258_mbox_callback(src, data0, data1,
-                                 g_bk7258_mbox_callback_arg);
+          unsigned int i;
+
+          for (i = 0; i < BK7258_MBOX_SUBSCRIBERS; i++)
+            {
+              struct bk7258_mbox_subscriber_s *subscriber =
+                &g_bk7258_mbox_subscribers[i];
+
+              if (subscriber->callback != NULL && subscriber->magic == data1)
+                {
+                  subscriber->callback(src, data0, data1, subscriber->arg);
+                }
+            }
         }
     }
 }
@@ -174,12 +194,36 @@ static int bk7258_mbox_interrupt(int irq, void *context, void *arg)
 
 int bk7258_mbox_attach(bk7258_mbox_callback_t callback, void *arg)
 {
-  irqstate_t flags = spin_lock_irqsave(&g_bk7258_mbox_lock);
+  return bk7258_mbox_subscribe(BK7258_MBOX_RPTUN_MAGIC, callback, arg);
+}
 
-  g_bk7258_mbox_callback = callback;
-  g_bk7258_mbox_callback_arg = arg;
+int bk7258_mbox_subscribe(uint32_t magic, bk7258_mbox_callback_t callback,
+                          void *arg)
+{
+  irqstate_t flags;
+  unsigned int i;
+
+  if (callback == NULL)
+    {
+      return -EINVAL;
+    }
+
+  flags = spin_lock_irqsave(&g_bk7258_mbox_lock);
+  for (i = 0; i < BK7258_MBOX_SUBSCRIBERS; i++)
+    {
+      if (g_bk7258_mbox_subscribers[i].magic == magic ||
+          g_bk7258_mbox_subscribers[i].callback == NULL)
+        {
+          g_bk7258_mbox_subscribers[i].magic = magic;
+          g_bk7258_mbox_subscribers[i].callback = callback;
+          g_bk7258_mbox_subscribers[i].arg = arg;
+          spin_unlock_irqrestore(&g_bk7258_mbox_lock, flags);
+          return 0;
+        }
+    }
+
   spin_unlock_irqrestore(&g_bk7258_mbox_lock, flags);
-  return 0;
+  return -ENOMEM;
 }
 
 void bk7258_mbox_discard(unsigned int channel)
@@ -330,6 +374,18 @@ static int bk7258_mbox_send_locked(unsigned int channel, int dst_cpu,
   putreg32(data1, BK7258_MBOX_CH_TDATA1(channel));
   putreg32((uint32_t)dst_cpu, BK7258_MBOX_CH_TID(channel));
   return 0;
+}
+
+int bk7258_mbox_notify_magic(int dst_cpu, uint32_t token, uint32_t magic)
+{
+  irqstate_t flags;
+  int ret;
+
+  flags = spin_lock_irqsave(&g_bk7258_mbox_lock);
+  ret = bk7258_mbox_send_locked(bk7258_mbox_local_cpu(), dst_cpu,
+                                token, magic);
+  spin_unlock_irqrestore(&g_bk7258_mbox_lock, flags);
+  return ret;
 }
 
 int bk7258_mbox_notify(int dst_cpu, uint32_t token)

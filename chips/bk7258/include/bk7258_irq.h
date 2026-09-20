@@ -14,5 +14,9 @@
 int bk7258_icu_attach(unsigned int source, xcpt_t handler, void *arg);
 int bk7258_icu_enable(unsigned int source);
 int bk7258_icu_disable(unsigned int source);
+int bk7258_icu_vendor_register(unsigned int source, void (*handler)(void),
+                               void *arg);
+int bk7258_icu_vendor_unregister(unsigned int source);
+int bk7258_icu_set_priority(unsigned int source, int priority);
 
 #endif /* __VENDOR_BEKEN_CHIP_BK7258_IRQ_DEFS_H */

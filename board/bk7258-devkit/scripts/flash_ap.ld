@@ -77,6 +77,18 @@ SECTIONS
     _sdata = ABSOLUTE(.);
     *(.data .data.*)
     *(.gnu.linkonce.d.*)
+
+    /* Same fold as flash.ld, where the full rationale lives: Armino's
+     * __attribute__((section(".dtcm_sec_data"))) objects would otherwise become
+     * an orphan section landing between _edata and _sbss, which the startup copy
+     * loop and the .bss clear both skip.
+     *
+     * The AP image currently pulls in no such object -- its section table runs
+     * .text/.vectors_core1/.ARM.exidx/.data/.noinit/.bss with no orphan -- so
+     * this matches nothing today.  It is here so that the trap cannot reappear
+     * if AP-side code ever links one in; an empty match costs nothing. */
+
+    *(.dtcm_sec_data .dtcm_sec_data.*)
     CONSTRUCTORS
     . = ALIGN(4);
     _edata = ABSOLUTE(.);

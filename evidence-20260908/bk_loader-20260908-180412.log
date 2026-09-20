@@ -1,0 +1,28 @@
+
+
+
+=====================================================================
+ cmdline: |/home/czp/openvela_contest/.worktrees/bk7258-wifi-rebuild/board/bk7258-devkit/tools/bk_loader download -p 0 -b 1500000 -s 0 -i /home/czp/openvela_contest/cmake_out/bk7258-worktrees/bk7258-wifi-rebuild--e2507a8ee482/package/all-app.bin |
+ bk_loader version 2.1.11.8: build @May  8 2024 23:15:55 
+ 2026-09-08 18:03:55.718    Current port : /dev/ttyUSB0 + BaudRate : 115200 connect success
+ 2026-09-08 18:03:55.718    do_reset_signal
+ 2026-09-08 18:03:55.718    Getting Bus...
+ 2026-09-08 18:03:56.882    Getting Bus...
+ 2026-09-08 18:04:12.021    LinkCheck Timeout
+ 2026-09-08 18:04:12.021    GetBus fail!
+ 2026-09-08 18:04:12.022    Total Test Time : 0.001 s
+ 2026-09-08 18:04:12.053    Boot_Reboot
+
+ 2026-09-08 18:04:12.199    Writing Flash Failed, code 0                
+
+ 2026-09-08 18:04:12.199    
+==============================================================
+				   (warning)
+	                         (_)            
+	__      ____ _ _ __ _ __  _ _ __   __ _ 
+	\ \ /\ / / _` | '__| '_ \| | '_ \ / _` |
+	 \ V  V / (_| | |  | | | | | | | | (_| |
+	  \_/\_/ \__,_|_|  |_| |_|_|_| |_|\__, |
+	                                   __/ |
+	                                  |___/ 
+

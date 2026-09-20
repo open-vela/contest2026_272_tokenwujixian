@@ -1,0 +1,3877 @@
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk
+nsh> 
+nsh> 
+nsh> ?
+help usage:  help [-v] [<cmd>]
+
+    .           cd          expr        mv          sleep       uptime      
+    [           cp          false       printf      source      usleep      
+    ?           cmp         help        pwd         test        watch       
+    alias       dirname     hexdump     reboot      time        xd          
+    unalias     dd          kill        rm          true        
+    arp         dmesg       ls          rmdir       truncate    
+    basename    echo        mkdir       rpmsg       uname       
+    break       exec        mkrd        rptun       umount      
+    cat         exit        mount       set         unset       
+
+Builtin Apps:
+    bk7258_psram_test       sh                      bk7258_wifi_runtime     
+    cu                      bk7258_wifi_probe       lvgldemo                
+    nsh                     bk7258_platform_test    
+nsh> bk7258_wifi_runtime connect Luv <PSK-REDACTED>
+[BK7258] Wi-Fi application init starting
+[BK7258-WIFI] dvfs pre-vote r0=0x00000033 vcore=0xb
+[BK7258-WIFI] dvfs pre-vote sel=3 div=3 bus=0
+[BK7258-WIFI] pmq: cpu_freq vote module=41 freq=3 ret=0
+[BK7258-WIFI] dvfs post-vote r0=0x00000033 vcore=0xc
+[BK7258-WIFI] dvfs post-vote sel=3 div=3 bus=0
+[BK7258-WIFI] boot: cpu_freq vote 120M ret=0
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x70000000
+[BK7258] power gate mask=0x00000200 enable=1 ret=0 reg=0x70000000
+[BK7258] clock gate mask=0x08000000 enable=1 ret=0 reg=0x08088284
+[BK7258] clock gate mask=0x04000000 enable=1 ret=0 reg=0x0c088284
+[init] bandgap_calm_in_otp=0x1c
+[BK7258-WIFI] runtime: bandgap trim ret=0
+[initseq] osal mutex-init enter
+[initseq] osal mutex-init leave ret=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[BK7258-WIFI] pmq: lpo_src set to ROSC (pre-adapter) r41=0x00000232
+[aonrtc] pre-init tick=0 -> 0
+[aon_rtc] bk_aon_rtc_driver_init[+]
+[aon_rtc] aon_rtc_hw_init[+]cur_tick=0
+[BK7258] ICU attach source=54 irq=70 ret=0
+[BK7258] ICU enable source=54 irq=70 ret=0 int_en=0x00000010
+[aon_rtc] aon_rtc_hw_init[-]cur_tick=286
+[aon_rtc] bk_aon_rtc_driver_init[-]
+[aonrtc] post-init tick=504 -> 568
+[BK7258-WIFI] runtime: bind adapters
+[nv] vnd_cal_[BK7258-WIFI] vnd_cal overlay applied
+[BK7258-WIFI] runtime: bk_wifi_init begin
+[BK7258-WIFI] int init: lo=0xa0000010 hi=0x8040001f
+[wifi] wifi initing
+[BK7258] power gate mask=0x00000200 enable=1 ret=0 reg=0x700005e8
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x700001e8
+[BK7258-WIFI] clk id=26 en=1 first
+[BK7258-WIFI] clk id=27 en=1 first
+version = 24-04-10 [initseq] 87a rwnxl_init enter
+[BK7258] ICU attach source=36 irq=52 ret=0
+[BK7258] ICU enable source=36 irq=52 ret=0 int_en=0xa0000010
+[BK7258] ICU attach source=35 irq=51 ret=0
+[BK7258] ICU enable source=35 irq=51 ret=0 int_en=0xa0000010
+[BK7258] ICU attach source=34 irq=50 ret=0
+[BK7258] ICU enable source=34 irq=50 ret=0 int_en=0xa0000010
+[BK7258] ICU attach source=33 irq=49 ret=0
+[BK7258] ICU enable source=33 irq=49 ret=0 int_en=0xa0000010
+[BK7258] ICU attach source=31 irq=47 ret=0
+[BK7258] ICU enable source=31 irq=47 ret=0 int_en=0xa0000010
+[initseq] osal queue-init enter 'fhost_txbuf'
+[initseq] osal queue-init leave 'fhost_txbuf' ret=0
+[initseq] osal queue-init enter 'fhost_txbuf'
+[initseq] osal queue-init leave 'fhost_txbuf' ret=0
+[initseq] osal queue-init enter 'fhost_txbuf'
+[initseq] osal queue-init leave 'fhost_txbuf' ret=0
+[initseq] osal queue-init enter 'fhost_txbuf'
+[initseq] osal queue-init leave 'fhost_txbuf' ret=0
+[initseq] osal queue-init enter 'fhost_txbuf'
+[initseq] osal queue-init leave 'fhost_txbuf' ret=0
+[initseq] osal queue-init enter 'fhost_rxbuf'
+[initseq] osal queue-init leave 'fhost_rxbuf' ret=0
+[initseq] osal queue-init enter 'fhost_uf_rxbuf'
+[initseq] osal queue-init leave 'fhost_uf_rxbuf' ret=0
+[initseq] osal queue-init enter 'rxdesc_queue'
+[initseq] osal queue-init leave 'rxdesc_queue' ret=0
+[BK7258] ICU attach source=29 irq=45 ret=0
+[BK7258] ICU enable source=29 irq=45 ret=0 int_en=0xa0000010
+[BK7258] ICU attach source=30 irq=46 ret=0
+[BK7258] ICU enable source=30 irq=46 ret=0 int_en=0xe0000010
+[BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[initseq] 87b rwnxl_init leave
+[initseq] 90a calibration_init enter
+[BK7258-WIFI] clk id=5 en=1 first
+00:00:00
+rwnx_cal_set_rfconfig(0[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700021f8
+[adc] release
+x102) phy on; rf off
+[cal] load polar tab magic code error 0xffffffff
+[cal] get rfcali_mode:1
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700021e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[cal] temp in otp is:563
+[cal] temp_code=36,dmodldosel=4,Dgmdc=7
+[cal] cali bias(f)
+[cal] retry_count=4,dlypc_i=2,stateI=[0,60,31,0],dlypc_q=2,stateQ=[0,60,31,0]
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700021f8
+[adc] release
+[cal] cali bias(f)
+[cal] calibration_main(e1c2bcd) over
+[cal] rf cali flag in flash: valid
+flash txpwr table:0xf
+[cal] load polar tab magic code error 0xffffffff
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700021e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700021f8
+[adc] release
+[cal] retry_count=5,dlypc_i=2,stateI=[0,0,30,0],dlypc_q=2,stateQ=[0,0,31,0][BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700021e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700021f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+
+[cal] temp_code:37 - adc_code:506 - adc_trend:[13]:563->[15]:517
+xtal_cali:45
+[cal] --init_xtal = 45
+[cal] gtx_dcorPA=0x15[initseq] 90b calibration_init leave ret=0
+[initseq] 97a cfg_param_init enter
+[initseq] 97b cfg_param_init leave ret=0
+[initseq] 105a rwnx_intf_init enter
+[initseq] osal mutex-init enter
+[initseq] osal mutex-init leave ret=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[initseq] osal thread-create enter 'kmsgbk'
+[initseq] osal thread-create leave 'kmsgbk' ret=0
+[initseq] osal queue-init enter 'core_queue'
+[initseq] osal queue-init leave 'core_queue' ret=0
+[initseq] osal thread-create enter 'core_thread'
+[initseq] osal thread-create leave 'core_thread' ret=0
+[initseq] 1245a rwnxl_sleep enter
+[BK7258] power gate mask=0x00000400 enable=0 ret=0 reg=0x700025f8
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=1) slept=0x220
+[initseq] 1245b rwnxl_sleep leave
+[initseq] 105b rwnx_intf_init leave ret=0
+[initseq] 120a fhost_rxbuf_push enter
+[initseq] 120b fhost_rxbuf_push leave ret=0
+[initseq] 123a wpas_thread_start enter
+[initseq] osal queue-init enter 'wpah_queue'
+[initseq] osal queue-init leave 'wpah_queue' ret=0
+[initseq] osal thread-create enter 'wpas_thread'
+[initseq] osal thread-create leave 'wpas_thread' ret=0
+[initseq] osal mutex-init enter
+[initseq] osal mutex-init leave ret=0
+[initseq] osal mutex-init enter
+[initseq] osal mutex-init leave ret=0
+[initseq] 123b wpas_thread_start leave
+[initseq] 126a coex_ictw_report enter
+[initseq] 126b coex_ictw_report leave
+[wifi] wifi inited(1) ret(0)
+[BK7258-WIFI] runtime: bk_wifi_init complete
+[BK7258-WIFI] parity: null-vs-authoritative: (none)
+[BK7258-WIFI] pmq: cpu_freq vote module=41 freq=1 ret=0
+[BK7258-WIFI] dvfs post-init-60m r0=0x00000037 vcore=0xb
+[BK7258-WIFI] dvfs post-init-60m sel=3 div=7 bus=0
+[BK7258-WIFI] init done: cpu_freq vote 60M ret=0
+[BK7258] Wi-Fi application init completed
+->0x15
+[cal] -----pwr_gain:40, rate=54, g_idx:40, shift_b:0, shift_g:1
+[cal] idx:41=40+(1),r:54,xtal:45,pwr_gain:a8ab7131
+[bk7258_wifi_runtime] connect: ssid="Luv", psk 8 chars
+  state=IDLE(0) reason=SUCCESS(262)
+[BK7258-WIFI] connect: ssid="Luv" (3), psk 8 chars
+[wifi] sta configuring
+[wifi] sta config, ssid=Luv password=<PSK-REDACTED> security=0
+[wifi] sta configured(5)
+[wifi] sta starting
+[BK7258-WIFI] mac: flash c8:47:8c:46:02:15
+[wifi] sta get sta_config, ssid=Luv password=<PSK-REDACTED> security=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[wifi] sta disconnecting
+[wifi] sta disconnected(5)
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[wifi] init 1st vif
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x700021f8
+[BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[BK7258-WIFI] pmq: phy_wakeup_reinit done
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=0) slept=0x20
+[rwnx] bmsg_ioctl_handler
+[BK7258] ICU disable source=36 irq=52 ret=0 int_en=0xe0000010
+[BK7258] ICU attach source=36 irq=52 ret=0
+[BK7258] ICU enable source=36 irq=52 ret=0 int_en=0xe0000010
+[BK7258] ICU disable source=35 irq=51 ret=0 int_en=0xe0000010
+[BK7258] ICU attach source=35 irq=51 ret=0
+[BK7258] ICU enable source=35 irq=51 ret=0 int_en=0xe0000010
+[BK7258] ICU disable source=34 irq=50 ret=0 int_en=0xe0000010
+[BK7258] ICU attach source=34 irq=50 ret=0
+[BK7258] ICU enable source=34 irq=50 ret=0 int_en=0xe0000010
+[BK7258] ICU disable source=33 irq=49 ret=0 int_en=0xe0000010
+[BK7258] ICU attach source=33 irq=49 ret=0
+[BK7258] ICU enable source=33 irq=49 ret=0 int_en=0xe0000010
+[BK7258] ICU disable source=31 irq=47 ret=0 int_en=0x60000010
+[BK7258] ICU attach source=31 irq=47 ret=0
+[BK7258] ICU enable source=31 irq=47 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000400 enable=0 ret=0 reg=0x700025f8
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=1) slept=0x220
+[rwnx] bmsg_ioctl_sender
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x700021f8
+[BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[BK7258-WIFI] pmq: phy_wakeup_reinit done
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=0) slept=0x20
+[rwnx] bmsg_ioctl_handler
+[BK7258] power gate mask=0x00000400 enable=0 ret=0 reg=0x700025f8
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=1) slept=0x220
+[rwnx] bmsg_ioctl_sender
+[rwnx] PHY features: [NSS=1][CHBW=40][LDPC][VHT][HE][BFMEE][MUMIMORX]<³
+[rwnx] FW features: [BCN][AUTOBCN][HWSCAN][CMON][MROLE][PS][DPSM][AMPDU][CHNL_CTXT][REORD][P2P][P2P_GO][UMAC][VHT][HE][BFMEE][WAPI][MFP][MU_MIMO_RX][TWT][PM_DSSS_ONLY]
+[rwnx] HT supp 1, VHT supp 1, HE supp 1
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x700021f8
+[BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[BK7258-WIFI] pmq: phy_wakeup_reinit done
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=0) slept=0x20
+[rwnx] bmsg_ioctl_handler
+[BK7258] power gate mask=0x00000400 enable=0 ret=0 reg=0x700025f8
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=1) slept=0x220
+[rwnx] bmsg_ioctl_sender
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x700021f8
+[BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[BK7258-WIFI] pmq: phy_wakeup_reinit done
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=0) slept=0x20
+[rwnx] bmsg_ioctl_handler
+[BK7258] power gate mask=0x00000400 enable=0 ret=0 reg=0x700025f8
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=1) slept=0x220
+[rwnx] bmsg_ioctl_sender
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x700021f8
+[BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[BK7258-WIFI] pmq: phy_wakeup_reinit done
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=0) slept=0x20
+[rwnx] bmsg_ioctl_handler
+[BK7258] ICU disable source=29 irq=45 ret=0 int_en=0xc0000010
+[BK7258] ICU attach source=29 irq=45 ret=0
+[BK7258] ICU enable source=29 irq=45 ret=0 int_en=0xe0000010
+[BK7258] ICU disable source=30 irq=46 ret=0 int_en=0xa0000010
+[BK7258] ICU attach source=30 irq=46 ret=0
+[BK7258] ICU enable source=30 irq=46 ret=0 int_en=0xe0000010
+[BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[BK7258-WIFI] pmq: lpo_src=2
+[BK7258] power gate mask=0x00000400 enable=0 ret=0 reg=0x700025f8
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=1) slept=0x220
+[rwnx] bmsg_ioctl_sender
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[wpa] sizeof(wpa_supplicant)=1096
+[wpa] wpa_supplicant v2.10
+[wpa] Successfully initialized wpa_supplicant
+[wpa] Initializing interface 'wlan0' conf 'N/A' driver 'default' ctrl_interface 'N/A' bridge 'N/A'
+[wpa] Priority group 0
+[wpa]    id=0 ssid=''
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x700021f8
+[BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[BK7258-WIFI] pmq: phy_wakeup_reinit done
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=0) slept=0x20
+[rwnx] bmsg_ioctl_handler
+[wifid] mm_add_if_req: vif_idx=0, ty[BK7258] power gate mask=0x00000400 enable=0 ret=0 reg=0x700025f8
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=1) slept=0x220
+[rwnx] bmsg_ioctl_sender
+[hitf] add vif0, type=2, status=0
+[wpa] create fsocket_init:4
+[wpa] create fsocket_init:23
+[wpa] Add interface wlan0 to a new radio N/A
+[wpa] wpa_dInit
+[wpa] create fsocket_init:34978
+[wpa] Own MAC address: c8:47:8c:46:02:15
+[hitf] del hw key idx=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x700021f8
+[BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[BK7258-WIFI] pmq: phy_wakeup_reinit done
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=0) slept=0x20
+[rwnx] bmsg_ioctl_handler
+[BK7258] power gate mask=0x00000400 enable=0 ret=0 reg=0x700025f8
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=1) slept=0x220
+[rwnx] bmsg_ioctl_sender
+[hitf] del hw key idx=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x700021f8
+[BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[BK7258-WIFI] pmq: phy_wakeup_reinit done
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=0) slept=0x20
+[rwnx] bmsg_ioctl_handler
+[BK7258] power gate mask=0x00000400 enable=0 ret=0 reg=0x700025f8
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=1) slept=0x220
+[rwnx] bmsg_ioctl_sender
+[hitf] del hw key idx=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x700021f8
+[BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[BK7258-WIFI] pmq: phy_wakeup_reinit done
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=0) slept=0x20
+[rwnx] bmsg_ioctl_handler
+[BK7258] power gate mask=0x00000400 enable=0 ret=0 reg=0x700025f8
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=1) slept=0x220
+[rwnx] bmsg_ioctl_sender
+[hitf] del hw key idx=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x700021f8
+[BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[BK7258-WIFI] pmq: phy_wakeup_reinit done
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=0) slept=0x20
+[rwnx] bmsg_ioctl_handler
+[BK7258] power gate mask=0x00000400 enable=0 ret=0 reg=0x700025f8
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=1) slept=0x220
+[rwnx] bmsg_ioctl_sender
+[hitf] del hw key idx=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x700021f8
+[BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[BK7258-WIFI] pmq: phy_wakeup_reinit done
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=0) slept=0x20
+[rwnx] bmsg_ioctl_handler
+[BK7258] power gate mask=0x00000400 enable=0 ret=0 reg=0x700025f8
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=1) slept=0x220
+[rwnx] bmsg_ioctl_sender
+[hitf] del hw key idx=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x700021f8
+[BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[BK7258-WIFI] pmq: phy_wakeup_reinit done
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=0) slept=0x20
+[rwnx] bmsg_ioctl_handler
+[BK7258] power gate mask=0x00000400 enable=0 ret=0 reg=0x700025f8
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=1) slept=0x220
+[rwnx] bmsg_ioctl_sender
+[wpa] RSN: flushing PMKID list in the driver
+[wpa] No enabled networks (1 disabled networks)
+[wpa] State: DISCONNECTED -> INACTIVE
+[wpa] Added interface wlan0
+[wpa] State: INACTIVE -> DISCONNECTED
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[wpa] auto_reconnect: count 0, timeout 0, disable_auto_reconnect_after_disconnect 0
+[wifi] sta started(7)
+[wifi] sta connecting
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[wifi] sta disconnecting
+[wifi] sta disconnected(7)
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[wpa] CTRL_IFACE: SELECT_NETWORK id=0
+[wpa] Setting scan request: 0.000000 sec
+[wpa] wpa_supplicant_scan
+[wpa] State: DISCONNECTED -> SCANNING
+[wpa] Scan SSID - hexdump_ascii(len=3):
+[wpa]     
+[(null)]  4c
+[(null)]  75
+[(null)]  76
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)]    
+[(null)] L
+[(null)] u
+[(null)] v
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[(null)]  
+[wpa] 
+[wpa] Starting AP scan for specific SSID: Luv
+[wpa] Add radio work 'scan'@0x28099fa8
+[wpa] First radio work item in the queue - schedule start immediately
+[wpa] Starting radio work 'scan'@0x28099fa8 after 0.006000 second wait
+[wpa] scan work start, deinit=0
+[wpa] req driver to scan
+[wpa] wpa_driver_scan2: Scan specified BSSID ff:ff:ff:ff:ff:ff
+[hitf] send scan req to driver
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x700021f8
+[BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[BK7258-WIFI] pmq: phy_wakeup_reinit done
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=0) slept=0x20
+[rwnx] bmsg_ioctl_handler
+pe=0, p2p=0, status=0
+[wifid] [KW:]scanu_start_req:src_id=15,vif=0,dur=0,chan_cnt=14,ssid_len=3,bssid=0xffff-ffff-ffff
+[wifid] [KW:]scanu_star[rwnx] bmsg_ioctl_sender
+[wpa] evtq SCAN_STARTED(201) ret=0
+[wpa] Event SCAN_STARTED (47) received
+[wpa] Own scan request started a scan in 0.003000 seconds
+t_req:ssid=Luv
+[wifi] sta connected(f)
+[BK7258-WIFI] connect: request accepted
+  state=CONNECTING(1) reason=SUCCESS(262)
+[rwnx] chan_survey busy 58 ms time 120 ms noise -90 freq 2412
+[rwnx] rwnx_chan_survey_ind_handler chan_idx 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[cal] temp_code:38 - adc_code:501 - adc_trend:[15]:517->[16]:494
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] chan_survey busy 53 ms time 120 ms noise -89 freq 2417
+[rwnx] rwnx_chan_survey_ind_handler chan_idx 1
+[rwnx] chan_survey busy 77 ms time 120 ms noise -70 freq 2422
+[rwnx] rwnx_chan_survey_ind_handler chan_idx 2
+[rwnx] chan_survey busy 75 ms time 120 ms noise -94 freq 2427
+[rwnx] rwnx_chan_survey_ind_handler chan_idx 3
+[rwnx] chan_survey busy 77 ms time 120 ms noise -94 freq 2432
+[rwnx] rwnx_chan_survey_ind_handler chan_idx 4
+[rwnx] chan_survey busy 82 ms time 120 ms noise -93 freq 2437
+[rwnx] rwnx_chan_survey_ind_handler chan_idx 5
+[rwnx] chan_survey busy 78 ms time 120 ms noise -96 freq 2442
+[rwnx] rwnx_chan_survey_ind_handler chan_idx 6
+[rwnx] chan_survey busy 76 ms time 120 ms noise -92 freq 2447
+[rwnx] rwnx_chan_survey_ind_handler chan_idx 7
+[rwnx] chan_survey busy 62 ms time 120 ms noise -94 freq 2452
+[rwnx] rwnx_chan_survey_ind_handler chan_idx 8
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[rwnx] chan_survey busy 67 ms time 120 ms noise -93 freq 2457
+[rwnx] rwnx_chan_survey_ind_handler chan_idx 9
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] chan_survey busy 59 ms time 120 ms noise -76 freq 2462
+[rwnx] rwnx_chan_survey_ind_handler chan_idx 10
+[rwnx] chan_survey busy 56 ms time 120 ms noise -85 freq 2467
+[rwnx] rwnx_chan_survey_ind_handler chan_idx 11
+[rwnx] chan_survey busy 53 ms time 120 ms noise -59 freq 2472
+[rwnx] rwnx_chan_survey_ind_handler chan_idx 12
+[wifid] [KW:]scanu_confirm:status=0,req_type=0,upload_cnt=8,recv_cnt=33,time=1748421us,result=1,rfcli=1
+[BK7258] power gate mask=0x00000400 enable=0 ret=0 reg=0x700025f8
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=1) slept=0x220
+[rwnx] chan_survey busy 38 ms time 120 ms noise -95 freq 2484
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[wpa] evtq SCAN_RESULTS(202) ret=0
+[wpa] Event SCAN_RESULTS (3) received
+[wpa] Scan completed in 1.746000 seconds
+[hitf] get scan result:1
+[wpa] BSS: Start scan result update 1
+[wpa] BSS: Add new id 0 BSSID 6e:26:dd:7f:cc:cc SSID 'Luv' freq 2462
+[wpa] BSS: last_scan_res_used=1/32
+[wpa] New scan results available (own=1 ext=0)
+[wpa] Radio work 'scan'@0x28099fa8 done in 1.817000 seconds
+[wpa] radio_work_free('scan'@0x28099fa8): num_active_works --> 0
+[wpa] Scan results matching the currently selected network
+[wpa] cipher2security 2 2 16 16
+[BK7258-WIFI] pmq: cpu_freq vote module=25 freq=4 ret=0
+[BK7258-WIFI] pmq: cpu_freq vote module=25 freq=7 ret=0
+[wpa] 0: 6e:26:dd:7f:cc:cc freq=2462 level=-35 snr=-35 est_throughput=1000
+[wpa] Selecting BSS from priority group 0
+[wpa] 0: 6e:26:dd:7f:cc:cc ssid='Luv' wpa_ie_len=0 rsn_ie_len=20 caps=0x1431 level=-35 freq=2462 
+[wpa] cipher2security 2 2 16 16
+[wpa]    selected based on RSN IE
+[wpa]    selected BSS 6e:26:dd:7f:cc:cc ssid='Luv'
+[wpa] wpa_supplicant_connect
+[wpa] Considering connect request: reassociate: 1  selected: 6e:26:dd:7f:cc:cc  bssid: 00:00:00:00:00:00  pending: 00:00:00:00:00:00  wpa_state: SCANNING  ssid=0x28098ff0  current_ssid=0x28098ff0
+[wpa] Request association with 6e:26:dd:7f:cc:cc
+[wpa] No ongoing scan/p2p-scan found to abort
+[wpa] Add radio work 'connect'@0x2808d020
+[wpa] First radio work item in the queue - schedule start immediately
+[wpa] Starting radio work 'connect'@0x2808d020 after 0.007000 second wait
+[wpa] WPA: clearing own WPA/RSN IE
+[wpa] RSN: clearing own RSNXE
+[wpa] RSN: using IEEE 802.11i/D9.0
+[wpa] WPA: Selected cipher suites: group 16 pairwise 16 key_mgmt 2 proto 2
+[wpa] WPA: clearing AP WPA IE
+[wpa] WPA: set AP RSN IE - hexdump(len=22):
+[(null)]  30
+[(null)]  14
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  0f
+[(null)]  ac
+[(null)]  04
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  0f
+[(null)]  ac
+[(null)]  04
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  0f
+[(null)]  ac
+[(null)]  02
+[(null)]  0c
+[(null)]  00
+[wpa] 
+[wpa] WPA: clearing AP RSNXE
+[wpa] WPA: AP group 0x10 network profile group 0x18; available group 0x10
+[wpa] WPA: using GTK CCMP
+[wpa] WPA: AP pairwise 0x10 network profile pairwise 0x18; available pairwise 0x10
+[wpa] WPA: using PTK CCMP
+[wpa] WPA: AP key_mgmt 0x2 network profile key_mgmt 0x2; available key_mgmt 0x2
+[wpa] WPA: using KEY_MGMT WPA-PSK
+[wpa] WPA: AP mgmt_group_cipher 0x20 network profile mgmt_group_cipher 0x0; available mgmt_group_cipher 0x0
+[wpa] WPA: not using MGMT group cipher
+[wpa] WPA: Set own WPA IE default - hexdump(len=22):
+[(null)]  30
+[(null)]  14
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  0f
+[(null)]  ac
+[(null)]  04
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  0f
+[(null)]  ac
+[(null)]  04
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  0f
+[(null)]  ac
+[(null)]  02
+[(null)]  00
+[(null)]  00
+[wpa] 
+[wpa] RSN: Set own RSNXE default - hexdump(len=0):
+[wpa] 
+[wpa] WPA: Set PMK based on external data - hexdump(len=32):
+[wpa]  [REMOVED]
+[wpa] 
+[wpa] Automatic auth_alg selection: 0x1
+[wpa] Trying to associate with 6e:26:dd:7f:cc:cc (SSID='Luv' freq=2462 MHz)
+[wpa] cancell scan request timer
+[wpa] State: SCANNING -> ASSOCIATING
+[wpa] Limit connection to BSSID 6e:26:dd:7f:cc:cc freq=2462 MHz based on scan results (bssid_set=0 wps=0)
+[wpa] wpa_driver_associate: auth_alg 0x1
+[rwnx] lmac_connect_req seq=0 vif=0 band=0 freq=2462 txpwr=127 flags=00000089 auth=0 ctrl=8e88 ie_len=35 bcn_len=177 bssid=6e:26:dd:7f:cc:cc
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[BK7258] power gate mask=0x00000400 enable=1 ret=0 reg=0x700021f8
+[BK7258-WIFI] pmq: phy_wakeup_reinit(is_wifi=1) enter
+[BK7258-WIFI] pmq: cpu_freq vote module=26 freq=1 ret=0
+[BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=1) ret=0
+[BK7258-WIFI] pmq: phy_wakeup_reinit done
+[BK7258-WIFI] pmq: vote_sleep(module=9 state=0) slept=0x20
+[rwnx] bmsg_ioctl_handler
+[wifid] [KW:]conn vif0-0,auth_type[BK7258-WIFI] dvfs: high-tier VDDDIG/clock vote freq=6
+[BK7258-WIFI] pmq: cpu_freq vote module=26 freq=6 ret=0
+[BK7258-WIFI] pmq: vote_cpu_freq(module=26 freq=6) ret=0
+:0,bssid:266e-7fdd-cccc,ssid:Luv,is encryp:8.
+[wifid] chan_ctxt_add: CTXT0,freq2462MHz,bw20MHz,pwr127dBm
+[wifid] chan_[reg_fix:VIF0,CTXT0,type3,ctxt_s0,nb_vif0
+[wifid] mm_sta_add:vif 0,sta 0,status 0
+rwnx] bmsg_ioctl_sender
+[rwnx] lmac_connect_cfm ret=0 status=0
+[wpa] Setting authentication timeout: 10 sec 0 usec
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret[wifid] [KW:]auth_send:seq=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+1, txtype0, auth_type0, seq46
+[wifid] [KW:]sm_auth_handler: status code 0, tx status 0x80800000
+[wifid] [KW:]assoc_req_send:is ht, seq_num:47
+[rwnx] bmsg_rx_handler
+[wifid] [KW:]assoc_rsp:status0,tx_s0x80800000
+[wifid] [KW:]mm_set_vif_state,vif=0,vif_type=0,is_active=1, aid=0x2,rssi=-45
+[rwnx] connect ok
+[wpa] evtq CONNECT_IND(207) ret=0
+[wpa] Event ASSOC (0) received
+[wpa] Association info event
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[rwnx] bmsg_hardware_ioctl_handler
+[rwnx] bmsg_hardwar[rwnx] bmsg_rx_handler
+[wpa] ke_tx:34978,buf:0x280926dc, len:113
+e_ioctl_sender
+[wpa] req_ies - hexdump(len=110):
+[(null)]  00
+[(null)]  03
+[(null)]  4c
+[(null)]  75
+[(null)]  76
+[(null)]  01
+[(null)]  08
+[(null)]  82
+[(null)]  84
+[(null)]  8b
+[(null)]  96
+[(null)]  0c
+[(null)]  12
+[(null)]  18
+[(null)]  24
+[(null)]  32
+[(null)]  04
+[(null)]  30
+[(null)]  48
+[(null)]  60
+[(null)]  6c
+[(null)]  30
+[(null)]  14
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  0f
+[(null)]  ac
+[(null)]  04
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  0f
+[(null)]  ac
+[(null)]  04
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  0f
+[(null)]  ac
+[(null)]  02
+[(null)]  00
+[(null)]  00
+[(null)]  7f
+[(null)]  0b
+[(null)]  04
+[(null)[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] bmsg_rx_handler
+]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  40
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  20
+[(null)]  dd
+[(null)]  07
+[(null)]  00
+[(null)]  50
+[(null)]  f2
+[(null)]  02
+[(null)]  00
+[(null)]  01
+[(null)]  00
+[(null)]  2d
+[(null)]  1a
+[(null)]  2d
+[(null)]  00
+[(null)]  1c
+[(null)]  ff
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  48
+[(null)]  00
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  bf
+[(null)]  0c
+[(null)]  10
+[(null)]  70
+[(null)]  90
+[(null)]  01
+[(null)]  fd
+[(null)]  ff
+[(null)]  4e
+[(null)]  00
+[(null)]  fd
+[(null)]  ff
+[(null)]  4e
+[(null)]  00
+[(null)]  c7
+[(null)]  01
+[(null)]  00
+[wpa] 
+[wpa] resp_ies - hexdump(len=125):
+[(null)]  01
+[(null)]  08
+[(null)]  82
+[(null)]  84
+[(null)]  8b
+[(null)]  96
+[(null)]  0c
+[(null)]  12
+[(null)]  18
+[(null)]  24
+[(null)]  32
+[(null)]  04
+[(null)[rwnx] rwnx_get_wifi_rlk_start start 0
+]  30
+[(null)]  48
+[(null)]  60
+[(null)]  6c
+[(null)]  2d
+[(null)]  1a
+[(null)]  ad
+[(null)]  01
+[(null)]  13
+[(null)]  ff
+[(null)]  ff
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  3d
+[(null)]  16
+[(null)]  0b
+[(null)]  00
+[(null)]  11
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  dd
+[(null)]  18
+[(null)]  00
+[(null)]  50
+[(null)]  f2
+[(null)]  02
+[(null)]  01
+[(null)]  01
+[(null)]  81
+[(null)]  00
+[(null)]  03
+[(null)]  a4
+[(null)]  00
+[(null)]  00
+[(null)]  27
+[(null)]  a4
+[(null)]  00
+[(null)]  00
+[(null)]  42
+[(null)]  43
+[(null)]  5e
+[(null)]  00
+[(null)]  62
+[(null)]  32
+[(null)]  2f
+[(null)]  00
+[(null)[rwnx] rwnx_get_wifi_rlk_start start 0
+]  bf
+[(null)]  0c
+[(null)]  92
+[(null)]  79
+[(null)]  81
+[(null)]  33
+[(null)]  fa
+[(null)]  ff
+[(null)]  62
+[(null)]  03
+[(null)]  fa
+[(null)]  ff
+[(null)]  62
+[(null)]  23
+[(null)]  c0
+[(null)]  05
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  fa
+[(null)]  ff
+[(null)]  7f
+[(null)]  08
+[(null)]  05
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  40
+[wpa] 
+[wpa] freq=2462 MHz
+[wpa] WPA: set own WPA/RSN IE - hexdump(len=22):
+[(null)]  30
+[(null)]  14
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  0f
+[(null)]  ac
+[(null)]  04
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  0f
+[(null)]  ac
+[(null)]  04
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  0f
+[(null)]  ac
+[(null)]  02
+[(null)]  00
+[(null)]  00
+[wpa] 
+[wpa] RSN: clearing own RSNXE
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[rwnx] bmsg_hardware_ioctl_handler
+[rwnx] bmsg_hardware_ioctl_sender
+[wpa] State: ASSOCIATING -> ASSOCIATED
+[wpa] Associated to a new BSS: BSSID=6e:26:dd:7f:cc:cc
+[initseq] osal sem-init enter max_[rwnx] rwnx_get_wifi_rlk_start start 0
+count ret=1
+[initseq] osal sem-init leave ret=0
+[rwnx] bmsg_hardware_ioctl_handler
+[rwnx] bmsg_hardware_ioctl_sender
+[wpa] WPA: Update cipher suite selection based on IEs in driver-generated WPA/RSNE in AssocReq - hexdump(len=89):
+[(null)]  30
+[(null)]  14
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  0f
+[(null)]  ac
+[(null)]  04
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  0f
+[(null)]  ac
+[(null)]  04
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  0f
+[(null)]  ac
+[(null)]  02
+[(null)]  00
+[(null)]  00
+[(null)]  7f
+[(null)]  0b
+[(null)]  04
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  40
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  20
+[(null)]  dd
+[(null)]  07
+[(null)]  00
+[(null)]  50
+[(null)]  f2
+[(null)]  02
+[(null)]  00
+[(null)]  01
+[(null)]  00
+[(null)]  2d
+[(null)]  1a
+[(null)]  2d
+[(null)]  00
+[(null)]  1c
+[(null)]  ff
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  48
+[(null)]  00
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  bf
+[(null)]  0c
+[(null)]  10
+[(null)]  70
+[(null)]  90
+[(null)]  01
+[(null)]  fd
+[(null)]  ff
+[(null)]  4e
+[(null)]  00
+[(null)]  fd
+[(null)]  ff
+[(null)]  4e
+[(null)]  00
+[(null)]  c7
+[(null)]  01
+[(null)]  00
+[wpa] 
+[wpa] WPA: AP key_mgmt 0x2 network key_mgmt 0x2; available key_mgmt 0x2
+[wpa] WPA: using KEY_MGMT WPA2-PSK and proto 2
+[wpa] WPA: AP pairwise cipher 0x10 network pairwise cipher 0x18; available pairwise cipher 0x10
+[wpa] WPA: using PTK CCMP
+[wpa] WPA: AP group cipher 0x10 network group cipher 0x18; available group cipher 0x10
+[wpa] WPA: using GTK CCMP
+[wpa] WPA: AP mgmt_group_cipher 0x20 network mgmt_group_cipher 0x0; available mgmt_group_cipher 0x20
+[wpa] WPA: STA/AP is not MFP capable; AP RSNE caps 0xc
+[wpa] WPA: not using MGMT group cipher
+[wpa] Associated with 6e:26:dd:7f:cc:cc
+[wpa] WPA: Association event - clear replay counter
+[wpa] WPA: Clear old PTK
+[wpa] Setting authentication timeout: 10 sec 0 usec
+[wpa] cancell scan request timer
+[wpa] CTRL-EVENT-SUBNET-STATUS-UPDATE status=0
+[wpa] hapd_rx:3497[rwnx] rwnx_get_wifi_rlk_start start 0
+8,buf:0x28091d18, len:512
+[wpa] RX EAPOL from 6e:26:dd:7f:cc:cc
+[wpa] Setting authentication timeout: 10 sec 0 usec
+[wpa] IEEE 802.1X RX: version=2 type=3 length=95
+[wpa]   EAPOL-Key type=2
+[wpa]   key_info 0x8a (ver=2 keyidx=0 rsvd=0 Pairwise Ack)
+[wpa]   key_length=16 key_data_length=0
+[wpa]   replay_counter - hexdump(len=8):
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  01
+[wpa] 
+[wpa]   key_nonce - hexdump(len=32):
+[(null)]  bf
+[(null)]  be
+[(null)]  a7
+[(null)]  73
+[(null)]  06
+[(null)]  a6
+[(null)]  e2
+[(null)]  c6
+[(null)]  02
+[(null)]  d7
+[(null)]  f3
+[(null)]  c3
+[(null)]  b2
+[(null)]  fe
+[(null)]  5b
+[(null)]  e3
+[(null)]  8a
+[(null)]  e7
+[(null)]  93
+[(null)]  c8
+[(null)]  8f
+[(null)]  b2
+[(null)]  88
+[(null)]  e2
+[(null)]  98
+[(null)]  00
+[(null)]  17
+[(null)]  f6
+[(null)]  35
+[(null)]  5e
+[(null)]  d5
+[(null)]  c6
+[wpa] 
+[wpa]   key_iv - hexdump(len=16):
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)[rwnx] rwnx_get_wifi_rlk_start start 0
+]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[wpa] 
+[wpa]   key_rsc - hexdump(len=8):
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[wpa] 
+[wpa]   key_id (reserved) - hexdump(len=8):
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[wpa] 
+[wpa]   key_mic - hexdump(len=16):
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[wpa] 
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[rwnx] bmsg_hardware_ioctl_handler
+[rwnx] bmsg_hardware_ioctl_sender
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[rwnx] bmsg_hardware_ioctl_handler
+[rwnx] bmsg_hardware_ioctl_sender
+[wpa] State: ASSOCIATED -> 4WAY_HANDSHAKE
+[wpa] WPA: RX message 1 of 4-Way Handshake from 6e:26:dd:7f:cc:cc (ver=2)
+[wpa] RSN: msg 1/4 key data[rwnx] rwnx_get_wifi_rlk_start start 0
+ - hexdump(len=0):
+[wpa] 
+[wpa] WPA: Renewed SNonce - hexdump(len=32):
+[(null)]  3d
+[(null)]  5b
+[(null)]  59
+[(null)]  60
+[(null)]  90
+[(null)]  dc
+[(null)]  db
+[(null)]  0f
+[(null)]  3d
+[(null)]  46
+[(null)]  e0
+[(null)]  65
+[(null)]  fc
+[(null)]  b5
+[(null)]  87
+[(null)]  3d
+[(null)]  cb
+[(null)]  7f
+[(null)]  ce
+[(null)]  39
+[(null)]  ea
+[(null)]  cb
+[(null)]  7b
+[(null)]  65
+[(null)]  c0
+[(null)]  37
+[(null)]  49
+[(null)]  12
+[(null)]  fd
+[(null)]  c4
+[(null)]  22
+[(null)]  33
+[wpa] 
+[wpa] WPA: PTK derivation using PRF(SHA1)
+[wpa] WPA: PTK derivation - A1=c8:47:8c:46:02:15 A2=6e:26:dd:7f:cc:cc
+[wpa] WPA: Nonce1 - hexdump(len=32):
+[(null)]  3d
+[(null)]  5b
+[(null)]  59
+[(null)]  60
+[(null)]  90
+[(null)]  dc
+[(null)]  db
+[(null)]  0f
+[(null)]  3d
+[(null)]  46
+[(null)]  e0
+[(null)]  65
+[(null)]  fc
+[(null)]  b5
+[(null)]  87
+[(null)]  3d
+[(null)]  cb
+[(null)]  7f
+[(null)]  ce
+[(null)]  39
+[(null)]  ea
+[(null)]  cb
+[(null)]  7b
+[(null)]  65
+[(null)]  c0
+[(null)]  37
+[(null)]  49
+[(null)]  12
+[(null)]  fd
+[(null)]  c4
+[(null)]  22
+[(null)]  33
+[wpa[rwnx] rwnx_get_wifi_rlk_start start 0
+] 
+[wpa] WPA: Nonce2 - hexdump(len=32):
+[(null)]  bf
+[(null)]  be
+[(null)]  a7
+[(null)]  73
+[(null)]  06
+[(null)]  a6
+[(null)]  e2
+[(null)]  c6
+[(null)]  02
+[(null)]  d7
+[(null)]  f3
+[(null)]  c3
+[(null)]  b2
+[(null)]  fe
+[(null)]  5b
+[(null)]  e3
+[(null)]  8a
+[(null)]  e7
+[(null)]  93
+[(null)]  c8
+[(null)]  8f
+[(null)]  b2
+[(null)]  88
+[(null)]  e2
+[(null)]  98
+[(null)]  00
+[(null)]  17
+[(null)]  f6
+[(null)]  35
+[(null)]  5e
+[(null)]  d5
+[(null)]  c6
+[wpa] 
+[wpa] WPA: PMK - hexdump(len=32):
+[wpa]  [REMOVED]
+[wpa] 
+[wpa] WPA: PTK - hexdump(len=48):
+[wpa]  [REMOVED]
+[wpa] 
+[wpa] WPA: KCK - hexdump(len=16):
+[wpa]  [REMOVED]
+[wpa] 
+[wpa] WPA: KEK - hexdump(len=16):
+[wpa]  [REMOVED]
+[wpa] 
+[wpa] WPA: TK - hexdump(len=16):
+[wpa]  [REMOVED]
+[wpa] 
+[wpa] WPA: TK 0x28099510b
+[wpa] WPA: WPA IE for msg 2/4 - hexdump(len=22):
+[(null)]  30
+[(null)]  14
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  0f
+[(null)]  ac
+[(null)]  04
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  0f
+[(null)]  ac
+[(null)]  04
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  0f
+[(null)]  ac[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] bmsg_rx_handler
+
+[(null)]  02
+[(null)]  00
+[(null)]  00
+[wpa] 
+[wpa] WPA: Replay Counter - hexdump(len=8):
+[(null)]  00
+[(null)[rwnx] bmsg_rx_handler
+[wpa] ke_tx:34978,buf:0x280922b4, len:113
+]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  01
+[wpa] 
+[wpa] WPA: Sending EAPOL-Key 2/4
+[wpa] WPA: Send EAPOL-Key frame to 6e:26:dd:7f:cc:cc ver=2 mic_len=16 key_mgmt=0x2
+[wpa] WPA: EAPOL-Key MIC using HMAC-SHA1
+[wpa] WPA: KCK - hexdump(len=16):
+[wpa]  [REMOVED]
+[wpa] 
+[wpa] WPA: Derived Key MIC - hexdump(len=16):
+[(null)]  fc
+[(null)]  0b
+[(null)]  36
+[(null)]  85
+[(null)]  9c
+[(null)]  10
+[(null)]  33
+[(null)]  49
+[(null)]  48
+[(null)]  ed
+[(null)]  e7
+[(null)]  fa
+[(null)]  dd
+[(null)]  76
+[(null)]  92
+[(null)]  99
+[wpa] 
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[wpa] hapd_tx:34978,buf:0x28091f30, len:135
+[rwnx] bmsg_skt_tx_handler
+[wpa] ke_rx:34978,buf:0x2809267c, len:135
+[wpa] r1:34978,buf:0x2809267c, len:135
+[BK7258-M2] id=0 cfm=00000009 q=0/3 tid=7 vif=0 sta=0 fl=00000000
+[rwnx] eapol cfm st=00000009 q=3 tid=7 sta=0 d31=0 d33=0 d34=1 d35=0 d36=1
+[rwnx] txcfm seq=0 kind=data q=3 st=00000009 ack=1 done=1 tid=7 vif=0 sta=0 fl=00000000 addr=2809268a len=121 saddr=00000000 eth=8e88 dst=6e:26:dd:7f:cc:cc src=c8:47:8c:46:02:15
+[rwnx] l2tx cfm seq=0 status=00000009 acked=1 done=1 retry=0 swretry=0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] bmsg_rx_handler
+[wpa] ke_tx:34978,buf:0x28092bc4, len:169
+[wpa] hapd_rx:34978,buf:0x280920a0, len:512
+[wpa] RX EAPOL from 6e:26:dd:7f:cc:cc
+[wpa] IEEE 802.1X RX: version=2 type=3 length=95
+[wpa]   EAPOL-Key type=2
+[wpa]   key_info 0x8a (ver=2 keyidx=0 rsvd=0 Pairwise Ack)
+[wpa]   key_length=16 key_data_length=0
+[wpa]   replay_counter - hexdump(len=8):
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  02
+[wpa] 
+[wpa]   key_nonce - hexdump(len=32):
+[(null)]  bf
+[(null)]  be
+[(null)]  a7
+[(null)]  73
+[(null)]  06
+[(null)]  a6
+[(null)]  e2
+[(null)]  c6
+[(null)]  02
+[(null)]  d7
+[(null)]  f3
+[(null)]  c3
+[(null)]  b2
+[(null)]  fe
+[(null)]  5b
+[(null)]  e3
+[(null)]  8a
+[(null)]  e7
+[(null)]  93
+[(null)]  c8
+[(null)]  8f
+[(null)]  b2
+[(null)] [rwnx] rwnx_get_wifi_rlk_start start 0
+ 88
+[(null)]  e2
+[(null)]  98
+[(null)]  00
+[(null)]  17
+[(null)]  f6
+[(null)]  35
+[(null)]  5e
+[(null)]  d5
+[(null)]  c6
+[wpa] 
+[wpa]   key_iv - hexdump(len=16):
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[wpa] 
+[wpa]   key_rsc - hexdump(len=8):
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[wpa] 
+[wpa]   key_id (reserved) - hexdump(len=8):
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[wpa] 
+[wpa]   key_mic - hexdump(len=16):
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[wpa] 
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[rwnx] bmsg_hardware_ioctl_handler
+[rwnx] bmsg_[rwnx] rwnx_get_wifi_rlk_start start 0
+hardware_ioctl_sender
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[rwnx] bmsg_hardware_ioctl_handler
+[rwnx] bmsg_hardware_ioctl_sender
+[wpa] State: 4WAY_HANDSHAKE -> 4WAY_HANDSHAKE
+[wpa] WPA: RX message 1 of 4-Way Handshake from 6e:26:dd:7f:cc:cc (ver=2)
+[wpa] RSN: msg 1/4 key data - hexdump(len=0):
+[wpa] 
+[wpa] WPA: PTK derivation using PRF(SHA1)
+[wpa] WPA: PTK derivation - A1=c8:47:8c:46:02:15 A2=6e:26:dd:7f:cc:cc
+[wpa] WPA: Nonce1 - hexdump(len=32):
+[(null)]  3d
+[(null)]  5b
+[(null)]  59
+[(null)]  60
+[(null)]  90
+[(null)]  dc
+[(null)]  db
+[(null)]  0f
+[(null)]  3d
+[(null)]  46
+[(null)]  e0
+[(null)]  65
+[(null)]  fc
+[(null)]  b5
+[(null)]  87
+[(null)]  3d
+[(null)]  cb
+[(null)]  7f
+[(null)]  ce
+[(null)]  39
+[(null)]  ea
+[(null)]  cb
+[(null)]  7b
+[(null)]  65
+[(null)]  c0
+[(null)]  37
+[(null)]  49
+[(null)]  12
+[(null)]  fd
+[(null)]  c4
+[(null)]  22
+[(null)]  33
+[wpa] 
+[wpa] WPA: Nonce2 - hexdump(len=32):
+[(null)]  bf
+[(null)]  be
+[(null)]  a7
+[(null)]  73
+[(null)]  06
+[(null)]  a6
+[(null)]  e2
+[(null)]  c6
+[(null)]  02
+[(null)]  d7
+[(null)]  f3
+[(null)[rwnx] rwnx_get_wifi_rlk_start start 0
+]  c3
+[(null)]  b2
+[(null)]  fe
+[(null)]  5b
+[(null)]  e3
+[(null)]  8a
+[(null)]  e7
+[(null)]  93
+[(null)]  c8
+[(null)]  8f
+[(null)]  b2
+[(null)]  88
+[(null)]  e2
+[(null)]  98
+[(null)]  00
+[(null)]  17
+[(null)]  f6
+[(null)]  35
+[(null)]  5e
+[(null)]  d5
+[(null)]  c6
+[wpa] 
+[wpa] WPA: PMK - hexdump(len=32):
+[wpa]  [REMOVED]
+[wpa] 
+[wpa] WPA: PTK - hexdump(len=48):
+[wpa]  [REMOVED]
+[wpa] 
+[wpa] WPA: KCK - hexdump(len=16):
+[wpa]  [REMOVED]
+[wpa] 
+[wpa] WPA: KEK - hexdump(len=16):
+[wpa]  [REMOVED]
+[wpa] 
+[wpa] WPA: TK - hexdump(len=16):
+[wpa]  [REMOVED]
+[wpa] 
+[wpa] WPA: TK 0x28099510b
+[wpa] WPA: WPA IE for msg 2/4 - hexdump(len=22):
+[(null)]  30
+[(null)]  14
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  0f
+[(null)]  ac
+[(null)]  04
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  0f
+[(null)]  ac
+[(null)]  04
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  0f
+[(null)]  ac
+[(null)]  02
+[(null)]  00
+[(null)]  00
+[wpa] 
+[wpa] WPA: Replay Counter - hexdump(len=8):
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)[rwnx] rwnx_get_wifi_rlk_start start 0
+]  02
+[wpa] 
+[wpa] WPA: Sending EAPOL-Key 2/4
+[wpa] WPA: Send EAPOL-Key frame to 6e:26:dd:7f:cc:cc ver=2 mic_len=16 key_mgmt=0x2
+[wpa] WPA: EAPOL-Key MIC using HMAC-SHA1
+[wpa] WPA: KCK - hexdump(len=16):
+[wpa]  [REMOVED]
+[wpa] 
+[wpa] WPA: Derived Key MIC - hexdump(len=16):
+[(null)]  7c
+[(null)]  45
+[(null)]  20
+[(null)]  cd
+[(null)]  04
+[(null)]  ff
+[(null)]  37
+[(null)]  79
+[(null)]  ec
+[(null)]  d7
+[(null)]  34
+[(null)]  d0
+[(null)]  39
+[(null)]  8f
+[(null)]  ce
+[(null)]  61
+[wpa] 
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[wpa] hapd_tx:34978,buf:0x28091d18, len:135
+[rwnx] bmsg_skt_tx_handler
+[wpa] ke_rx:34978,buf:0x2809257c, len:135
+[wpa] r1:34978,buf:0x2809257c, len:135
+[BK7258-M2] id=1 cfm=00000009 q=0/3 tid=7 vif=0 sta=0 fl=00000000
+[rwnx] eapol cfm st=00000009 q=3 tid=7 sta=0 d31=0 d33=0 d34=1 d35=0 d36=0
+[rwnx] txcfm seq=1 kind=data q=3 st=00000009 ack=1 done=1 tid=7 vif=0 sta=0 fl=00000000 addr=2809258a len=121 saddr=00000000 eth=8e88 dst=6e:26:dd:7f:cc:cc src=c8:47:8c:46:02:15
+[rwnx] l2tx cfm seq=1 status=00000009 acked=1 done=1 retry=0 swretry=0
+[wpa] hapd_rx:34978,buf:0x28091d18, len:512
+[wpa] RX EAPOL from 6e:26:dd:7f:cc:cc
+[wpa] IEEE 802.1X RX: version=2 type=3 length=151
+[wpa]   EAPOL-Key type=2
+[wpa]   key_info 0x13ca (ver=2 keyidx=0 rsvd=0 Pairwise Install Ack MIC Secure Encr)
+[wpa]   key_length=16 key_data_length=56
+[wpa]   replay_counter - hexdump(len=8):
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  03
+[wpa] 
+[wpa]   key_nonce - hexdump(len=32):
+[(null)]  bf
+[(null)]  be
+[(null)]  a7
+[(null)]  73
+[(null)]  06
+[(null)]  a6
+[(null)]  e2
+[(null)]  c6
+[(null)]  02
+[(null)]  d7
+[(null)]  f3
+[(null)]  c3
+[(null)]  b2
+[(null)]  fe
+[(null)]  5b
+[(null)]  e3
+[(null)]  8a
+[(null)]  e7
+[(null)]  93
+[(null)]  c8
+[(null)]  8f
+[(null)]  b2
+[(null)]  88
+[(null)]  e2
+[(null)]  98
+[(null)]  00
+[(null)]  17
+[(null)]  f6
+[(null)]  35
+[(null)]  5e
+[(null)]  d5
+[(null)]  c6
+[wpa] 
+[wpa]   key_iv - hexdump(len=16):
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[wpa] 
+[wpa]   key_rsc - hexdump(len=8):
+[(null)]  [rwnx] rwnx_get_wifi_rlk_start start 0
+00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[wpa] 
+[wpa]   key_id (reserved) - hexdump(len=8):
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[wpa] 
+[wpa]   key_mic - hexdump(len=16):
+[(null)]  7e
+[(null)]  c9
+[(null)]  12
+[(null)]  e3
+[(null)]  34
+[(null)]  8e
+[(null)]  c3
+[(null)]  bc
+[(null)]  b8
+[(null)]  04
+[(null)]  22
+[(null)]  50
+[(null)]  7c
+[(null)]  76
+[(null)]  b0
+[(null)]  b5
+[wpa] 
+[wpa] WPA: EAPOL-Key MIC using HMAC-SHA1
+[wpa] RSN: encrypted key data - hexdump(len=56):
+[(null)]  1d
+[(null)]  19
+[(null)]  85
+[(null)]  42
+[(null)]  ad
+[(null)]  a7
+[(null)]  89
+[(null)]  3f
+[(null)]  45
+[(null)]  ed
+[(null)]  ae
+[(null)]  6d
+[(null)]  65
+[(null)]  bf
+[(null)]  52
+[(null)]  07
+[(null)]  b0
+[(null)]  c5
+[(null)]  17
+[(null)]  e2
+[(null)]  11
+[(null)]  ec
+[(null)]  c0
+[(null)]  c4
+[(null)]  1b
+[(null)]  ab
+[(null)]  fe
+[(null)]  a4
+[(null)]  74
+[(null)]  c2
+[(null)]  c1
+[(null)]  19
+[(null)]  70
+[(null)]  86
+[(null)]  49
+[(null)[rwnx] rwnx_get_wifi_rlk_start start 0
+]  d4
+[(null)]  e1
+[(null)]  f6
+[(null)]  7a
+[(null)]  2a
+[(null)]  47
+[(null)]  f3
+[(null)]  28
+[(null)]  d7
+[(null)]  99
+[(null)]  3e
+[(null)]  20
+[(null)]  01
+[(null)]  32
+[(null)]  8d
+[(null)]  ae
+[(null)]  4b
+[(null)]  6d
+[(null)]  ba
+[(null)]  33
+[(null)]  dc
+[wpa] 
+[wpa] WPA: Decrypt Key Data using AES-UNWRAP (KEK length 16)
+[wpa] WPA: decrypted EAPOL-Key key data - hexdump(len=48):
+[wpa]  [REMOVED]
+[wpa] 
+[wpa] State: 4WAY_HANDSHAKE -> 4WAY_HANDSHAKE
+[wpa] WPA: RX message 3 of 4-Way Handshake from 6e:26:dd:7f:cc:cc (ver=2)
+[wpa] WPA: IE KeyData - hexdump(len=48):
+[(null)]  30
+[(null)]  14
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  0f
+[(null)]  ac
+[(null)]  04
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  0f
+[(null)]  ac
+[(null)]  04
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  0f
+[(null)]  ac
+[(null)]  02
+[(null)]  0c
+[(null)]  [rwnx] rwnx_get_wifi_rlk_start start 0
+00
+[(null)]  dd
+[(null)]  16
+[(null)]  00
+[(null)]  0f
+[(null)]  ac
+[(null)]  01
+[(null)]  01
+[(null)]  00
+[(null)]  ff
+[(null)]  11
+[(null)]  1d
+[(null)]  1d
+[(null)]  4c
+[(null)]  c3
+[(null)]  d2
+[(null)]  69
+[(null)]  7b
+[(null)]  52
+[(null)]  93
+[(null)]  bb
+[(null)]  d7
+[(null)]  94
+[(null)]  f2
+[(null)]  70
+[(null)]  dd
+[(null)]  00
+[wpa] 
+[wpa] WPA: RSN IE in EAPOL-Key - hexdump(len=22):
+[(null)]  30
+[(null)]  14
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  0f
+[(null)]  ac
+[(null)]  04
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  0f
+[(null)]  ac
+[(null)]  04
+[(null)]  01
+[(null)]  00
+[(null)]  00
+[(null)]  0f
+[(null)]  ac
+[(null)]  02
+[(null)]  0c
+[(null)]  00
+[wpa] 
+[wpa] WPA: GTK in EAPOL-Key - hexdump(len=24):
+[wpa]  [REMOVED]
+[wpa] 
+[wpa] WPA: Sending EAPOL-Key 4/4
+[wpa] WPA: Send EAPOL-Key frame to 6e:26:dd:7f:cc:cc ver=2 mic_len=16 key_mgmt=0x2
+[wpa] WPA: EAPOL-Key MIC using HMAC-SHA1
+[wpa] WPA: KCK - hexdump(len=16):
+[wpa]  [REMOVED]
+[wpa] 
+[wpa] WPA: Derived Key MIC - hexdump(len=16):
+[(null)]  4e
+[(null)]  1e
+[(null)]  73
+[(null)]  37
+[(null)[rwnx] rwnx_get_wifi_rlk_start start 0
+]  c5
+[(null)]  88
+[(null)]  33
+[(null)]  7e
+[(null)]  71
+[(null)]  15
+[(null)]  f8
+[(null)]  59
+[(null)]  e8
+[(null)]  a2
+[(null)]  50
+[(null)]  b5
+[wpa] 
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[wpa] hapd_tx:34978,buf:0x28091f20, len:113
+[rwnx] bmsg_skt_tx_handler
+[wpa] ke_rx:34978,buf:0x280922fc, len:113
+[wpa] r1:34978,buf:0x280922fc, len:113
+[BK7258-M2] id=2 cfm=00000009 q=0/3 tid=7 vif=0 sta=0 fl=00000000
+[rwnx] eapol cfm st=00000009 q=3 tid=7 sta=0 d31=0 d33=0 d34=1 d35=0 d36=0
+[rwnx] txcfm seq=2 kind=data q=3 st=00000009 ack=1 done=1 tid=7 vif=0 sta=0 fl=00000000 addr=2809230a len=99 saddr=00000000 eth=8e88 dst=6e:26:dd:7f:cc:cc src=c8:47:8c:46:02:15
+[rwnx] l2tx cfm seq=2 status=00000009 acked=1 done=1 retry=0 swretry=0
+[wpa] WPA: Installing PTK to the driver
+[hitf] add CCMP
+[hitf] add sta_mgmt_get_sta
+[hitf] add key, sta=0, vif=0, key=0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[rwnx] bmsg_ioctl_handler
+[rwnx] bmsg_ioctl_sender
+[hitf] add hw key idx=8
+[wpa] State: 4WAY_HANDSHAKE -> GROUP_HANDSHAKE
+[wpa[rwnx] rwnx_get_wifi_rlk_start start 0
+] RSN: received GTK in pairwise handshake - hexdump(len=18):
+[wpa]  [REMOVED]
+[wpa] 
+[wpa] WPA: GTK 0x28091bb1b
+[wpa] WPA: Group Key - hexdump(len=16):
+[wpa]  [REMOVED]
+[wpa] 
+[wpa] WPA: Installing GTK to the driver (keyidx=1 tx=0 len=16)
+[wpa] WPA: RSC - hexdump(len=6):
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[(null)]  00
+[wpa] 
+[hitf] add CCMP
+[hitf] add is_broadcast_ether_addr
+[hitf] add key, sta=255, vif=0, key=1
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[rwnx] bmsg_ioctl_handler
+[rwnx] bmsg_ioctl_sender
+[hitf] add hw key idx=1
+[wpa] WPA: Key negotiation completed with 6e:26:dd:7f:cc:cc [PTK=CCMP GTK=CCMP]
+[wpa] Cancelling authentication timeout
+[wpa] State: GROUP_HANDSHAKE -> COMPLETED
+[wpa] Radio work 'connect'@0x2808d020 done in 2.554000 seconds
+[wpa] radio_work_free('connect'@0x2808d020): num_active_works --> 0
+[initseq] osal sem-init enter max_count ret=1
+[initseq] osal sem-init leave ret=0
+[rwnx] bmsg_ioctl_handler
+[rwnx] bmsg_ioctl_sender
+[wpa] CTRL-EVENT-CONNECTED - Connection to 6e:26:dd:7f:cc:cc completed [id=0 id_str=]
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001[rwnx] bmsg_rx_handler
+f8
+[adc] release
+[BK7258-WI[rwnx] bmsg_rx_handler
+FI] pmq: vote_sleep(module=5 state=1) slept=0x20
+  state=CONNECTED(3) reason=SUCCESS(262)
+[bk7258_wifi_runtime] connect: CONNECTED
+nsh> [rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 s[rwnx] rwnx_get_wifi_rlk_start start 0
+tate=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0x[rwnx] rwnx_get_wifi_rlk_start start 0
+e0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] bmsg_rx_handler
+[rwnx] bmsg_rx_handler
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] bmsg_rx_handler
+[rwnx] bmsg_rx_handler
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] bmsg_rx_handler
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] bmsg_rx_handler
+[rwnx] bmsg_rx_handler
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate ma[rwnx] rwnx_get_wifi_rlk_start start 0
+sk=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] bmsg_rx_handler
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] bmsg_rx_handler
+[rwnx] bmsg_rx_handler
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] bmsg_rx_handler
+[rwnx] bmsg_rx_handler
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] bmsg_rx_handler
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable[rwnx] rwnx_get_wifi_rlk_start start 0
+ source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] bmsg_rx_handler
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] bmsg_rx_handler
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=[rwnx] rwnx_get_wifi_rlk_start start 0
+8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] bmsg_rx_handler
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] bmsg_rx_handler
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] bmsg_rx_handler
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate [rwnx] rwnx_get_wifi_rlk_start start 0
+mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU a[rwnx] rwnx_get_wifi_rlk_start start 0
+ttach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_[rwnx] rwnx_get_wifi_rlk_start start 0
+en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[[rwnx] rwnx_get_wifi_rlk_start start 0
+BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc[rwnx] rwnx_get_wifi_rlk_start start 0
+] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] bmsg_rx_handler
+[rwnx] bmsg_rx_handler
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] rel[rwnx] rwnx_get_wifi_rlk_start start 0
+ease
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=0) slept=0x0
+[BK7258] power gate mask=0x00000010 enable=1 ret=0 reg=0[rwnx] rwnx_get_wifi_rlk_start start 0
+x700001e8
+[BK7258] ICU attach source=8 irq=24 ret=0
+[BK7258] ICU enable source=8 irq=24 ret=0 int_en=0xe0000110
+[BK7258] ICU disable source=8 irq=24 ret=0 int_en=0xe0000010
+[BK7258] power gate mask=0x00000010 enable=0 ret=0 reg=0x700001f8
+[adc] release
+[BK7258-WIFI] pmq: vote_sleep(module=5 state=1) slept=0x20
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+
+nsh> [rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0
+[rwnx] rwnx_get_wifi_rlk_start start 0

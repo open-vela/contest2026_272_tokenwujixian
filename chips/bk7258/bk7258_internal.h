@@ -18,6 +18,25 @@ void bk7258_gpio_uart0_tx(void);
 void bk7258_gpio_uart0_rx(void);
 void bk7258_clock_uart0(void);
 
+/* Retained configurable-fault capture.  These wrappers preserve the generic
+ * NuttX handlers after recording a small pre-panic snapshot in .noinit. */
+
+int bk7258_hardfault(int irq, void *context, void *arg);
+int bk7258_memfault(int irq, void *context, void *arg);
+int bk7258_busfault(int irq, void *context, void *arg);
+int bk7258_usagefault(int irq, void *context, void *arg);
+int bk7258_securefault(int irq, void *context, void *arg);
+void bk7258_fault_report_early(void);
+
+/* Temporary CP-only boot diagnostics. Physical CPU0 owns UART0; the AP image
+ * deliberately has no physical console, so its shared IRQ/timer code must not
+ * acquire a dependency on bk7258_lowputc(). */
+#ifdef CONFIG_BK7258_COMPONENT_CP
+#  define BK7258_BOOT_MARK(ch) bk7258_lowputc(ch)
+#else
+#  define BK7258_BOOT_MARK(ch) do { } while (0)
+#endif
+
 /* Extended GPIO primitives from bk7258_gpio.h */
 
 #include "include/bk7258_gpio.h"
