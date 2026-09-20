@@ -96,6 +96,10 @@ const core = new DeskMateBridgeCore({
   adapter,
   publish: (message) => transport?.send(message),
   onAdapterEvent: renderAdapterEvent,
+  // Human approval realistically takes longer than the default 30 s window;
+  // DESKMATE_PERMISSION_TIMEOUT_MS lets a deployment widen it.
+  permissionTimeoutMs: Number(process.env.DESKMATE_PERMISSION_TIMEOUT_MS) * 1_000
+    || 30_000,
 });
 transport = transportName === "loop"
   ? new LoopTransportServer(socket)
