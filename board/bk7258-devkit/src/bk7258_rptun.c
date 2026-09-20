@@ -156,7 +156,28 @@ bk7258_rptun_get_resource(struct rptun_dev_s *dev)
         (UINT32_C(1) << VIRTIO_RPMSG_F_ACK) |
         (UINT32_C(1) << VIRTIO_RPMSG_F_BUFSZ) |
         (UINT32_C(1) << VIRTIO_RPMSG_F_CPUNAME);
-      rsc->rpmsg_vdev.gfeatures = 0;
+      /* The device side (AP) derives its feature set from
+       * virtio_get_features() == dfeatures & gfeatures
+       * (rproc_virtio_get_features).  Leaving gfeatures at 0 -- as
+       * this dynamically-built table always did -- empties that AND
+       * on the device side, so rpmsg_virtio never registers the NS
+       * endpoint (support_ns = false) and every NS announcement the
+       * AP sends via rpmsg_create_ept() is silently dropped in
+       * rpmsg.c.  The RPMsg UART console survives because its
+       * endpoints do not depend on NS announcements; the rpmsg-net
+       * driver, whose peer must bind on the "rpmsg-net-rpmsg0"
+       * announcement, does not.  Declare the device-side acceptance
+       * of the same feature bits so the AND keeps them on both
+       * sides.  The CP (driver) side is unaffected: its
+       * negotiate_features() writes its own acceptance into gfeatures
+       * before setting DRIVER_OK, and the AP's create loop retries
+       * on -EAGAIN until that status appears, so it never reads the
+       * table before the negotiation has landed. */
+      rsc->rpmsg_vdev.gfeatures =
+        (UINT32_C(1) << VIRTIO_RPMSG_F_NS) |
+        (UINT32_C(1) << VIRTIO_RPMSG_F_ACK) |
+        (UINT32_C(1) << VIRTIO_RPMSG_F_BUFSZ) |
+        (UINT32_C(1) << VIRTIO_RPMSG_F_CPUNAME);
       rsc->rpmsg_vdev.config_len = sizeof(struct fw_rsc_config);
       rsc->rpmsg_vdev.status = 0;
       rsc->rpmsg_vdev.num_of_vrings = BK7258_RPTUN_VRINGS;
