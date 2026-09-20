@@ -10,7 +10,11 @@ export class FakeAcpAdapter {
   async start() { this.listener({ type: "session_started", backend: this.backend }); this.listener({ type: "text", text: "Agent ready" }); }
   async submit(text) {
     this.submits.push(text);
-    return this.submitHandler ? this.submitHandler(text) : { stopReason: "completed" };
+    if (this.submitHandler) return this.submitHandler(text);
+    /* Mirror the real backend: stream a transcript so device-side output
+     * handling (agent_output -> turn transcript) is exercised without mimo. */
+    this.text(`(fake) done: ${text}\nhello world script written to hello.sh`);
+    return { stopReason: "completed" };
   }
   async respondPermission(id, result) { this.responses.push({ id, result }); }
   requestPermission(params) { this.listener({ type: "permission_request", params }); }
