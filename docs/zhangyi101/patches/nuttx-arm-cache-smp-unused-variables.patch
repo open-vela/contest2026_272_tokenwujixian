@@ -1,0 +1,44 @@
+diff --git a/arch/arm/src/armv8-m/arm_cache.c b/arch/arm/src/armv8-m/arm_cache.c
+index f6e26e78c68..978f9c6e232 100644
+--- a/arch/arm/src/armv8-m/arm_cache.c
++++ b/arch/arm/src/armv8-m/arm_cache.c
+@@ -812,15 +812,19 @@ void up_clean_dcache(uintptr_t start, uintptr_t end)
+   uint32_t ccsidr;
+   uint32_t sshift;
+   uint32_t ssize;
++#ifndef CONFIG_SMP
+   uint32_t sets;
+   uint32_t ways;
++#endif
+ 
+   /* Get the characteristics of the D-Cache */
+ 
+   ccsidr = getreg32(NVIC_CCSIDR);
+   sshift = CCSIDR_LSSHIFT(ccsidr) + 4;   /* log2(cache-line-size-in-bytes) */
++#ifndef CONFIG_SMP
+   sets   = CCSIDR_SETS(ccsidr);          /* (Number of sets) - 1 */
+   ways   = CCSIDR_WAYS(ccsidr);          /* (Number of ways) - 1 */
++#endif
+ 
+   /* Clean the D-Cache over the range of addresses */
+ 
+@@ -970,15 +974,19 @@ void up_flush_dcache(uintptr_t start, uintptr_t end)
+   uint32_t ccsidr;
+   uint32_t sshift;
+   uint32_t ssize;
++#ifndef CONFIG_SMP
+   uint32_t sets;
+   uint32_t ways;
++#endif
+ 
+   /* Get the characteristics of the D-Cache */
+ 
+   ccsidr = getreg32(NVIC_CCSIDR);
+   sshift = CCSIDR_LSSHIFT(ccsidr) + 4;   /* log2(cache-line-size-in-bytes) */
++#ifndef CONFIG_SMP
+   sets   = CCSIDR_SETS(ccsidr);          /* (Number of sets) - 1 */
+   ways   = CCSIDR_WAYS(ccsidr);          /* (Number of ways) - 1 */
++#endif
+ 
+   /* Clean and invalidate the D-Cache over the range of addresses */
+ 
