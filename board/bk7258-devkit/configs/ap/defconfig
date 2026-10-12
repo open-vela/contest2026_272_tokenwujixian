@@ -150,6 +150,11 @@ CONFIG_AI_AGENT_NET_RPMSG=y
 # has no LCD/LVGL/FPU; ui_rpmsg_client.c is a drop-in shim that implements
 # lvgl_ui_channel_* + lvgl_toast_* as RPMsg messages to the CP renderer.
 CONFIG_AI_AGENT_UI_RPMSG=y
+# M5 PTT: physical S1 button (GPIO13) hold-to-talk on the AP core. The
+# buttons + voice pipeline + UI shim are all on AP, so no reverse RPMsg:
+# press → voice_channel_start + set_ptt(RECORDING); release →
+# voice_channel_stop_with_text + send_user echo + dispatch → LLM → reply.
+CONFIG_AI_AGENT_PTT=y
 CONFIG_BK7258_PSRAM=y
 CONFIG_MM_REGIONS=2
 CONFIG_SERIAL_NPOLLWAITERS=8
