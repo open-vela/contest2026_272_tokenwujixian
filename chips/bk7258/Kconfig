@@ -235,8 +235,10 @@ endif # AUDIO_BK7258
 
 endmenu
 
-# wifi/Kconfig lives in the parent workspace at ${BINDIR}/../../vendor/...
-# (cmake_out/<board>_<config> -> openvela-ai/vendor/...).
+# wifi/Kconfig lives in the parent workspace: the path is relative to this
+# Kconfig file's directory (kconfiglib semantics), resolving through
+# cmake_out/<board>_<config> -> openvela-ai/vendor/... . Re-verify against
+# the parent-workspace Kconfig root at full build time.
 source "$BINDIR/../../vendor/beken/chips/bk7258/wifi/Kconfig"
 
 endif

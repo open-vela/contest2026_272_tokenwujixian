@@ -146,6 +146,10 @@ CONFIG_NETUTILS_CJSON=y
 CONFIG_EXAMPLES_AI_AGENT_VELA=y
 CONFIG_EXAMPLES_AI_AGENT_VELA_STACKSIZE=32768
 CONFIG_AI_AGENT_NET_RPMSG=y
+# 路 B (dual-core BK7258): AP drives the CP-side chat UI over RPMsg.  The AP
+# has no LCD/LVGL/FPU; ui_rpmsg_client.c is a drop-in shim that implements
+# lvgl_ui_channel_* + lvgl_toast_* as RPMsg messages to the CP renderer.
+CONFIG_AI_AGENT_UI_RPMSG=y
 CONFIG_BK7258_PSRAM=y
 CONFIG_MM_REGIONS=2
 CONFIG_SERIAL_NPOLLWAITERS=8
