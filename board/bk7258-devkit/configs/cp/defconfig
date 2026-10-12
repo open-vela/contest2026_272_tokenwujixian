@@ -57,6 +57,11 @@ CONFIG_DEV_SIMPLE_ADDRENV=y
 CONFIG_DHCPC_RENEW_STACKSIZE=4096
 CONFIG_EXAMPLES_LVGLDEMO=y
 CONFIG_EXAMPLES_AI_AGENT_UI_CP=y
+# M7 差异化页 (pure-LVGL 退路): pet status ring home screen. CP renders it;
+# AP drives state over RPMsg (SET_PET_STATE); lvgl_ui_channel mirrors PTT and
+# idle-yields the foreground to it. Pure LVGL — the Rust/mirui fallback when
+# the no_std runtime is unavailable (UI方案.md §2.4 退路).
+CONFIG_AI_AGENT_PET_STATUS=y
 # MiSans 16 CJK — canonical copy lives in the LVGL tree
 # (apps/graphics/lvgl/.../lv_font_misans_16_cjk.c); this enables it so the
 # LVGL lib provides the lv_font_misans_16_cjk symbol the CP UI app uses.
