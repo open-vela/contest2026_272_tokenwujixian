@@ -7,7 +7,7 @@ index 0188e9d4c..b88a85868 100644
  			config LV_FONT_SIMSUN_16_CJK
  				bool "Enable Simsun 16 CJK"
 +			config LV_FONT_MISANS_16_CJK
-+				bool "Enable MiSans 16 CJK (3755 GB2312-1 common chars)"
++				bool "Enable MiSans 16 CJK (curated 368-char subset + ASCII)"
  
  			config LV_FONT_UNSCII_8
  				bool "Enable UNSCII 8 (Perfect monospace font)"
@@ -38,7 +38,7 @@ index 0a1e29810..92eacacec 100644
 +    #ifdef CONFIG_LV_FONT_MISANS_16_CJK
 +        #define LV_FONT_MISANS_16_CJK CONFIG_LV_FONT_MISANS_16_CJK
 +    #else
-+        #define LV_FONT_MISANS_16_CJK            0  /*MiSans 16px CJK (3755 GB2312-1 + ASCII + fullwidth punct)*/
++        #define LV_FONT_MISANS_16_CJK            0  /*MiSans 16px CJK (curated 368-char subset: UI strings + conversational + contest-domain vocab)*/
 +    #endif
 +#endif
  
