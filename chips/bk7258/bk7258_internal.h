@@ -18,6 +18,12 @@ void bk7258_gpio_uart0_tx(void);
 void bk7258_gpio_uart0_rx(void);
 void bk7258_clock_uart0(void);
 
+/* ARMv8-M MPU bring-up (bk7258_mpuinit.c).  Called by every core start
+ * path after .data/.bss are valid and the early fault handlers are armed. */
+#ifdef CONFIG_ARM_MPU
+void bk7258_mpuinit(void);
+#endif
+
 /* Retained configurable-fault capture.  These wrappers preserve the generic
  * NuttX handlers after recording a small pre-panic snapshot in .noinit. */
 

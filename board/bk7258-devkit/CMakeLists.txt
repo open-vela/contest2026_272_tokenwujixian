@@ -14,6 +14,13 @@ if(CONFIG_BK7258_PSRAM)
     STACKSIZE 4096)
 endif()
 
+if(CONFIG_BK7258_MPU_TEST)
+  nuttx_add_application(
+    NAME bk7258_mpu_test
+    SRCS ${NUTTX_BOARD_ABS_DIR}/src/bk7258_mpu_test.c
+    STACKSIZE 4096)
+endif()
+
 if(CONFIG_BK7258_COMPONENT_AP)
   set(BK7258_LINKER_SCRIPT "flash_ap.ld")
   set(BK7258_COMPONENT_DIR "${CMAKE_BINARY_DIR}/bk7258_ap")

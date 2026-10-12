@@ -140,6 +140,25 @@ void __start(void)
   __asm__ volatile ("dsb\n\tisb" : : : "memory");
 #endif
 
+  /* Install the ARMv8-M MPU region table and enable the MPU.  It maps
+   * flash (0x02000000) and PSRAM (0x60000000) as Normal write-back and the
+   * on-chip SRAM (0x28000000) as Normal non-cacheable -- RPMSG_SHM, SWAP,
+   * PWR_MNG and the Wi-Fi pbufs the MAC/PHY DMA writes into all live in
+   * SRAM, so the non-cacheable attribute is exactly what makes D-cache safe
+   * to enable.  Fault handlers are already attached, so a region bug dumps
+   * a CFSR/MMFAR instead of hanging. */
+#ifdef CONFIG_ARM_MPU
+  bk7258_mpuinit();
+#endif
+
+  /* The MPU now guarantees the shared windows are non-cacheable, so re-enable
+   * the D-cache that the Bootloader inherited state forced us to clean at
+   * entry: flash and PSRAM get cached, cross-core SRAM traffic stays
+   * coherent.  up_enable_dcache() invalidates before enabling (idempotent). */
+#ifdef CONFIG_ARMV8M_DCACHE
+  up_enable_dcache();
+#endif
+
   bk7258_lowsetup();
   bk7258_report_reset_context_early();
   bk7258_fault_report_early();

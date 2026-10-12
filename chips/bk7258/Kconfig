@@ -52,6 +52,8 @@ config ARCH_CHIP_BK7258
 	bool "Beken BK7258 CP / CPU0"
 	default y
 	select ARCH_CORTEXM33
+	select ARCH_HAVE_MPU
+	select ARM_HAVE_MPU_UNIFIED
 	select ARCH_HAVE_FPU if BK7258_HARD_FLOAT
 	select ARCH_HAVE_TRUSTZONE
 	select ARCH_HAVE_MULTICPU
@@ -68,6 +70,16 @@ config ARCH_CHIP_BK7258
 		separate AMP images. ARCH_HAVE_MULTICPU is selected because the SoC
 		exposes three physical cores; the AP defconfig additionally enables
 		CONFIG_SMP, while the CP defconfig remains single-core.
+
+		The Cortex-M33 MPU (ARMv8-M, unified) is selected via ARCH_HAVE_MPU
+		and ARM_HAVE_MPU_UNIFIED, making CONFIG_ARM_MPU available. BK7258
+		boots from an opaque Bootloader that may program the MPU itself, so
+		bk7258_mpuinit() resets the MPU and programs a kernel region table
+		(flash 0x02000000 WBWA, on-chip SRAM 0x28000000 non-cacheable,
+		PSRAM 0x60000000 WBWA, peripherals 0x40000000 device). The
+		non-cacheable SRAM attribute is what lets CONFIG_ARMV8M_DCACHE run:
+		RPMsg/SWAP/PWR_MNG and the Wi-Fi pbufs live in on-chip SRAM, so they
+		stay coherent with MAC/PHY DMA while flash and PSRAM get cached.
 
 config BK7258_HARD_FLOAT
 	bool "Enable BK7258 hard-float ABI"
@@ -223,8 +235,8 @@ endif # AUDIO_BK7258
 
 endmenu
 
-# Path is relative to this Kconfig file's directory (kconfiglib semantics);
-# re-verify against the parent-workspace Kconfig root at full build time.
-source "$BINDIR/../../../../../vendor/beken/chips/bk7258/wifi/Kconfig"
+# wifi/Kconfig lives in the parent workspace at ${BINDIR}/../../vendor/...
+# (cmake_out/<board>_<config> -> openvela-ai/vendor/...).
+source "$BINDIR/../../vendor/beken/chips/bk7258/wifi/Kconfig"
 
 endif

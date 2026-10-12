@@ -23,6 +23,19 @@ config ARCH_BOARD_BK7258_DEVKIT_BUTTONS
 		KEY1=GPIO13, KEY2=GPIO12, KEY3=GPIO8, all active-low with
 		internal pull-up.
 
+config BK7258_MPU_TEST
+	bool "MPU/D-cache diagnostic (bk7258_mpu_test NSH command)"
+	depends on ARM_MPU
+	default n
+	---help---
+		Adds the bk7258_mpu_test command: dumps and verifies the BK7258
+		MPU region table directly from hardware (no fault), runs benign
+		Flash/SRAM/PSRAM/peripheral access checks, and offers two fault
+		probes (write to P:RO Flash, call into the Device+XN window) that
+		prove memory protection on the board.  The probes reset the CPU
+		by design; the retained '.noinit' fault record plus the next-boot
+		'!FAULT' report are the evidence.
+
 endif # ARCH_BOARD_BK7258_DEVKIT
 
 if LCD_JD9853 || LCD_GC9D01

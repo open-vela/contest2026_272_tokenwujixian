@@ -163,6 +163,19 @@ static void bk7258_cpu2_boot(void)
 
   up_enable_icache();
 
+  /* Same MPU + D-cache policy as CPU1: program the shared region table
+   * (SRAM non-cacheable, flash/PSRAM write-back) and turn the D-cache on
+   * now that the shared windows cannot go stale.  Registers are per-core,
+   * so this does not disturb the CPU1 MPU. */
+
+#ifdef CONFIG_ARM_MPU
+  bk7258_mpuinit();
+#endif
+
+#ifdef CONFIG_ARMV8M_DCACHE
+  up_enable_dcache();
+#endif
+
   /* Set up the per-CPU interrupt stack and select PSP for thread mode.  This
    * uses this_cpu() == 1, resolved from the CPU2 boot-stack MSP. */
 

@@ -87,6 +87,20 @@ void __start(void)
       *destination++ = *source++;
     }
 
+  /* Install the ARMv8-M MPU region table and enable the MPU, then re-enable
+   * the D-cache that entry cleaned.  SRAM (RPMsg/SWAP/PWR_MNG/spinlock and
+   * every DMA-visible Wi-Fi buffer) is Normal non-cacheable, while flash and
+   * PSRAM are write-back, so enabling D-cache here keeps cross-core traffic
+   * coherent instead of breaking the SWAP and Mailbox bring-up. */
+
+#ifdef CONFIG_ARM_MPU
+  bk7258_mpuinit();
+#endif
+
+#ifdef CONFIG_ARMV8M_DCACHE
+  up_enable_dcache();
+#endif
+
   bk7258_ap_record_mark_reset((uint32_t)(uintptr_t)_vectors,
                               (uint32_t)(uintptr_t)_vectors[1]);
   bk7258_ap_dbg_mark(BK7258_AP_DBG_MARK_RESET_DONE);
