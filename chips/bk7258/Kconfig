@@ -225,6 +225,6 @@ endmenu
 
 # Path is relative to this Kconfig file's directory (kconfiglib semantics);
 # re-verify against the parent-workspace Kconfig root at full build time.
-source "$BINDIR/../../../../../vendor/beken/chips/bk7258/wifi/Kconfig"
+source "$BINDIR/../../vendor/beken/chips/bk7258/wifi/Kconfig"
 
 endif
