@@ -129,3 +129,70 @@ git apply /path/to/contest2026_272_tokenwujixian/docs/zhangyi101/patches/nuttx-i
 ```
 
 **性质说明**：本 patch 未提交至 `open-vela/nuttx` 官方仓库，仅作为团队内部保管、可复用的改动记录，存放于本专属仓库 `docs/zhangyi101/patches/` 目录下。
+
+## nuttx-arm-cache-smp-unused-variables.patch
+
+**用途**：修复 SMP 构建下干净重建必挂的 `-Werror=unused-variable`（对应 nuttx 本地分支 `dev-ai-contest-2026` 提交 `04b6fcf`）。
+
+**改动内容**：
+- `up_clean_dcache()` / `up_flush_dcache()`（armv8-m）中 `sets`/`ways` 的声明与 CCSIDR 赋值包进 `#ifndef CONFIG_SMP`：SMP 路径按地址逐行清理缓存，set/way 计数根本用不上，成为未用变量
+- 增量构建被 ccache 掩盖，clean rebuild 才暴露（BK7258 SMP 构建链实测踩过，曾卡住全量重建）
+
+**应用方法**（在 openvela 工作区的 `nuttx` 目录下）：
+
+```bash
+cd nuttx
+git apply /path/to/contest2026_272_tokenwujixian/docs/zhangyi101/patches/nuttx-arm-cache-smp-unused-variables.patch
+```
+
+**性质说明**：本 patch 未提交至 `open-vela/nuttx` 官方仓库，仅作为团队内部保管、可复用的改动记录，存放于本专属仓库 `docs/zhangyi101/patches/` 目录下。
+
+## nuttx-apps-bk7258-test-apps.patch
+
+**用途**：BK7258 DevKit 板上验证用的按键 / 音频测试程序（对应 nuttx-apps 本地分支 `dev-ai-contest-2026` 提交 `2b9076e`，板上真机已验）。
+
+**改动内容**：
+- `testing/bk7258_btn`：三个用户键（S1/S2/S3 = GPIO13/12/8）短按/长按分类测试，走 `/dev/btn0`（⚠️ 板上 K1 是 RESET，接 CEN，勿碰）
+- `testing/bk7258_pcm`：`-F` 正弦放音（DAC FIFO 写入 / 音量定标调试，喇叭音量原版 5% = amp4000+vol20）；`-C` 双麦直采（两通道 LIVE 不假死，待接真 MIC 复验）；`-N` 经 NuttX 音频框架 `/dev/audio/pcm0c` 采集（16 kHz 单声道 S16_LE，对齐 ASR 路径）
+
+**应用方法**（在 openvela 工作区的 `apps` 目录下）：
+
+```bash
+cd apps
+git apply /path/to/contest2026_272_tokenwujixian/docs/zhangyi101/patches/nuttx-apps-bk7258-test-apps.patch
+```
+
+**性质说明**：本 patch 未提交至 `open-vela/nuttx-apps` 官方仓库，仅作为团队内部保管、可复用的改动记录，存放于本专属仓库 `docs/zhangyi101/patches/` 目录下。
+
+## packages_demos-contest2026-272-hello-app-link.patch
+
+**用途**：把选手仓的比赛演示 hello App 接进 workspace 构建树（对应 packages_demos 本地分支 `dev-ai-contest-2026` 提交 `267416f`）。
+
+**改动内容**：
+- 新增符号链接 `contest2026_272_hello_app → ../../contest2026_272_tokenwujixian/app/hello_app`（App 源码本体在选手仓，已推送 myfork；此链接使其被 `packages/demos` 构建规则发现）
+- 链接为相对路径，要求标准 workspace 布局（`packages/demos` 与 `contest2026_272_tokenwujixian` 仓库同级）
+
+**应用方法**（在 openvela 工作区的 `packages/demos` 目录下）：
+
+```bash
+cd packages/demos
+git apply /path/to/contest2026_272_tokenwujixian/docs/zhangyi101/patches/packages_demos-contest2026-272-hello-app-link.patch
+```
+
+**性质说明**：本 patch 未提交至 `open-vela/packages_demos` 官方仓库，仅作为团队内部保管、可复用的改动记录，存放于本专属仓库 `docs/zhangyi101/patches/` 目录下。
+
+## packages_apps-contest2026-272-hello-quickapp-link.patch
+
+**用途**：把选手仓的比赛演示 quickapp 接进 workspace 构建树（对应 packages_apps 本地分支 `dev-ai-contest-2026` 提交 `e154596`）。
+
+**改动内容**：
+- 新增符号链接 `contest2026_272_hello_quickapp → ../../contest2026_272_tokenwujixian/quickapp/hello_quickapp`（同上，源码本体在选手仓；标准 workspace 布局下有效）
+
+**应用方法**（在 openvela 工作区的 `packages/apps` 目录下）：
+
+```bash
+cd packages/apps
+git apply /path/to/contest2026_272_tokenwujixian/docs/zhangyi101/patches/packages_apps-contest2026-272-hello-quickapp-link.patch
+```
+
+**性质说明**：本 patch 未提交至 `open-vela/packages_apps` 官方仓库，仅作为团队内部保管、可复用的改动记录，存放于本专属仓库 `docs/zhangyi101/patches/` 目录下。

@@ -1,0 +1,1767 @@
+diff --git a/testing/bk7258_btn/CMakeLists.txt b/testing/bk7258_btn/CMakeLists.txt
+new file mode 100644
+index 000000000..98e882ced
+--- /dev/null
++++ b/testing/bk7258_btn/CMakeLists.txt
+@@ -0,0 +1,15 @@
++# ##############################################################################
++# apps/testing/bk7258_btn/CMakeLists.txt
++# ##############################################################################
++
++if(CONFIG_TESTING_BK7258_BTN)
++  nuttx_add_application(
++    NAME
++    ${CONFIG_TESTING_BK7258_BTN_PROGNAME}
++    SRCS
++    bk7258_btn_main.c
++    STACKSIZE
++    ${CONFIG_TESTING_BK7258_BTN_STACKSIZE}
++    PRIORITY
++    ${CONFIG_TESTING_BK7258_BTN_PRIORITY})
++endif()
+diff --git a/testing/bk7258_btn/Kconfig b/testing/bk7258_btn/Kconfig
+new file mode 100644
+index 000000000..f90a37953
+--- /dev/null
++++ b/testing/bk7258_btn/Kconfig
+@@ -0,0 +1,39 @@
++#
++# For a description of the syntax of this configuration file,
++# see the file kconfig-language.txt in the NuttX tools repository.
++#
++
++config TESTING_BK7258_BTN
++	tristate "BK7258 /dev/btn0 short/long press monitor"
++	default n
++	depends on INPUT_BUTTONS
++	---help---
++		Monitors /dev/btn0 via poll() and classifies each key press as
++		short or long (held past the threshold).  Dispatch happens on
++		release; on_short_press()/on_long_press() are the two hooks the
++		business application wires into.  Intended for button-subsystem
++		bring-up and interaction-strategy prototyping on the BK7258 devkit.
++
++if TESTING_BK7258_BTN
++
++config TESTING_BK7258_BTN_PROGNAME
++	string "Program name"
++	default "bk7258_btn"
++
++config TESTING_BK7258_BTN_PRIORITY
++	int "Task priority"
++	default 100
++
++config TESTING_BK7258_BTN_STACKSIZE
++	int "Stack size"
++	default 4096
++
++config TESTING_BK7258_BTN_DEVPATH
++	string "Button device path"
++	default "/dev/btn0"
++
++config TESTING_BK7258_BTN_LONG_MS
++	int "Long press threshold (ms)"
++	default 800
++
++endif # TESTING_BK7258_BTN
+diff --git a/testing/bk7258_btn/Make.defs b/testing/bk7258_btn/Make.defs
+new file mode 100644
+index 000000000..cefeada57
+--- /dev/null
++++ b/testing/bk7258_btn/Make.defs
+@@ -0,0 +1,7 @@
++############################################################################
++# apps/testing/bk7258_btn/Make.defs
++############################################################################
++
++ifneq ($(CONFIG_TESTING_BK7258_BTN),)
++CONFIGURED_APPS += $(APPDIR)/testing/bk7258_btn
++endif
+diff --git a/testing/bk7258_btn/Makefile b/testing/bk7258_btn/Makefile
+new file mode 100644
+index 000000000..bc5b4ed99
+--- /dev/null
++++ b/testing/bk7258_btn/Makefile
+@@ -0,0 +1,14 @@
++############################################################################
++# apps/testing/bk7258_btn/Makefile
++############################################################################
++
++include $(APPDIR)/Make.defs
++
++PROGNAME  = $(CONFIG_TESTING_BK7258_BTN_PROGNAME)
++PRIORITY  = $(CONFIG_TESTING_BK7258_BTN_PRIORITY)
++STACKSIZE = $(CONFIG_TESTING_BK7258_BTN_STACKSIZE)
++MODULE    = $(CONFIG_TESTING_BK7258_BTN)
++
++MAINSRC = bk7258_btn_main.c
++
++include $(APPDIR)/Application.mk
+diff --git a/testing/bk7258_btn/bk7258_btn_main.c b/testing/bk7258_btn/bk7258_btn_main.c
+new file mode 100644
+index 000000000..fafc7a3b1
+--- /dev/null
++++ b/testing/bk7258_btn/bk7258_btn_main.c
+@@ -0,0 +1,277 @@
++/****************************************************************************
++ * apps/testing/bk7258_btn/bk7258_btn_main.c
++ *
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.  The
++ * ASF licenses this file to you under the Apache License, Version 2.0 (the
++ * "License"); you may not use this file except in compliance with the
++ * License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
++ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
++ * License for the specific language governing permissions and limitations
++ * under the License.
++ *
++ ****************************************************************************/
++
++/****************************************************************************
++ * Included Files
++ ****************************************************************************/
++
++#include <nuttx/config.h>
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <stdint.h>
++#include <stdbool.h>
++#include <fcntl.h>
++#include <unistd.h>
++#include <errno.h>
++#include <poll.h>
++#include <time.h>
++#include <sys/ioctl.h>
++
++#include <nuttx/input/buttons.h>
++
++/****************************************************************************
++ * Pre-processor Definitions
++ ****************************************************************************/
++
++#ifndef CONFIG_TESTING_BK7258_BTN_DEVPATH
++#  define CONFIG_TESTING_BK7258_BTN_DEVPATH "/dev/btn0"
++#endif
++
++#ifndef CONFIG_TESTING_BK7258_BTN_LONG_MS
++#  define CONFIG_TESTING_BK7258_BTN_LONG_MS 800
++#endif
++
++#define BTN_MAX_BITS 32
++
++/****************************************************************************
++ * Private Data
++ ****************************************************************************/
++
++/* Long-press threshold, in ms.  Overridable with -t <ms> at runtime. */
++
++static int g_long_ms = CONFIG_TESTING_BK7258_BTN_LONG_MS;
++
++/****************************************************************************
++ * Private Functions
++ ****************************************************************************/
++
++/* Monotonic-ish millisecond timestamp.  CLOCK_MONOTONIC is not enabled on
++ * this board, so CLOCK_REALTIME is used; only differences matter here and
++ * the epoch never changes at runtime, so it is safe for this purpose.
++ */
++
++static int64_t now_ms(void)
++{
++  struct timespec ts;
++
++  clock_gettime(CLOCK_REALTIME, &ts);
++  return (int64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
++}
++
++static const char *btn_name(unsigned int idx)
++{
++  switch (idx)
++    {
++      case 0:
++        return "KEY1";
++      case 1:
++        return "KEY2";
++      case 2:
++        return "KEY3";
++      default:
++        return "KEY?";
++    }
++}
++
++/* Dispatch hooks.  These are the only two places the business application
++ * needs to wire into; today they just print.  A "trigger-on-hold" policy
++ * (act as soon as the threshold is crossed, while still held) would instead
++ * replace the blocking poll() with a timed poll() to the next threshold.
++ */
++
++static void on_short_press(unsigned int idx, int64_t dur_ms)
++{
++  printf("btn0: %s short press (%lld ms)\n",
++         btn_name(idx), (long long)dur_ms);
++}
++
++static void on_long_press(unsigned int idx, int64_t dur_ms)
++{
++  printf("btn0: %s long press (%lld ms)\n",
++         btn_name(idx), (long long)dur_ms);
++}
++
++static void usage(FAR const char *prog)
++{
++  printf("Usage: %s [-t <long_ms>]\n", prog);
++  printf("  -t <ms>  long-press threshold (default %d ms)\n",
++         CONFIG_TESTING_BK7258_BTN_LONG_MS);
++}
++
++/****************************************************************************
++ * Public Functions
++ ****************************************************************************/
++
++int main(int argc, FAR char *argv[])
++{
++  FAR const char *devpath = CONFIG_TESTING_BK7258_BTN_DEVPATH;
++  struct btn_pollevents_s pe;
++  struct pollfd pfd;
++  btn_buttonset_t supported;
++  btn_buttonset_t last;
++  bool have_baseline;
++  int64_t press_ms[BTN_MAX_BITS];
++  bool pressed[BTN_MAX_BITS];
++  unsigned int i;
++  int fd;
++  int option;
++
++  /* Parse options. */
++
++  while ((option = getopt(argc, argv, "t:h")) != ERROR)
++    {
++      switch (option)
++        {
++          case 't':
++            g_long_ms = atoi(optarg);
++            if (g_long_ms <= 0)
++              {
++                g_long_ms = CONFIG_TESTING_BK7258_BTN_LONG_MS;
++              }
++            break;
++
++          case 'h':
++          default:
++            usage(argv[0]);
++            return 0;
++        }
++    }
++
++  fd = open(devpath, O_RDONLY);
++  if (fd < 0)
++    {
++      printf("btn0: open %s failed: %d\n", devpath, errno);
++      return 1;
++    }
++
++  supported = 0;
++  if (ioctl(fd, BTNIOC_SUPPORTED, (unsigned long)&supported) < 0)
++    {
++      printf("btn0: BTNIOC_SUPPORTED failed: %d\n", errno);
++      close(fd);
++      return 1;
++    }
++
++  if (supported == 0)
++    {
++      printf("btn0: no buttons supported\n");
++      close(fd);
++      return 1;
++    }
++
++  /* Ask to wake on both press and release edges (already the default). */
++
++  pe.bp_press   = supported;
++  pe.bp_release = supported;
++  (void)ioctl(fd, BTNIOC_POLLEVENTS, (unsigned long)&pe);
++
++  printf("btn0: watching buttons 0x%08lx, long-press threshold %d ms\n",
++         (unsigned long)supported, g_long_ms);
++  printf("btn0: press/release KEY1..KEY3 to see short/long classification\n");
++
++  pfd.fd     = fd;
++  pfd.events = POLLIN;
++
++  memset(pressed, 0, sizeof(pressed));
++  have_baseline = false;
++  last = 0;
++
++  while (true)
++    {
++      btn_buttonset_t cur;
++      btn_buttonset_t change;
++      btn_buttonset_t press;
++      btn_buttonset_t release;
++      ssize_t nread;
++      int64_t now;
++
++      if (poll(&pfd, 1, -1) < 0)
++        {
++          if (errno == EINTR)
++            {
++              continue;
++            }
++
++          printf("btn0: poll failed: %d\n", errno);
++          break;
++        }
++
++      if ((pfd.revents & POLLIN) == 0)
++        {
++          continue;
++        }
++
++      nread = read(fd, &cur, sizeof(cur));
++      if (nread != (ssize_t)sizeof(cur))
++        {
++          continue;
++        }
++
++      /* First read only establishes the baseline state. */
++
++      if (!have_baseline)
++        {
++          last = cur;
++          have_baseline = true;
++          continue;
++        }
++
++      /* Compute press/release edges against our own last sample.  bit=1
++       * means "pressed" (the buttons are active-low with pull-ups).
++       */
++
++      change  = cur ^ last;
++      press   = change & cur;
++      release = change & ~cur;
++      last    = cur;
++
++      now = now_ms();
++      for (i = 0; i < BTN_MAX_BITS; i++)
++        {
++          btn_buttonset_t bit = (btn_buttonset_t)1 << i;
++
++          if ((press & bit) != 0)
++            {
++              pressed[i]  = true;
++              press_ms[i] = now;
++              printf("btn0: %s pressed\n", btn_name(i));
++            }
++          else if ((release & bit) != 0)
++            {
++              int64_t dur = now - press_ms[i];
++
++              pressed[i] = false;
++              if (dur >= g_long_ms)
++                {
++                  on_long_press(i, dur);
++                }
++              else
++                {
++                  on_short_press(i, dur);
++                }
++            }
++        }
++    }
++
++  close(fd);
++  return 0;
++}
+diff --git a/testing/bk7258_pcm/CMakeLists.txt b/testing/bk7258_pcm/CMakeLists.txt
+new file mode 100644
+index 000000000..edecba6c6
+--- /dev/null
++++ b/testing/bk7258_pcm/CMakeLists.txt
+@@ -0,0 +1,15 @@
++# ##############################################################################
++# apps/testing/bk7258_pcm/CMakeLists.txt
++# ##############################################################################
++
++if(CONFIG_TESTING_BK7258_PCM)
++  nuttx_add_application(
++    NAME
++    ${CONFIG_TESTING_BK7258_PCM_PROGNAME}
++    SRCS
++    bk7258_pcm_main.c
++    STACKSIZE
++    ${CONFIG_TESTING_BK7258_PCM_STACKSIZE}
++    PRIORITY
++    ${CONFIG_TESTING_BK7258_PCM_PRIORITY})
++endif()
+diff --git a/testing/bk7258_pcm/Kconfig b/testing/bk7258_pcm/Kconfig
+new file mode 100644
+index 000000000..b96304556
+--- /dev/null
++++ b/testing/bk7258_pcm/Kconfig
+@@ -0,0 +1,30 @@
++#
++# For a description of the syntax of this configuration file,
++# see the file kconfig-language.txt in the NuttX tools repository.
++#
++
++config TESTING_BK7258_PCM
++	tristate "BK7258 /dev/audio/pcm0p smoke test"
++	default n
++	depends on AUDIO_BK7258
++	---help---
++		Command-line utility that plays a synthetic sine wave through
++		/dev/audio/pcm0p to exercise the BK7258 internal-DAC + GDMA + PA
++		bring-up end-to-end.  Not a functional audio player; intended
++		strictly for driver validation.
++
++if TESTING_BK7258_PCM
++
++config TESTING_BK7258_PCM_PROGNAME
++	string "Program name"
++	default "bk7258_pcm"
++
++config TESTING_BK7258_PCM_PRIORITY
++	int "Task priority"
++	default 100
++
++config TESTING_BK7258_PCM_STACKSIZE
++	int "Stack size"
++	default 4096
++
++endif # TESTING_BK7258_PCM
+diff --git a/testing/bk7258_pcm/Make.defs b/testing/bk7258_pcm/Make.defs
+new file mode 100644
+index 000000000..38bcd8358
+--- /dev/null
++++ b/testing/bk7258_pcm/Make.defs
+@@ -0,0 +1,7 @@
++############################################################################
++# apps/testing/bk7258_pcm/Make.defs
++############################################################################
++
++ifneq ($(CONFIG_TESTING_BK7258_PCM),)
++CONFIGURED_APPS += $(APPDIR)/testing/bk7258_pcm
++endif
+diff --git a/testing/bk7258_pcm/Makefile b/testing/bk7258_pcm/Makefile
+new file mode 100644
+index 000000000..0720b3803
+--- /dev/null
++++ b/testing/bk7258_pcm/Makefile
+@@ -0,0 +1,14 @@
++############################################################################
++# apps/testing/bk7258_pcm/Makefile
++############################################################################
++
++include $(APPDIR)/Make.defs
++
++PROGNAME  = $(CONFIG_TESTING_BK7258_PCM_PROGNAME)
++PRIORITY  = $(CONFIG_TESTING_BK7258_PCM_PRIORITY)
++STACKSIZE = $(CONFIG_TESTING_BK7258_PCM_STACKSIZE)
++MODULE    = $(CONFIG_TESTING_BK7258_PCM)
++
++MAINSRC = bk7258_pcm_main.c
++
++include $(APPDIR)/Application.mk
+diff --git a/testing/bk7258_pcm/bk7258_pcm_main.c b/testing/bk7258_pcm/bk7258_pcm_main.c
+new file mode 100644
+index 000000000..2a519bcd9
+--- /dev/null
++++ b/testing/bk7258_pcm/bk7258_pcm_main.c
+@@ -0,0 +1,1289 @@
++/****************************************************************************
++ * apps/testing/bk7258_pcm/bk7258_pcm_main.c
++ *
++ * Minimal driver-validation utility for the BK7258 internal-DAC audio
++ * lower-half (/dev/audio/pcm0p).  Generates a fixed-frequency sine wave in
++ * memory, feeds it into the audio device via AUDIOIOC_ENQUEUEBUFFER and
++ * waits for AUDIO_MSG_COMPLETE.  Not a functional player.
++ *
++ * Usage:
++ *   bk7258_pcm [-r rate] [-c channels] [-f freq_hz] [-d duration_ms]
++ *              [-v volume]
++ *
++ * Defaults: 48 kHz, stereo, 1 kHz sine, 2000 ms, volume 80.
++ ****************************************************************************/
++
++#include <nuttx/config.h>
++
++#include <sys/ioctl.h>
++#include <sys/types.h>
++
++#include <errno.h>
++#include <fcntl.h>
++#include <math.h>
++#include <mqueue.h>
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <time.h>
++#include <unistd.h>
++
++#include <nuttx/arch.h>
++#include <nuttx/audio/audio.h>
++
++#ifdef CONFIG_AUDIO_BK7258
++#  include <arch/chip/bk7258_gdma.h>
++#  include <arch/chip/bk7258_dac.h>
++#  include <arch/chip/bk7258_adc.h>
++#endif
++
++#define PCM_DEV_PATH  "/dev/audio/pcm0p"
++#define MQ_NAME       "/bk7258_pcm_mq"
++
++static int      g_sample_rate   = 48000;
++static int      g_channels      = 2;
++static int      g_freq_hz       = 1000;
++static int      g_duration_ms   = 2000;
++static int      g_volume        = 20;
++static int      g_trace_mode    = 0; /* -T: sample regs instead of mq. */
++static int      g_fifo_cpu_mode = 0; /* -F: CPU-to-DAC FIFO boundary.  */
++static int      g_mclk_mode     = 0; /* -M: route I2S_MCLK to GPIO28.    */
++static int      g_capture_mode  = 0; /* -C: ADC capture clock detector.  */
++static int      g_loop_mode     = 0; /* -L: DTMF->DAC loopback probe.    */
++static int      g_nuttx_capture = 0; /* -N: capture via /dev/audio/pcm0c. */
++
++static void usage(FAR const char *prog)
++{
++  fprintf(stderr,
++          "Usage: %s [-r rate] [-c channels] [-f freq_hz]"
++          " [-d duration_ms] [-v volume] [-T] [-F] [-M] [-C] [-L] [-N]\n",
++          prog);
++  exit(EXIT_FAILURE);
++}
++
++static void parse_args(int argc, FAR char *argv[])
++{
++  int opt;
++
++  while ((opt = getopt(argc, argv, "r:c:f:d:v:TFMCLNh")) != -1)
++    {
++      switch (opt)
++        {
++          case 'r': g_sample_rate   = atoi(optarg); break;
++          case 'c': g_channels      = atoi(optarg); break;
++          case 'f': g_freq_hz       = atoi(optarg); break;
++          case 'd': g_duration_ms   = atoi(optarg); break;
++          case 'v': g_volume        = atoi(optarg); break;
++          case 'T': g_trace_mode    = 1;            break;
++          case 'F': g_fifo_cpu_mode = 1;            break;
++          case 'M': g_mclk_mode     = 1;            break;
++          case 'C': g_capture_mode  = 1;            break;
++          case 'L': g_loop_mode     = 1;            break;
++          case 'N': g_nuttx_capture = 1;            break;
++          case 'h':
++          default:  usage(argv[0]);
++        }
++    }
++}
++
++/* Fill an S16_LE buffer with a bounded sine wave at g_freq_hz.  phase is
++ * carried across buffers so sample-boundary discontinuities do not create
++ * audible clicks.
++ */
++
++/* Precomputed sine LUT: computing sin() per-sample inside the DEQUEUE
++ * refill path made the producer fall behind the DMA drain (underruns).
++ * Index the LUT by phase instead; no per-frame transcendental call.
++ */
++
++#define SINE_LUT_SIZE 256
++#define SINE_AMP      4000    /* peak sample; ~12% FS. */
++static int16_t g_sine_lut[SINE_LUT_SIZE];
++static bool    g_sine_lut_ready = false;
++
++static void sine_lut_init(void)
++{
++  int i;
++
++  if (g_sine_lut_ready)
++    {
++      return;
++    }
++
++  for (i = 0; i < SINE_LUT_SIZE; i++)
++    {
++      g_sine_lut[i] =
++        (int16_t)(SINE_AMP * sin(2.0 * M_PI * (double)i / SINE_LUT_SIZE));
++    }
++
++  g_sine_lut_ready = true;
++}
++
++static void fill_sine(FAR int16_t *dst, size_t nsamples,
++                      FAR double *phase)
++{
++  const double step  = 2.0 * M_PI * g_freq_hz / (double)g_sample_rate;
++  const double scale = (double)SINE_LUT_SIZE / (2.0 * M_PI);
++  size_t i;
++
++  sine_lut_init();
++
++  for (i = 0; i < nsamples; i += g_channels)
++    {
++      uint32_t idx = (uint32_t)(*phase * scale) & (SINE_LUT_SIZE - 1);
++      int16_t  s   = g_sine_lut[idx];
++      int c;
++
++      for (c = 0; c < g_channels; c++)
++        {
++          dst[i + c] = s;
++        }
++
++      *phase += step;
++      if (*phase >= 2.0 * M_PI)
++        {
++          *phase -= 2.0 * M_PI;
++        }
++    }
++}
++
++static int set_volume(int fd, int volume)
++{
++  struct audio_caps_desc_s cap;
++
++  memset(&cap, 0, sizeof(cap));
++  cap.caps.ac_len            = sizeof(struct audio_caps_s);
++  cap.caps.ac_type           = AUDIO_TYPE_FEATURE;
++  cap.caps.ac_format.hw      = AUDIO_FU_VOLUME;
++  cap.caps.ac_controls.hw[0] = (uint16_t)volume;
++  return ioctl(fd, AUDIOIOC_CONFIGURE, (unsigned long)&cap);
++}
++
++/* -N: capture through the NuttX audio framework device /dev/audio/pcm0c
++ * (open -> AUDIOIOC_CONFIGURE -> AUDIOIOC_START -> read loop -> STOP),
++ * rather than poking the ADC HAL directly like -C.  Validates that the
++ * capture lower-half feeds real samples to a read(2) caller the way the
++ * agent's NUTTX_DIRECT backend will.
++ */
++static int run_nuttx_capture(void)
++{
++  struct audio_caps_desc_s cap;
++  int16_t  buf[512];
++  int32_t  min = INT16_MAX, max = INT16_MIN, dc = 0;
++  uint32_t samples = 0;
++  uint32_t starved = 0;
++  uint32_t target;
++  int      fd;
++  int      ret;
++
++  /* pcm0c only supports 16 kHz mono S16_LE (matches the ASR path). */
++  target = 16000UL * (uint32_t)g_duration_ms / 1000UL;
++  if (target == 0)
++    {
++      target = 16000; /* 1 s fallback */
++    }
++
++  fd = open("/dev/audio/pcm0c", O_RDONLY);
++  if (fd < 0)
++    {
++      fprintf(stderr, "[bk-N] open(/dev/audio/pcm0c) failed: %d\n", errno);
++      return EXIT_FAILURE;
++    }
++  printf("[bk-N] pcm0c open ok\n"); fflush(stdout);
++
++  memset(&cap, 0, sizeof(cap));
++  cap.caps.ac_len            = sizeof(struct audio_caps_s);
++  cap.caps.ac_type           = AUDIO_TYPE_INPUT;
++  cap.caps.ac_channels       = 1;
++  cap.caps.ac_controls.hw[0] = 16000 & 0xFFFFu;
++  cap.caps.ac_controls.b[3]  = (uint8_t)(16000 >> 16);
++  cap.caps.ac_controls.b[2]  = 16;
++  cap.caps.ac_subtype        = AUDIO_FMT_PCM;
++
++  ret = ioctl(fd, AUDIOIOC_CONFIGURE, (unsigned long)&cap);
++  if (ret < 0)
++    {
++      fprintf(stderr, "[bk-N] AUDIOIOC_CONFIGURE(INPUT) failed: %d\n", errno);
++      close(fd);
++      return EXIT_FAILURE;
++    }
++  printf("[bk-N] cfg-in ok (16k mono S16_LE)\n"); fflush(stdout);
++
++  ret = ioctl(fd, AUDIOIOC_START, 0);
++  if (ret < 0)
++    {
++      fprintf(stderr, "[bk-N] AUDIOIOC_START failed: %d\n", errno);
++      close(fd);
++      return EXIT_FAILURE;
++    }
++  printf("[bk-N] start ok, capturing ~%lu ms\n",
++         (unsigned long)g_duration_ms); fflush(stdout);
++
++  while (samples < target)
++    {
++      ssize_t n = read(fd, buf, sizeof(buf));
++      if (n > 0)
++        {
++          int nsamp = (int)(n / (ssize_t)sizeof(int16_t));
++          int i;
++
++          for (i = 0; i < nsamp; i++)
++            {
++              int16_t s = buf[i];
++              if (s < min) min = s;
++              if (s > max) max = s;
++              dc += s;
++            }
++          samples += (uint32_t)nsamp;
++          starved = 0;
++        }
++      else if (n < 0)
++        {
++          if (errno == EAGAIN)
++            {
++              if (++starved > 2000)
++                {
++                  fprintf(stderr, "[bk-N] FIFO starved >2s, bailing\n");
++                  break;
++                }
++              usleep(1000);
++              continue;
++            }
++
++          fprintf(stderr, "[bk-N] read failed: %d\n", errno);
++          break;
++        }
++      else
++        {
++          /* EOF should not happen on a capture device. */
++          break;
++        }
++    }
++
++  (void)ioctl(fd, AUDIOIOC_STOP, 0);
++  close(fd);
++
++  printf("[bk-N] samples=%lu min=%ld max=%ld dc=%ld pp=%ld %s\n",
++         (unsigned long)samples, (long)min, (long)max,
++         (long)(samples ? dc / (int32_t)samples : 0),
++         (long)(samples ? (max - min) : 0),
++         (samples && (max - min) >= 200) ? "LIVE" : "FLAT?");
++
++  return EXIT_SUCCESS;
++}
++
++int main(int argc, FAR char *argv[])
++{
++  struct audio_caps_desc_s cap;
++  struct ap_buffer_info_s  buf_info;
++  struct audio_buf_desc_s  buf_desc;
++  struct mq_attr           mq_attr;
++  struct audio_msg_s       msg;
++  FAR struct ap_buffer_s  *apb;
++  mqd_t                    mq;
++  ssize_t                  msglen;
++  unsigned                 prio;
++  size_t                   total_bytes;
++  size_t                   bytes_written = 0;
++  double                   phase_accum = 0.0;
++  int                      fd;
++  int                      ret;
++
++  parse_args(argc, argv);
++
++  if (g_nuttx_capture)
++    {
++      return run_nuttx_capture();
++    }
++
++  printf("bk7258_pcm: %d Hz %dch, %d Hz sine, %d ms, vol=%d\n",
++         g_sample_rate, g_channels, g_freq_hz, g_duration_ms, g_volume);
++
++  /* Special mode: -T just runs the driver up to AUDIOIOC_START, then
++   * samples the DMA + FIFO state every 5 ms for 40 iterations without
++   * touching mq_receive.  This isolates "the FIFO is being drained by the
++   * DAC" vs "everything is truly frozen".
++   */
++
++  fd = open(PCM_DEV_PATH, O_WRONLY);
++  if (fd < 0)
++    {
++      fprintf(stderr, "open(%s) failed: %d\n", PCM_DEV_PATH, errno);
++      return EXIT_FAILURE;
++    }
++  printf("[bk] open ok\n"); fflush(stdout);
++
++  mq_attr.mq_maxmsg  = 16;
++  mq_attr.mq_msgsize = sizeof(struct audio_msg_s);
++  mq_attr.mq_flags   = 0;
++  mq_attr.mq_curmsgs = 0;
++
++  mq_unlink(MQ_NAME);
++  mq = mq_open(MQ_NAME, O_RDWR | O_CREAT, 0644, &mq_attr);
++  if (mq == (mqd_t)-1)
++    {
++      fprintf(stderr, "mq_open failed: %d\n", errno);
++      close(fd);
++      return EXIT_FAILURE;
++    }
++  printf("[bk] mq ok\n"); fflush(stdout);
++
++  ret = ioctl(fd, AUDIOIOC_RESERVE, 0);
++  if (ret < 0)
++    {
++      fprintf(stderr, "AUDIOIOC_RESERVE failed: %d\n", errno);
++      goto cleanup;
++    }
++  printf("[bk] reserve ok\n"); fflush(stdout);
++
++  memset(&cap, 0, sizeof(cap));
++  cap.caps.ac_len            = sizeof(struct audio_caps_s);
++  cap.caps.ac_type           = AUDIO_TYPE_OUTPUT;
++  cap.caps.ac_channels       = g_channels;
++  cap.caps.ac_controls.hw[0] = g_sample_rate & 0xFFFFu;
++  cap.caps.ac_controls.b[3]  = (uint8_t)(g_sample_rate >> 16);
++  cap.caps.ac_controls.b[2]  = 16;
++  cap.caps.ac_subtype        = AUDIO_FMT_PCM;
++
++  ret = ioctl(fd, AUDIOIOC_CONFIGURE, (unsigned long)&cap);
++  if (ret < 0)
++    {
++      fprintf(stderr, "AUDIOIOC_CONFIGURE(OUTPUT) failed: %d\n", errno);
++      goto cleanup;
++    }
++  printf("[bk] cfg-out ok\n"); fflush(stdout);
++
++  ret = set_volume(fd, g_volume);
++  if (ret < 0)
++    {
++      fprintf(stderr, "set_volume failed: %d (continuing)\n", errno);
++    }
++  printf("[bk] vol ok\n"); fflush(stdout);
++
++#ifdef CONFIG_AUDIO_BK7258
++  if (g_fifo_cpu_mode)
++    {
++      static const char *const clock_name[] = {"XTAL", "APLL"};
++      struct bk7258_dac_cfg_s   dac_cfg;
++      struct bk7258_dac_stats_s snap[2][3];
++
++      /* Run both functional clock sources in one boot.  This keeps GDMA
++       * unallocated and separates a dead APLL from a dead AUDP/FPORT path
++       * without requiring another diagnostic firmware round-trip.
++       */
++
++      dac_cfg.samp_rate = (uint32_t)g_sample_rate;
++      dac_cfg.channel   = BK7258_DAC_CHL_LR;
++      dac_cfg.work_mode = BK7258_DAC_WORK_DIFFEN;
++      dac_cfg.gain      = 0;
++
++      ret = bk7258_aud_subsystem_init();
++      if (ret < 0)
++        {
++          fprintf(stderr, "[bk] FIFOCPU subsystem init failed: %d\n", ret);
++          goto cleanup;
++        }
++
++      for (int phase = 0; phase < 2; phase++)
++        {
++          /* Flush the digital FIFOs before each phase so a failed clock
++           * source cannot contaminate the following source's snapshots.
++           */
++
++          bk7258_dac_reset_data_path();
++          dac_cfg.use_apll = phase != 0;
++          ret = bk7258_dac_configure(&dac_cfg);
++          if (ret < 0)
++            {
++              fprintf(stderr, "[bk] FIFOCPU %s configure failed: %d\n",
++                      clock_name[phase], ret);
++              bk7258_dac_deinit();
++              goto cleanup;
++            }
++
++          ret = bk7258_dac_mute(false);
++          if (ret < 0)
++            {
++              fprintf(stderr, "[bk] FIFOCPU %s unmute failed: %d\n",
++                      clock_name[phase], ret);
++              bk7258_dac_deinit();
++              goto cleanup;
++            }
++
++          bk7258_dac_start();
++          bk7258_dac_get_stats(&snap[phase][0]);
++          for (int i = 0; i < 32; i++)
++            {
++              bk7258_dac_fifo_write(UINT32_C(0x12341234));
++            }
++
++          bk7258_dac_get_stats(&snap[phase][1]);
++          usleep(5000);
++          bk7258_dac_get_stats(&snap[phase][2]);
++          bk7258_dac_stop();
++        }
++
++      bk7258_dac_deinit();
++
++      for (int phase = 0; phase < 2; phase++)
++        {
++          const struct bk7258_dac_stats_s *cfg = &snap[phase][0];
++
++          printf("[bk] FIFOCPU %s ver=%08lx global=%08lx\n",
++                 clock_name[phase],
++                 (unsigned long)cfg->version_id,
++                 (unsigned long)cfg->global_status);
++          printf("[bk] FIFOCPU %s sys clk1=%08lx clk2=%08lx "
++                 "dev=%08lx pwr=%08lx spi=%08lx\n",
++                 clock_name[phase],
++                 (unsigned long)cfg->sys_clk_div_mode1,
++                 (unsigned long)cfg->sys_clk_div_mode2,
++                 (unsigned long)cfg->device_clk_enable,
++                 (unsigned long)cfg->power_sleep_wakeup,
++                 (unsigned long)cfg->analog_spi_state);
++          printf("[bk] FIFOCPU %s mem sd=%08lx ds=%08lx\n",
++                 clock_name[phase],
++                 (unsigned long)cfg->device_mem_ctrl1,
++                 (unsigned long)cfg->device_mem_ctrl2);
++          printf("[bk] FIFOCPU %s ana 5=%08lx 18=%08lx 19=%08lx "
++                 "20=%08lx 21=%08lx\n",
++                 clock_name[phase],
++                 (unsigned long)cfg->ana_reg5,
++                 (unsigned long)cfg->ana_reg18,
++                 (unsigned long)cfg->ana_reg19,
++                 (unsigned long)cfg->ana_reg20,
++                 (unsigned long)cfg->ana_reg21);
++          printf("[bk] FIFOCPU %s apll 25=%08lx 26=%08lx 27=%08lx\n",
++                 clock_name[phase],
++                 (unsigned long)cfg->ana_reg25,
++                 (unsigned long)cfg->ana_reg26,
++                 (unsigned long)cfg->ana_reg27);
++
++          for (int sample = 0; sample < 3; sample++)
++            {
++              static const char *const sample_name[] =
++                {"before", "written", "drained"};
++              const struct bk7258_dac_stats_s *st = &snap[phase][sample];
++
++              printf("[bk] FIFOCPU %s %-7s fifo=%08lx cfg=%08lx "
++                     "audio=%08lx dac=%08lx ext=%08lx clk=%08lx\n",
++                     clock_name[phase], sample_name[sample],
++                     (unsigned long)st->fifo_status,
++                     (unsigned long)st->fifo_config,
++                     (unsigned long)st->audio_config,
++                     (unsigned long)st->dac_config0,
++                     (unsigned long)st->extend_cfg,
++                     (unsigned long)st->clk_control);
++            }
++        }
++
++      fflush(stdout);
++      ret = 0;
++      goto cleanup;
++    }
++
++  if (g_mclk_mode)
++    {
++      /* Software observation route: mux I2S1_MCLK onto GPIO28 so the audio
++       * functional clock (XTAL 26 MHz vs APLL ~98.304 MHz) can be measured
++       * with a scope on the P28 pad.  This answers "is the audio clock
++       * domain actually oscillating?" independent of the known-dead
++       * FIFO/DREQ data path.
++       */
++
++      static const char *const clk_name[] = {"XTAL", "APLL"};
++      volatile uint32_t *p_gpio28_cfg =
++        (volatile uint32_t *)0x44000470u;   /* GPIO_CFG(28)       */
++      volatile uint32_t *p_func28 =
++        (volatile uint32_t *)0x440100ccu;   /* SYS_GPIO_FUNC(28)  */
++      volatile uint32_t *p_clkdiv1 =
++        (volatile uint32_t *)0x44010020u;   /* SYS_CLK_DIV_MODE1  */
++      volatile uint32_t *p_clkdiv2 =
++        (volatile uint32_t *)0x44010024u;   /* SYS_CLK_DIV_MODE2  */
++      volatile uint32_t *p_devclk =
++        (volatile uint32_t *)0x44010030u;   /* DEVICE_CLK_EN[0xc] */
++      volatile uint32_t *p_devclk2 =
++        (volatile uint32_t *)0x44010034u;   /* DEVICE_CLK_EN[0xd] */
++      struct bk7258_dac_cfg_s dac_cfg;
++
++      /* Mux GPIO28 -> I2S1_MCLK (AF2): per-pin cfg mode=DIS + second-func
++       * (bit-identical to bk7258_gpio_periph(28, 1)); SYS_GPIO_FUNC field
++       * bits[19:16] = 1. */
++      *p_gpio28_cfg = (*p_gpio28_cfg & ~UINT32_C(0x3c)) | UINT32_C(0x48);
++      *p_func28     = (*p_func28     & ~UINT32_C(0x000f0000)) |
++                      UINT32_C(0x00010000);
++
++      /* Gate on the I2S + I2S1 functional clocks. */
++      *p_devclk  |= UINT32_C(1) << 16;   /* i2s_cken  */
++      *p_devclk2 |= UINT32_C(1) << 1;    /* i2s1_cken */
++
++      dac_cfg.samp_rate = (uint32_t)g_sample_rate;
++      dac_cfg.channel   = BK7258_DAC_CHL_LR;
++      dac_cfg.work_mode = BK7258_DAC_WORK_DIFFEN;
++      dac_cfg.gain      = 0;
++
++      ret = bk7258_aud_subsystem_init();
++      if (ret < 0)
++        {
++          fprintf(stderr, "[bk] MCLK subsystem init failed: %d\n", ret);
++          goto cleanup;
++        }
++
++      for (int phase = 0; phase < 2; phase++)
++        {
++          uint32_t sel = phase != 0;
++
++          bk7258_dac_reset_data_path();
++          dac_cfg.use_apll = sel != 0;
++          ret = bk7258_dac_configure(&dac_cfg);
++          if (ret < 0)
++            {
++              fprintf(stderr, "[bk] MCLK %s configure failed: %d\n",
++                      clk_name[phase], ret);
++              bk7258_dac_deinit();
++              goto cleanup;
++            }
++
++          /* Point I2S / I2S1 MCLK at the same functional clock:
++           * cksel_i2s (bit24) + cksel_i2s1 (bit11). 0=XTAL(26M) 1=APLL. */
++          if (sel)
++            {
++              *p_clkdiv1 |= UINT32_C(1) << 24;
++              *p_clkdiv2 |= UINT32_C(1) << 11;
++            }
++          else
++            {
++              *p_clkdiv1 &= ~(UINT32_C(1) << 24);
++              *p_clkdiv2 &= ~(UINT32_C(1) << 11);
++            }
++
++          printf("[bk] MCLK phase=%s cksel_i2s=%lu cksel_i2s1=%lu "
++                 "cksel_aud=%lu clkdiv1=%08lx clkdiv2=%08lx\n",
++                 clk_name[phase],
++                 (unsigned long)((*p_clkdiv1 >> 24) & 1),
++                 (unsigned long)((*p_clkdiv2 >> 11) & 1),
++                 (unsigned long)((*p_clkdiv1 >> 25) & 1),
++                 (unsigned long)*p_clkdiv1,
++                 (unsigned long)*p_clkdiv2);
++          printf("[bk] MCLK -> measure GPIO28 (P28 pad): expect %s\n",
++                 sel ? "~98.304 MHz (APLL)" : "~26 MHz (XTAL)");
++          fflush(stdout);
++          usleep(3000000);
++        }
++
++      bk7258_dac_deinit();
++      printf("[bk] MCLK done\n"); fflush(stdout);
++      ret = 0;
++      goto cleanup;
++    }
++
++  if (g_capture_mode)
++    {
++      /* Dual-MIC capture.  Configures the ADC in dual-channel (LR) mode,
++       * starts the capture clock, then drains AUD_ADC_FPORT in a polled loop
++       * for ~1 s of frames, splitting each 32-bit stereo frame into MIC1 (L,
++       * low 16 bits) and MIC2 (R, high 16 bits).  Per-channel DC/min/max and
++       * peak-to-peak are reported so the operator can confirm both analog
++       * MICs deliver signal: a live input swings hundreds of counts
++       * (pp >> noise), a dead/missing input sits flat at its bias point.
++       * Runs both XTAL and APLL to match the -F DAC probe. */
++
++      static const char *const clk_name[] = {"XTAL", "APLL"};
++      struct bk7258_adc_cfg_s   adc_cfg;
++      struct bk7258_adc_stats_s snap[2][2];
++
++      adc_cfg.samp_rate = (uint32_t)g_sample_rate;
++      adc_cfg.channel   = BK7258_ADC_CHL_LR;
++      adc_cfg.gain      = 0x2D;
++      adc_cfg.samp_edge = false;
++
++      ret = bk7258_aud_subsystem_init();
++      if (ret < 0)
++        {
++          fprintf(stderr, "[bk] ADC subsystem init failed: %d\n", ret);
++          goto cleanup;
++        }
++
++      for (int phase = 0; phase < 2; phase++)
++        {
++          uint32_t frames = 0;
++          uint32_t starved = 0;
++          int32_t  l_min = INT16_MAX, l_max = INT16_MIN, l_dc = 0;
++          int32_t  r_min = INT16_MAX, r_max = INT16_MIN, r_dc = 0;
++          uint32_t frames_target = (uint32_t)g_sample_rate; /* ~1 s */
++
++          adc_cfg.use_apll = phase != 0;
++          ret = bk7258_adc_configure(&adc_cfg);
++          if (ret < 0)
++            {
++              fprintf(stderr, "[bk] ADC %s configure failed: %d\n",
++                      clk_name[phase], ret);
++              bk7258_adc_deinit();
++              goto cleanup;
++            }
++
++          bk7258_adc_start();
++          bk7258_adc_get_stats(&snap[phase][0]);
++
++          while (frames < frames_target)
++            {
++              uint32_t w;
++              int16_t  l;
++              int16_t  r;
++
++              if (bk7258_adc_fifo_empty())
++                {
++                  /* ~2 s of consecutive empty polls -> capture clock dead.
++                   * usleep(100) rounds up to the system tick (~1 ms), so the
++                   * old 20000-iteration bail actually took 20 s+ and made the
++                   * shell look hung; 2000 x 1 ms is a bounded ~2 s.
++                   */
++                  if (++starved > 2000)
++                    {
++                      break;
++                    }
++
++                  usleep(1000);
++                  continue;
++                }
++
++              starved = 0;
++              w = bk7258_adc_fifo_read();
++              l = (int16_t)(w & UINT32_C(0xFFFF));
++              r = (int16_t)(w >> 16);
++
++              if (l < l_min) l_min = l;
++              if (l > l_max) l_max = l;
++              l_dc += l;
++              if (r < r_min) r_min = r;
++              if (r > r_max) r_max = r;
++              r_dc += r;
++
++              frames++;
++            }
++
++          bk7258_adc_get_stats(&snap[phase][1]);
++          bk7258_adc_stop();
++
++          printf("[bk] MIC %s frames=%lu "
++                 "l[dc=%ld min=%ld max=%ld pp=%ld %s] "
++                 "r[dc=%ld min=%ld max=%ld pp=%ld %s]\n",
++                 clk_name[phase], (unsigned long)frames,
++                 (long)(frames ? l_dc / (int32_t)frames : 0),
++                 (long)l_min, (long)l_max,
++                 (long)(frames ? (l_max - l_min) : 0),
++                 (frames && (l_max - l_min) >= 200) ? "LIVE" : "FLAT?",
++                 (long)(frames ? r_dc / (int32_t)frames : 0),
++                 (long)r_min, (long)r_max,
++                 (long)(frames ? (r_max - r_min) : 0),
++                 (frames && (r_max - r_min) >= 200) ? "LIVE" : "FLAT?");
++          printf("[bk] ADC %s st0 audio=%08lx adc0=%08lx fifo_cfg=%08lx "
++                 "fifo_st=%08lx\n",
++                 clk_name[phase],
++                 (unsigned long)snap[phase][0].audio_config,
++                 (unsigned long)snap[phase][0].adc_config0,
++                 (unsigned long)snap[phase][0].fifo_config,
++                 (unsigned long)snap[phase][0].fifo_status);
++          printf("[bk] ADC %s st1 fifo_st=%08lx ext=%08lx clk=%08lx "
++                 "clk1=%08lx clk2=%08lx dev=%08lx ana18=%08lx ana19=%08lx\n",
++                 clk_name[phase],
++                 (unsigned long)snap[phase][1].fifo_status,
++                 (unsigned long)snap[phase][1].extend_cfg,
++                 (unsigned long)snap[phase][1].clk_control,
++                 (unsigned long)snap[phase][1].sys_clk_div_mode1,
++                 (unsigned long)snap[phase][1].sys_clk_div_mode2,
++                 (unsigned long)snap[phase][1].device_clk_enable,
++                 (unsigned long)snap[phase][1].ana_reg18,
++                 (unsigned long)snap[phase][1].ana_reg19);
++        }
++
++      bk7258_adc_deinit();
++      fflush(stdout);
++      ret = 0;
++      goto cleanup;
++    }
++
++  if (g_loop_mode)
++    {
++      /* DTMF -> DAC loopback probe.  loop_ton2dac routes the on-chip DTMF
++       * tone generator straight into the DAC with no host FPORT write.  If a
++       * tone is audible, the DAC analog path + functional clock are alive and
++       * the fault is purely in how we feed DAC_FPORT (CPU/GDMA).  If silent,
++       * the clock/analog bring-up is the fault.  DTMF registers are poked
++       * bare here (same style as the FPORT-KICK probe) because there is no
++       * DTMF HAL yet. */
++
++      volatile uint32_t *p_dtmf_cfg0 = (volatile uint32_t *)0x478000c4u;
++      volatile uint32_t *p_dtmf_cfg1 = (volatile uint32_t *)0x478000c8u;
++      volatile uint32_t *p_dtmf_cfg2 = (volatile uint32_t *)0x478000ccu;
++      volatile uint32_t *p_audio_cfg = (volatile uint32_t *)0x478000c0u;
++      struct bk7258_dac_cfg_s dac_cfg;
++
++      dac_cfg.samp_rate = (uint32_t)g_sample_rate;
++      dac_cfg.channel   = BK7258_DAC_CHL_LR;
++      dac_cfg.work_mode = BK7258_DAC_WORK_DIFFEN;
++      dac_cfg.gain      = 0;
++      dac_cfg.use_apll  = false;
++
++      ret = bk7258_aud_subsystem_init();
++      if (ret < 0)
++        {
++          fprintf(stderr, "[bk] LOOP subsystem init failed: %d\n", ret);
++          goto cleanup;
++        }
++
++      ret = bk7258_dac_configure(&dac_cfg);
++      if (ret < 0)
++        {
++          fprintf(stderr, "[bk] LOOP dac configure failed: %d\n", ret);
++          goto cleanup;
++        }
++
++      ret = bk7258_dac_mute(false);
++      if (ret < 0)
++        {
++          fprintf(stderr, "[bk] LOOP unmute failed: %d\n", ret);
++          bk7258_dac_deinit();
++          goto cleanup;
++        }
++
++      bk7258_dac_start();
++
++      /* Program the DTMF tone generator: 1 kHz continuous tone.
++       * tone1_step = F(kHz) * 8191, so 8191 = 1 kHz. */
++      *p_dtmf_cfg0 = (0u << 0)      /* tone_pattern: DTMF          */
++                   | (1u << 1)      /* tone_mode: continuous       */
++                   | (15u << 2)     /* tone_pause_time: 150 ms     */
++                   | (15u << 6);    /* tone_active_time: 150 ms    */
++      *p_dtmf_cfg1 = (8191u << 0)   /* tone1_step: 1 kHz           */
++                   | (0u << 16)     /* tone1_attu: -1 dB           */
++                   | (1u << 20);    /* tone1_enable                */
++      *p_dtmf_cfg2 = (8191u << 0)   /* tone2_step: 1 kHz           */
++                   | (0u << 16)     /* tone2_attu                   */
++                   | (0u << 20);    /* tone2_enable: off           */
++
++      /* dtmf_enable (audio_config bit4), then loop_ton2dac (fifo_config
++       * bit24). */
++      *p_audio_cfg |= (1u << 4);
++      bk7258_aud_loop_ton2dac(true);
++
++      printf("[bk] LOOP ton2dac ON — expect a 1 kHz tone for ~3 s\n");
++      fflush(stdout);
++      usleep(3000000);
++
++      bk7258_aud_loop_ton2dac(false);
++      *p_audio_cfg &= ~(1u << 4);
++      bk7258_dac_stop();
++      bk7258_dac_deinit();
++
++      printf("[bk] LOOP done\n"); fflush(stdout);
++      ret = 0;
++      goto cleanup;
++    }
++#else
++  if (g_fifo_cpu_mode)
++    {
++      fprintf(stderr, "-F requires CONFIG_AUDIO_BK7258\n");
++      ret = -ENOSYS;
++      goto cleanup;
++    }
++  if (g_mclk_mode)
++    {
++      fprintf(stderr, "-M requires CONFIG_AUDIO_BK7258\n");
++      ret = -ENOSYS;
++      goto cleanup;
++    }
++  if (g_capture_mode)
++    {
++      fprintf(stderr, "-C requires CONFIG_AUDIO_BK7258\n");
++      ret = -ENOSYS;
++      goto cleanup;
++    }
++  if (g_loop_mode)
++    {
++      fprintf(stderr, "-L requires CONFIG_AUDIO_BK7258\n");
++      ret = -ENOSYS;
++      goto cleanup;
++    }
++#endif
++
++  ret = ioctl(fd, AUDIOIOC_REGISTERMQ, (unsigned long)mq);
++  if (ret < 0)
++    {
++      fprintf(stderr, "AUDIOIOC_REGISTERMQ failed: %d\n", errno);
++      goto cleanup;
++    }
++  printf("[bk] regmq ok\n"); fflush(stdout);
++
++  ret = ioctl(fd, AUDIOIOC_GETBUFFERINFO, (unsigned long)&buf_info);
++  if (ret < 0)
++    {
++      buf_info.buffer_size = 4096;
++      buf_info.nbuffers    = 4;
++    }
++  printf("[bk] bufinfo n=%u sz=%u\n",
++         (unsigned)buf_info.nbuffers, (unsigned)buf_info.buffer_size);
++  fflush(stdout);
++
++  total_bytes = (size_t)((int64_t)g_sample_rate * g_channels
++                         * 2 * g_duration_ms / 1000);
++
++  /* Prime the driver with N buffers and then keep it topped up until we
++   * have queued total_bytes worth of samples, tagging the last buffer
++   * with AUDIO_APB_FINAL so the driver signals COMPLETE.
++   */
++
++  for (int i = 0; i < buf_info.nbuffers; i++)
++    {
++      buf_desc.numbytes  = buf_info.buffer_size;
++      buf_desc.u.pbuffer = &apb;
++      ret = ioctl(fd, AUDIOIOC_ALLOCBUFFER, (unsigned long)&buf_desc);
++      if (ret != sizeof(buf_desc) || apb == NULL)
++        {
++          fprintf(stderr, "AUDIOIOC_ALLOCBUFFER failed: %d\n", errno);
++          goto cleanup;
++        }
++
++      size_t chunk = buf_info.buffer_size;
++      if (bytes_written + chunk >= total_bytes)
++        {
++          chunk = total_bytes - bytes_written;
++          apb->flags |= AUDIO_APB_FINAL;
++        }
++
++      fill_sine((FAR int16_t *)apb->samp, chunk / 2, &phase_accum);
++      apb->nbytes    = chunk;
++      apb->curbyte   = 0;
++      apb->nmaxbytes = buf_info.buffer_size;
++      bytes_written += chunk;
++
++      buf_desc.u.buffer = apb;
++      ret = ioctl(fd, AUDIOIOC_ENQUEUEBUFFER, (unsigned long)&buf_desc);
++      if (ret < 0)
++        {
++          fprintf(stderr, "AUDIOIOC_ENQUEUEBUFFER failed: %d\n", errno);
++          goto cleanup;
++        }
++      printf("[bk] enq %d\n", i); fflush(stdout);
++
++      if (bytes_written >= total_bytes)
++        {
++          break;
++        }
++    }
++
++  ret = ioctl(fd, AUDIOIOC_START, 0);
++  if (ret < 0)
++    {
++      fprintf(stderr, "AUDIOIOC_START failed: %d\n", errno);
++      goto cleanup;
++    }
++  printf("[bk] start ok, waiting for COMPLETE\n"); fflush(stdout);
++
++#ifdef CONFIG_AUDIO_BK7258
++  /* Decisive audio-bus probe.  The -F trace already showed that 32 CPU
++   * writes to DAC_FPORT leave FIFO_STATUS unchanged (EMPTY bits stay 1).
++   * This probe isolates WHY by testing three independent questions with
++   * bare volatile pointers (same style as the RAW ana-reg probe below, so
++   * it needs no extra includes):
++   *
++   *  (A) Does a write to a readable audio register commit?  We write a
++   *      magic value into DAC_CONFIG0 (0x4780001c, R/W, readback-able) and
++   *      read it back.  Readback == magic => the AP CPU CAN commit writes
++   *      to the audio register bank, so the FPORT failure is specific to
++   *      the FIFO data port, not a global bus/clock/secure gate.
++   *
++   *  (B) Do ANY of the four FIFO ports accept data?  We push one word to
++   *      DTMF/ADC/DAC/DMIC FPORT in turn and read FIFO_STATUS after each.
++   *      FIFO_STATUS has separate EMPTY bits per FIFO (DTMF=15, ADCL=14,
++   *      DACR=12, DACL=13, DMIC=23).  If the matching EMPTY bit clears for
++   *      any port, that FIFO is alive; if NONE clears, the whole FIFO
++   *      write path is dead (clock/gate/reset at the FIFO subsystem level).
++   *
++   *  (C) Does DAC_ENABLE gate the FPORT write?  We write DAC_FPORT with
++   *      DAC_ENABLE=1, record status, then clear DAC_ENABLE and write
++   *      again.  If status is identical either way, ENABLE does not gate
++   *      the FIFO input — pointing at the FIFO subsystem, not the DAC.
++   */
++  if (g_trace_mode || g_fifo_cpu_mode)
++    {
++      volatile uint32_t *p_audio_cfg  = (volatile uint32_t *)0x478000c0u;
++      volatile uint32_t *p_dac_cfg0    = (volatile uint32_t *)0x4780001cu;
++      volatile uint32_t *p_fifo_status = (volatile uint32_t *)0x47800038u;
++      volatile uint32_t *p_dtmf_fport  = (volatile uint32_t *)0x47800040u;
++      volatile uint32_t *p_adc_fport   = (volatile uint32_t *)0x47800044u;
++      volatile uint32_t *p_dac_fport   = (volatile uint32_t *)0x47800048u;
++      struct bk7258_dac_stats_s ps;
++      /* bit30-31 of DAC_CONFIG0 are RESERVED (hardware forces them to 0), so
++       * the magic stays within bit0-29 to make readback == magic meaningful.
++       * An impossible HPF2 coef + gain + notchen pattern that the running
++       * config would never have. */
++      uint32_t magic = UINT32_C(0x1A3C6901);
++      uint32_t cfg0_orig;
++      uint32_t cfg0_rb;
++      uint32_t ac_orig;
++      uint32_t fs_pre;
++      uint32_t fs_dtmf;
++      uint32_t fs_adc;
++      uint32_t fs_dac_en1;
++      uint32_t fs_dac_en0;
++      uint32_t ac_after;
++
++      bk7258_dac_get_stats(&ps);
++      printf("[bk] FPORT-KICK pre  audio=%08lx fifo_cfg=%08lx fifo_st=%08lx "
++             "dac_cfg0=%08lx clk=%08lx ext=%08lx\n",
++             (unsigned long)ps.audio_config, (unsigned long)ps.fifo_config,
++             (unsigned long)ps.fifo_status, (unsigned long)ps.dac_config0,
++             (unsigned long)ps.clk_control, (unsigned long)ps.extend_cfg);
++
++      /* Dump the analog-side audio enable state.  AVDK's CP
++       * sys_hal_power_config_default() clears ana_reg25.audioen (bit31)
++       * and test_ckaudio_en (bit20) at boot; the audio driver's PM vote
++       * is what puts them back.  ana_reg25 is also the APLL config reg,
++       * so BK7258_APLL_CONFIG_VAL 0xC2A0AE86 carries audioen=1 as a
++       * side effect of APLL programming — but only if the SPI trigger
++       * pulse actually loaded it.  reg5 bit13 = PWDAUDPLL (0=powered).
++       * reg23 bit31 = a second audioen field.  Read all three raw.
++       */
++        {
++          volatile uint32_t *p5   = (volatile uint32_t *)0x44010114u;
++          volatile uint32_t *p23  = (volatile uint32_t *)0x4401015cu;
++          volatile uint32_t *p25  = (volatile uint32_t *)0x44010164u;
++          volatile uint32_t *pspi = (volatile uint32_t *)0x440100e8u;
++          uint32_t v5  = *p5;
++          uint32_t v23 = *p23;
++          uint32_t v25 = *p25;
++          printf("[bk] FPORT-KICK ana  r5=%08lx(apll_pwr=%lu) "
++                 "r23=%08lx(aud_en=%lu) r25=%08lx(aud_en=%lu "
++                 "spi_trig=%lu ckaudio=%lu) spi_state=%08lx\n",
++                 (unsigned long)v5,  (unsigned long)((v5 >> 13) & 1),
++                 (unsigned long)v23, (unsigned long)((v23 >> 31) & 1),
++                 (unsigned long)v25, (unsigned long)((v25 >> 31) & 1),
++                 (unsigned long)((v25 >> 18) & 1),
++                 (unsigned long)((v25 >> 20) & 1),
++                 (unsigned long)*pspi);
++        }
++
++      /* (A) write/read DAC_CONFIG0 — is the audio write bus alive? */
++      cfg0_orig = *p_dac_cfg0;
++      *p_dac_cfg0 = magic;
++      up_udelay(2);
++      cfg0_rb = *p_dac_cfg0;
++      *p_dac_cfg0 = cfg0_orig;           /* restore */
++      up_udelay(2);
++      printf("[bk] FPORT-KICK (A) DAC_CFG0 wr=%08lx rd=%08lx orig=%08lx "
++             "%s\n",
++             (unsigned long)magic, (unsigned long)cfg0_rb,
++             (unsigned long)cfg0_orig,
++             (cfg0_rb == magic) ? "WRITEBUS_OK" : "WRITEBUS_DEAD");
++
++      /* (B) push one word to each FPORT, read FIFO_STATUS after each.
++       *     EMPTY bits: DTMF=15 ADCL=14 DACL=13 DACR=12 DMIC=23. */
++      fs_pre = *p_fifo_status;
++      *p_dtmf_fport = UINT32_C(0x00010001);
++      up_udelay(2);
++      fs_dtmf = *p_fifo_status;
++      *p_adc_fport  = UINT32_C(0x00010001);
++      up_udelay(2);
++      fs_adc = *p_fifo_status;
++      *p_dac_fport  = UINT32_C(0x00010001);
++      up_udelay(2);
++      fs_dac_en1 = *p_fifo_status;
++      printf("[bk] FPORT-KICK (B) fifo_st pre=%08lx dtmf=%08lx adc=%08lx "
++             "dac=%08lx\n", (unsigned long)fs_pre, (unsigned long)fs_dtmf,
++             (unsigned long)fs_adc, (unsigned long)fs_dac_en1);
++      printf("[bk] FPORT-KICK (B) dtmf_empty_chg=%lu adcl_empty_chg=%lu "
++             "dacl_empty_chg=%lu dacr_empty_chg=%lu dmic_empty_chg=%lu\n",
++             (unsigned long)(((fs_pre ^ fs_dtmf) >> 15) & 1),
++             (unsigned long)(((fs_pre ^ fs_dtmf) >> 14) & 1),
++             (unsigned long)(((fs_pre ^ fs_dac_en1) >> 13) & 1),
++             (unsigned long)(((fs_pre ^ fs_dac_en1) >> 12) & 1),
++             (unsigned long)0);
++
++      /* (C) does DAC_ENABLE gate the FPORT?  Clear ENABLE, write, status. */
++      ac_orig = *p_audio_cfg;
++      *p_audio_cfg = ac_orig & ~UINT32_C(0x4);   /* clear DAC_ENABLE bit2 */
++      up_udelay(2);
++      *p_dac_fport  = UINT32_C(0x00010001);
++      up_udelay(2);
++      fs_dac_en0 = *p_fifo_status;
++      *p_audio_cfg = ac_orig;                    /* restore ENABLE */
++      up_udelay(2);
++      ac_after = *p_audio_cfg;
++      printf("[bk] FPORT-KICK (C) dac_en1_st=%08lx dac_en0_st=%08lx "
++             "(same=%d) audio_orig=%08lx restored=%08lx\n",
++             (unsigned long)fs_dac_en1, (unsigned long)fs_dac_en0,
++             (int)(fs_dac_en1 == fs_dac_en0),
++             (unsigned long)ac_orig, (unsigned long)ac_after);
++
++      /* 10x rapid DAC FPORT writes with per-write status sample — catches
++       * a momentarily-cleared EMPTY if the DAC drains within microseconds. */
++      for (int k = 0; k < 10; k++)
++        {
++          uint32_t s0 = *p_fifo_status;
++          *p_dac_fport = UINT32_C(0x00010001);
++          uint32_t s1 = *p_fifo_status;
++          printf("[bk] FPORT-KICK  wr%-2d st_before=%08lx st_after=%08lx "
++                 "(L_empty=%lu R_empty=%lu)\n",
++                 k, (unsigned long)s0, (unsigned long)s1,
++                 (unsigned long)((s1 >> 13) & 1),
++                 (unsigned long)((s1 >> 12) & 1));
++          usleep(1);
++        }
++      fflush(stdout);
++    }
++
++  if (g_trace_mode)
++    {
++      /* Sample the DMA + audio-block state every 5 ms, 40 times.  This
++       * tells us whether:
++       *  - remain_len is truly frozen or slowly decrementing
++       *  - fifo_status oscillates (DAC drains + DMA refills) or is static
++       *  - the GDMA ISR ever fires (isr_count > 0)
++       */
++
++      struct bk7258_gdma_stats_s gs;
++      struct bk7258_dac_stats_s  ds;
++
++      /* RAW analog-register write/read probe — bypasses every helper in
++       * bk7258_dac.c so we can decide, independent of the DAC HAL, whether
++       * the AP CPU can write the analog register file at all.  We pick a
++       * magic value that cannot appear by chance, write it to ana_reg20
++       * (the DAC analog config), and read it back.  Readback == magic means
++       * analog writes work and the DAC HAL's address math is the only
++       * suspect; readback == 0 or stale means the AP cannot commit analog
++       * writes (power/clock/secure gating on this core).
++       */
++
++      {
++        /* Raw analog-reg probe.  Addresses (ana_reg0 base = 0x44010100):
++         *   ana_reg5  (APLL power, bit13=pwdaudpll) = 0x44010114
++         *   ana_reg25 (APLL config)                 = 0x44010164
++         *   ana_reg26 (APLL cal)                     = 0x44010168
++         *   SPI state                                = 0x440100e8
++         * Hard-coded to avoid pulling bk7258_internal.h into user space.
++         *
++         * This test: (1) confirm analog writes commit (write magic to
++         * reg25, read back).  (2) the real question — does clearing reg5
++         * bit13 (power UP the APLL) stick?  bk7258_apll_program does this
++         * via a RMW but the -F trace shows reg5 bit13 still =1 after the
++         * APLL phase, so the DAC has no clock and DREQ never asserts.
++         */
++        volatile uint32_t *p5   = (volatile uint32_t *)0x44010114u;
++        volatile uint32_t *p25  = (volatile uint32_t *)0x44010164u;
++        volatile uint32_t *p26  = (volatile uint32_t *)0x44010168u;
++        volatile uint32_t *spi  = (volatile uint32_t *)0x440100e8u;
++        uint32_t r5b  = *p5;
++        uint32_t r25b = *p25;
++        uint32_t magic = UINT32_C(0xDEADBEEF);
++        uint32_t r5_after_clr;
++        uint32_t r25_rd;
++
++        /* (1) plain write to reg25, read back, then RESTORE so the
++         * APLL config + audioen bits survive the rest of the trace.
++         * The earlier build left reg25=DEADBEEF, which clobbered the
++         * APLL config and made the 40-sample trace run with a broken
++         * APLL. */
++        *p25 = magic;
++        up_udelay(50);
++        r25_rd = *p25;
++        *p25 = r25b;                      /* restore APLL config + audioen */
++        up_udelay(50);
++
++        /* (2) RMW reg5 bit13 -> 0 (power up APLL) */
++        *p5 = r5b & ~(UINT32_C(1) << 13);
++        up_udelay(50);
++        r5_after_clr = *p5;
++
++        printf("[bk] PROBE r5 before=%08lx clr13->%08lx (bit13=%lu) "
++               "r25 wr=%08lx rd=%08lx r25_orig=%08lx restored=%08lx "
++               "spi=%08lx r26=%08lx\n",
++               (unsigned long)r5b, (unsigned long)r5_after_clr,
++               (unsigned long)((r5_after_clr >> 13) & 1),
++               (unsigned long)magic, (unsigned long)r25_rd,
++               (unsigned long)r25b, (unsigned long)*p25,
++               (unsigned long)*spi, (unsigned long)*p26);
++        fflush(stdout);
++      }
++
++      bk7258_gdma_get_stats(&gs);
++      printf("[bk] TRACE cfg req=%08lx src_loop=%08lx-%08lx\n",
++             (unsigned long)gs.ch[0].reqmux,
++             (unsigned long)gs.ch[0].src_loop_start,
++             (unsigned long)gs.ch[0].src_loop_end);
++      printf("[bk] TRACE cfg dst_loop=%08lx-%08lx\n",
++             (unsigned long)gs.ch[0].dst_loop_start,
++             (unsigned long)gs.ch[0].dst_loop_end);
++      printf("[bk] TRACE t(ms) remain st     src_rd dst_wr ctrl prio\n");
++      printf("[bk] TRACE       fifo_st fifo_cfg audio_cfg ist0 ist_alc isr fin err\n");
++      for (int t = 0; t < 40; t++)
++        {
++          bk7258_gdma_get_stats(&gs);
++          bk7258_dac_get_stats(&ds);
++          uint32_t remain = gs.ch[0].status & 0x1FFFFu;
++          printf("  %3d %5lu %08lx %08lx %08lx %08lx %08lx\n",
++                 t * 5,
++                 (unsigned long)remain,
++                 (unsigned long)gs.ch[0].status,
++                 (unsigned long)gs.ch[0].src,
++                 (unsigned long)gs.ch[0].dst,
++                 (unsigned long)gs.ch[0].ctrl,
++                 (unsigned long)gs.prio_mode);
++          printf("      %08lx %08lx %08lx %08lx %08lx %3lu %3lu %3lu\n",
++                 (unsigned long)ds.fifo_status,
++                 (unsigned long)ds.fifo_config,
++                 (unsigned long)ds.audio_config,
++                 (unsigned long)gs.int_status0,
++                 (unsigned long)gs.int_allocate,
++                 (unsigned long)gs.isr_count,
++                 (unsigned long)gs.finish_count,
++                 (unsigned long)gs.buserr_count);
++          fflush(stdout);
++          usleep(5000);
++        }
++
++      (void)ioctl(fd, AUDIOIOC_STOP, 0);
++      goto cleanup;
++    }
++#endif
++
++  /* Drive the queue until COMPLETE. */
++
++  bool done = false;
++  int timeout_count = 0;
++  while (!done)
++    {
++      struct timespec abs_to;
++      clock_gettime(CLOCK_REALTIME, &abs_to);
++      abs_to.tv_sec += 2;
++      msglen = mq_timedreceive(mq, (FAR char *)&msg, sizeof(msg), &prio,
++                               &abs_to);
++      if (msglen < 0 && errno == ETIMEDOUT)
++        {
++          timeout_count++;
++          fprintf(stderr, "[bk] timeout %d, dumping GDMA state\n",
++                  timeout_count);
++#ifdef CONFIG_AUDIO_BK7258
++          {
++            struct bk7258_gdma_stats_s st;
++            bk7258_gdma_get_stats(&st);
++            printf("  isr=%lu fin=%lu half=%lu err=%lu\n",
++                   (unsigned long)st.isr_count,
++                   (unsigned long)st.finish_count,
++                   (unsigned long)st.half_count,
++                   (unsigned long)st.buserr_count);
++            printf("  cpu_int_en @0x%08lx = 0x%08lx (bit11 must be 1)\n",
++                   (unsigned long)st.cpu_int_en_reg,
++                   (unsigned long)st.cpu_int_en_val);
++            printf("  dev_clk_en = 0x%08lx (bit16 must be 1)\n",
++                   (unsigned long)st.dev_clk_en_val);
++            printf("  prio_mode=0x%08lx int_st0=0x%08lx int_alloc=0x%08lx\n",
++                   (unsigned long)st.prio_mode,
++                   (unsigned long)st.int_status0,
++                   (unsigned long)st.int_allocate);
++            for (int ci = 0; ci < 8; ci++)
++              {
++                if (st.ch[ci].ctrl == 0 && !st.ch[ci].in_use)
++                  {
++                    continue;
++                  }
++                printf("  ch%d: ctrl=%08lx st=%08lx src=%08lx dst=%08lx "
++                       "req=%08lx use=%u\n", ci,
++                       (unsigned long)st.ch[ci].ctrl,
++                       (unsigned long)st.ch[ci].status,
++                       (unsigned long)st.ch[ci].src,
++                       (unsigned long)st.ch[ci].dst,
++                       (unsigned long)st.ch[ci].reqmux,
++                       (unsigned)st.ch[ci].in_use);
++              }
++
++            struct bk7258_dac_stats_s ds;
++            bk7258_dac_get_stats(&ds);
++            printf("  DAC: audio_cfg=%08lx fifo_cfg=%08lx fifo_st=%08lx\n",
++                   (unsigned long)ds.audio_config,
++                   (unsigned long)ds.fifo_config,
++                   (unsigned long)ds.fifo_status);
++            printf("       dac_cfg0=%08lx extend=%08lx clk_ctrl=%08lx\n",
++                   (unsigned long)ds.dac_config0,
++                   (unsigned long)ds.extend_cfg,
++                   (unsigned long)ds.clk_control);
++          }
++#endif
++          if (timeout_count >= 3)
++            {
++              fprintf(stderr, "[bk] giving up\n");
++              break;
++            }
++          continue;
++        }
++
++      if (msglen < (ssize_t)sizeof(msg))
++        {
++          fprintf(stderr, "mq_receive failed: %d\n", errno);
++          break;
++        }
++
++      switch (msg.msg_id)
++        {
++          case AUDIO_MSG_DEQUEUE:
++            printf("[bk] deq\n"); fflush(stdout);
++            apb = (FAR struct ap_buffer_s *)msg.u.ptr;
++
++            if (bytes_written < total_bytes)
++              {
++                size_t chunk = buf_info.buffer_size;
++                if (bytes_written + chunk >= total_bytes)
++                  {
++                    chunk = total_bytes - bytes_written;
++                    apb->flags |= AUDIO_APB_FINAL;
++                  }
++
++                fill_sine((FAR int16_t *)apb->samp, chunk / 2, &phase_accum);
++                apb->nbytes  = chunk;
++                apb->curbyte = 0;
++                bytes_written += chunk;
++
++                buf_desc.u.buffer = apb;
++                (void)ioctl(fd, AUDIOIOC_ENQUEUEBUFFER,
++                            (unsigned long)&buf_desc);
++              }
++            else
++              {
++                buf_desc.u.buffer = apb;
++                (void)ioctl(fd, AUDIOIOC_FREEBUFFER,
++                            (unsigned long)&buf_desc);
++              }
++            break;
++
++          case AUDIO_MSG_COMPLETE:
++            printf("[bk] complete\n"); fflush(stdout);
++            done = true;
++            break;
++
++          case AUDIO_MSG_UNDERRUN:
++            fprintf(stderr, "underrun\n");
++            break;
++
++          case AUDIO_MSG_IOERR:
++            fprintf(stderr, "io error\n");
++            done = true;
++            break;
++
++          default:
++            printf("[bk] msg id=%u\n", msg.msg_id); fflush(stdout);
++            break;
++        }
++    }
++
++  (void)ioctl(fd, AUDIOIOC_STOP, 0);
++  printf("[bk] stop ok\n"); fflush(stdout);
++
++cleanup:
++  (void)ioctl(fd, AUDIOIOC_UNREGISTERMQ, (unsigned long)mq);
++  (void)ioctl(fd, AUDIOIOC_RELEASE, 0);
++  mq_close(mq);
++  mq_unlink(MQ_NAME);
++  close(fd);
++  return (ret < 0) ? EXIT_FAILURE : EXIT_SUCCESS;
++}

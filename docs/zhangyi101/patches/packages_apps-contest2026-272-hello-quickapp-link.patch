@@ -1,0 +1,8 @@
+diff --git a/contest2026_272_hello_quickapp b/contest2026_272_hello_quickapp
+new file mode 120000
+index 0000000..8a49b8d
+--- /dev/null
++++ b/contest2026_272_hello_quickapp
+@@ -0,0 +1 @@
++../../contest2026_272_tokenwujixian/quickapp/hello_quickapp
+\ No newline at end of file
