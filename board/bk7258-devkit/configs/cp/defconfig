@@ -73,6 +73,10 @@ CONFIG_INIT_STACKSIZE=4096
 CONFIG_INTELHEX_BINARY=y
 CONFIG_LCD_DEV=y
 CONFIG_LCD_JD9853=y
+# SPI1 is clocked from the 26 MHz XTAL; 13 MHz (clk_rate=1) is the hardware
+# ceiling (26M/(2*1)). The conservative 6.5 MHz default left ~4x overhead in
+# the per-byte FIFO poll loop visible in full-screen paint; bump to the max.
+CONFIG_LCD_JD9853_FREQUENCY=13000000
 CONFIG_LCD_PORTRAIT=y
 CONFIG_LV_FONT_MONTSERRAT_14=y
 CONFIG_LV_FONT_MONTSERRAT_16=y
