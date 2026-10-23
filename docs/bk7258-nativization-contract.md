@@ -1057,3 +1057,40 @@ wdg: KEEPALIVE -> 0
 
 `timeleft=7791` = 8000 − 209 ms，即距上一次 1 s 喂狗的实际间隔，证明它读的是真实喂狗点而不是自己猜的
 计数。`flags=0x3`（ACTIVE|RESET）、`SETTIMEOUT` 真的改了周期。
+
+---
+
+## 阶段二第三批：T14 第 2 片 `flash_partition`
+
+`cp/middleware/driver/flash/flash_partition.c` → `chips/bk7258/bk7258_flash_partition.c`（426 行 / 9 符号）。
+
+分区名 → {地址, 大小, 选项} 的表（生成在 `partitions_gen.h`）、地址与写权限检查，以及把逻辑偏移翻译成
+物理地址的 read/write/erase 入口。两处值得写下来：
+
+- **物理/逻辑地址不是简单相加**：每 34 个物理字节承载 32 个逻辑字节
+  （`FLASH_PHYSICAL_ADDR_UNIT_SIZE` / `FLASH_LOGICAL_ADDR_UNIT_SIZE`），落在每组低 32 之外的地址是被
+  **拒绝**而不是换算的；
+- **写权限是每个分区的选项位**，偏移入口与按地址入口都要检查。
+
+这一层是 MTD 的天然来源：分区表直接喂 `mtd_partition`，下面的 read/write/erase 已经很像 `mtd_dev_s` 的
+方法体。flash 驱动单元替换之前，它仍站在 Armino 的 `bk_flash_*` 上。
+
+### 第三次踩同一个坑：影子头
+
+`wifi/hal_port/include/` 里也有一份 `flash_driver.h`——没有 `FLASH_MAX_SIZE`、`FLASH_API_MAGIC_CODE`、
+`FLASH_SECTOR_SIZE_OFFSET`，而且它对 `flash_op_status_t` 的定义与基线版冲突（编译器报
+`conflicting types`）。修法与 `temp_detect.h`、`drv_model_pub.h` 一致：把
+`middleware/driver/flash` 排到 hal_port 之前。
+
+**这条现在可以算规律了**：`wifi/hal_port/include/` 是一套"精简副本"集合，替换任何跨到它的单元时先查
+同名头，再决定 include 顺序。
+
+### 验收
+
+| 项 | 结果 |
+| --- | --- |
+| 导出符号 | **9 / 9** |
+| 指令 + 重定位 | **9 / 9 相同** |
+| `flash_partition.c.o` 在 map | **0** |
+| `nm -u` | 0 |
+| `.text` | 1,013,220 → 1,013,732 B（+512：分区表与检查逻辑的少量重排） |
