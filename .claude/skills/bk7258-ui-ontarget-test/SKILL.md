@@ -47,6 +47,8 @@ description: "Use when 需要在 BK7258 真机(串口 /dev/ttyUSB0)驱动并判�
 | `rpending <tool> [hint]` | 造一个假审批(S2/S3 决定;CLI `ronce`/`rdeny` 关不掉) |
 | `voice_start`/`voice_stop` | 只驱动音频/ASR,**不驱动 UI**;语音 UI 支线必须物理按 S1 |
 | `config_show` / `net_status` | 查凭据配置 / 联网状态 |
+| `set_ptype 0..4` | 换宠物形象(0 白猫/1 绿青蛙/2 黑猫/3 棕狗/4 粉猪) |
+| `sync_time` | 查时钟与 SNTP 状态;待机屏日期时间靠它对齐(联网后自动对时) |
 
 ## 判定与脱敏
 
