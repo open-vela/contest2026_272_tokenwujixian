@@ -76,6 +76,7 @@ else()
        bk7258_aon_rtc_hal.c
        bk7258_aon_rtc.c
        bk7258_rtc.c
+       bk7258_flash_hal.c
        bk7258_printf.c)
 
   if(CONFIG_BK7258_PSRAM)
