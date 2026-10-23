@@ -1004,8 +1004,13 @@ bk_aon_rtc_*（pm / low_pwr / rosc_ppm / flash_notify / saradc_notify / wifi）
 暴露的是**中断看门狗**（`CONFIG_INT_WDT`，默认 8 s），因为它是唯一会真的咬的那只；任务看门狗是
 1 s 定时器钩子里的软件截止检查。
 
-`getstatus` 的 `timeleft` 由我们自己的 `last_feed` 与 `clock_systime_ticks()` 算，`flags` 报
-`WDFLAGS_ACTIVE | WDFLAGS_RESET`。`settimeout` 会真的重新武装硬件。
+`getstatus` 的 `timeleft` 与 `flags`（`WDFLAGS_ACTIVE | WDFLAGS_RESET`）都取自**同一个记账变量**
+`s_wdt_last_feed_tick`：它由系统的周期喂狗点 `bk_wdt_feed_handle()`（`bk_timer` 每 1 s）以及本设备的
+`keepalive`/`start`/`settimeout` 共同写入。
+
+第一版用的是 per-device 的 `last_feed`，上板 `timeleft` 直接读 0——因为系统的 1 s 钩子走的是
+`bk_wdt_feed()`，不经过这个设备，`last_feed` 永远是 0，`elapsed` 就等于开机时长。**标准面必须报告硬件
+真正所处的状态，不能自己猜一份。**
 
 **用之前要知道的一件事**：`bk7258_timer.c` 的 1 s 钩子本来就在调 `bk_wdt_feed()`，所以硬件始终被系统
 喂着——`KEEPALIVE` 只是立刻补一次，`STOP` 才是真的解除武装。因此这个设备按**诊断**用，不要让应用
