@@ -26,10 +26,14 @@
  * file exposes it as /dev/rtc0 through NuttX's RTC framework (rtc_ops_s), on
  * top of the nativized driver's bk_aon_rtc_get_us().
  *
- * Only the time-of-day part of the framework is implemented: rdtime, settime
- * and havesettime.  Alarms stay on the Armino side for now -- pm.c /
- * low_pwr_* register their wakeups through bk_alarm_register(), and moving
- * those onto the framework's alarm API belongs to the PM batch, not here.
+ * This file is the Armino-compatible face's NuttX sibling.  The dependency runs
+ * one way: the AON RTC counter access lives in the nativized driver
+ * (bk_aon_rtc_get_us / bk_alarm_register), and both the framework ops here and
+ * the Armino API the other modules call end at that same code.  The ops is not
+ * a wrapper over a second implementation, and the driver is not a wrapper over
+ * the ops -- there is one implementation with a NuttX-shaped front and an
+ * Armino-shaped front, because the µs counter has no NuttX equivalent while
+ * time-of-day and alarms do.
  *
  * No epoch is stored in hardware: the counter counts from power-on, and the
  * difference between it and the requested wall clock is kept in s_epoch_s.
@@ -45,6 +49,7 @@
 #include <stdint.h>
 
 #include <errno.h>
+#include <string.h>
 #include <time.h>
 
 #include <nuttx/arch.h>
@@ -65,6 +70,28 @@ struct bk7258_rtc_lowerhalf_s
   struct rtc_lowerhalf_s lower;
 };
 
+/* The framework's alarm face.  bk_alarm_register() (the nativized driver) is the
+ * engine: it owns the comparator, the tick ISR and the expiry walk, and calls
+ * back here.  What this file adds is the registration the NuttX upper half
+ * needs.
+ *
+ * BK7258 has a single AON RTC unit (AON_RTC_ID_2 only exists when
+ * SOC_AON_RTC_UNIT_NUM > 1), and pm / low_pwr already put their wakeup alarm
+ * on it.  That is fine: the driver keeps a named list per unit, so this alarm
+ * is one more node next to theirs.
+ */
+
+struct bk7258_alarm_s
+{
+  rtc_alarm_callback_t cb;
+  void *priv;
+  struct rtc_time when;
+  bool active;
+};
+
+#define BK7258_ALARM_UNIT   AON_RTC_ID_1
+#define BK7258_ALARM_NAME   ((uint8_t *)"nuttx-rtc")
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -72,6 +99,10 @@ struct bk7258_rtc_lowerhalf_s
 /* Seconds added to the raw counter to make up the requested wall clock. */
 
 static time_t s_epoch_s;
+
+static struct bk7258_alarm_s s_alarm;
+
+static int bk7258_rtc_arm(void);
 
 /****************************************************************************
  * Private Functions
@@ -125,12 +156,162 @@ static int bk7258_rtc_settime(struct rtc_lowerhalf_s *lower,
 
   s_epoch_s = (time_t)rtctime->tm_sec - (time_t)(us / 1000000u);
 
+  /* A pending alarm is an absolute instant, so it has to follow the clock. */
+
+  if (s_alarm.active)
+    {
+      return bk7258_rtc_arm();
+    }
+
   return OK;
 }
 
 static bool bk7258_rtc_havesettime(struct rtc_lowerhalf_s *lower)
 {
   return true;
+}
+
+/* Called from the AON RTC tick ISR, in interrupt context. */
+
+static void bk7258_rtc_alarm_fired(aon_rtc_id_t id, uint8_t *name,
+                                   void *param)
+{
+  rtc_alarm_callback_t cb = s_alarm.cb;
+  void *priv = s_alarm.priv;
+
+  s_alarm.cb     = NULL;
+  s_alarm.priv   = NULL;
+  s_alarm.active = false;
+
+  if (cb != NULL)
+    {
+      cb(priv, 0);
+    }
+}
+
+static time_t bk7258_rtc_time2sec(const struct rtc_time *rt)
+{
+  struct tm tmv;
+
+  memset(&tmv, 0, sizeof(tmv));
+  tmv.tm_sec  = rt->tm_sec;
+  tmv.tm_min  = rt->tm_min;
+  tmv.tm_hour = rt->tm_hour;
+  tmv.tm_mday = rt->tm_mday;
+  tmv.tm_mon  = rt->tm_mon;
+  tmv.tm_year = rt->tm_year;
+
+  return timegm(&tmv);
+}
+
+/* Program whatever s_alarm.when asks for, measured from the current counter.
+ * Called by setalarm() and again by settime(), because moving the wall clock
+ * must move a pending alarm with it: the entry point is absolute time, so the
+ * delta the hardware carries has to be recomputed.
+ */
+
+static int bk7258_rtc_arm(void)
+{
+  alarm_info_t info;
+  time_t now;
+  time_t when;
+  int ret;
+
+  now  = s_epoch_s + (time_t)(bk_aon_rtc_get_us() / 1000000u);
+  when = bk7258_rtc_time2sec(&s_alarm.when);
+
+  if (when <= now)
+    {
+      s_alarm.active = false;
+      return -EINVAL;
+    }
+
+  memset(&info, 0, sizeof(info));
+
+  /* One shot: the driver's alarm list walks the node out when it expires;
+   * period_cnt 1 keeps it from re-arming.
+   */
+
+  memcpy(info.name, BK7258_ALARM_NAME, strlen((char *)BK7258_ALARM_NAME));
+  info.period_tick = (rtc_tick_t)(when - now) * bk_rtc_get_clock_freq();
+  info.period_cnt  = 1;
+  info.callback    = bk7258_rtc_alarm_fired;
+
+  /* Re-register under the same name so a second SET_ALARM replaces the first. */
+
+  bk_alarm_unregister(BK7258_ALARM_UNIT, BK7258_ALARM_NAME);
+  ret = bk_alarm_register(BK7258_ALARM_UNIT, &info);
+  if (ret != BK_OK)
+    {
+      s_alarm.active = false;
+      return -EIO;
+    }
+
+  s_alarm.active = true;
+  return OK;
+}
+
+static int bk7258_rtc_setalarm(struct rtc_lowerhalf_s *lower,
+                               const struct lower_setalarm_s *alarminfo)
+{
+  if (alarminfo == NULL)
+    {
+      return -EINVAL;
+    }
+
+  s_alarm.cb   = alarminfo->cb;
+  s_alarm.priv = alarminfo->priv;
+  s_alarm.when = alarminfo->time;
+
+  return bk7258_rtc_arm();
+}
+
+static int bk7258_rtc_setrelative(struct rtc_lowerhalf_s *lower,
+                                  const struct lower_setrelative_s *alarminfo)
+{
+  struct lower_setalarm_s abs;
+  struct rtc_time rt;
+  time_t when;
+  int ret;
+
+  if (alarminfo == NULL)
+    {
+      return -EINVAL;
+    }
+
+  when = s_epoch_s + (time_t)(bk_aon_rtc_get_us() / 1000000u) +
+         alarminfo->reltime;
+  gmtime_r(&when, (struct tm *)&abs.time);
+
+  abs.id   = alarminfo->id;
+  abs.cb   = alarminfo->cb;
+  abs.priv = alarminfo->priv;
+  ret      = bk7258_rtc_setalarm(lower, &abs);
+  (void)rt;
+
+  return ret;
+}
+
+static int bk7258_rtc_rdalarm(struct rtc_lowerhalf_s *lower,
+                              struct lower_rdalarm_s *alarminfo)
+{
+  if (alarminfo == NULL || alarminfo->time == NULL)
+    {
+      return -EINVAL;
+    }
+
+  *alarminfo->time = s_alarm.when;
+  return s_alarm.active ? OK : -ENOENT;
+}
+
+static int bk7258_rtc_cancelalarm(struct rtc_lowerhalf_s *lower, int alarmid)
+{
+  s_alarm.cb     = NULL;
+  s_alarm.priv   = NULL;
+  s_alarm.active = false;
+
+  bk_alarm_unregister(BK7258_ALARM_UNIT, BK7258_ALARM_NAME);
+  return OK;
 }
 
 /****************************************************************************
@@ -142,6 +323,12 @@ static const struct rtc_ops_s g_bk7258_rtc_ops =
   .rdtime      = bk7258_rtc_rdtime,
   .settime     = bk7258_rtc_settime,
   .havesettime = bk7258_rtc_havesettime,
+#ifdef CONFIG_RTC_ALARM
+  .setalarm     = bk7258_rtc_setalarm,
+  .setrelative  = bk7258_rtc_setrelative,
+  .rdalarm      = bk7258_rtc_rdalarm,
+  .cancelalarm  = bk7258_rtc_cancelalarm,
+#endif
 };
 
 static struct bk7258_rtc_lowerhalf_s g_bk7258_rtc =
@@ -189,6 +376,7 @@ int bk7258_rtc_initialize(void)
  ****************************************************************************/
 
 #include <fcntl.h>
+#include <signal.h>
 #include <stdio.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
@@ -253,6 +441,43 @@ void bk7258_rtc_probe(void)
     {
       printf("rtc: CLOCK_REALTIME after set = %ld s\n", (long)ts.tv_sec);
     }
+
+  /* Alarm face: ask the framework for +5 s through /dev/rtc0 and wait for the
+   * signal.  That exercises lower half -> the driver's alarm engine -> its tick
+   * ISR -> the framework's notification.
+   */
+
+  {
+    struct rtc_setalarm_s ai;
+    struct timespec to;
+    sigset_t set;
+    time_t when;
+    int sig;
+
+    memset(&ai, 0, sizeof(ai));
+    memset(&to, 0, sizeof(to));
+
+    sigemptyset(&set);
+    sigaddset(&set, SIGALRM);
+    sigprocmask(SIG_BLOCK, &set, NULL);
+
+    when = s_epoch_s + (time_t)(bk_aon_rtc_get_us() / 1000000u) + 5;
+    gmtime_r(&when, (struct tm *)&ai.time);
+
+    ai.id                 = 0;
+    ai.pid                = getpid();
+    ai.event.sigev_notify = SIGEV_SIGNAL;
+    ai.event.sigev_signo  = SIGALRM;
+
+    printf("rtc: RTC_SET_ALARM(+5s) -> %d\n", ioctl(fd, RTC_SET_ALARM, &ai));
+
+    to.tv_sec = 8;
+    sig       = sigtimedwait(&set, NULL, &to);
+
+    printf("rtc: alarm fired=%d (%s)\n", sig, sig == SIGALRM ? "ok" : "timeout");
+
+    ioctl(fd, RTC_CANCEL_ALARM, 0);
+  }
 
   close(fd);
 }

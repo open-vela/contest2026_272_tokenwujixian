@@ -857,9 +857,12 @@ PRIMASK。改成 `getprimask()/setprimask()` 后正常。
 
 ## 阶段二第二批（下）：AON RTC 挂上 NuttX 框架，以及本批的 H 层
 
-### 一个实现、两个面
+### 一份实现，一个兼容面
 
-RTC 的目标形态和批次 4 的 UART 同一条口径：**寄存器访问只有一份，对外有两个面**。
+口径修正（用户 2026-10-22）：不是"两个平行的面"，而是**一份实现 + 一个 Armino 形状的兼容面**。
+逐模块把所有调用方改成标准 ops 不现实（`pm` / `low_pwr` / `rosc_ppm` / `flash_notify` /
+`saradc_notify` / `wifi_adapter` 六处跨三个子系统），兼容面正是让迁移可以分批做的原因。
+但**标准 ops 那一侧必须语义完整且正确**，不能是"探针够用"的浅实现。
 
 ```
 rtc_ops_s (/dev/rtc0, up_rtc_* → CLOCK_REALTIME)
@@ -902,3 +905,30 @@ bk_aon_rtc_*（pm / low_pwr / rosc_ppm / flash_notify / saradc_notify / wifi）
 而 `rtc_ops_s` 的 `setalarm` / `rdalarm` / `cancelalarm` 未实现。也就是说 `pm` / `low_pwr_*` 的深睡唤醒
 还走纯 Armino 路径。这块要和 T12（PM）一起做才合理：那份链表就该成为 NuttX alarm 面的实现，
 `bk_alarm_*` 退化为薄封装。
+
+### ops 的语义完整性（逐个方法）
+
+| `rtc_ops_s` 方法 | 实现 | 语义 |
+| --- | --- | --- |
+| `rdtime` | ✅ | 计数器 + epoch → 日历字段（秒级） |
+| `settime` | ✅ | 只移动 epoch，从不写计数器；**并重排已挂的 alarm** |
+| `havesettime` | ✅ | 恒 true（软件 epoch 可写） |
+| `setalarm` | ✅ | 绝对时间 → 剩余 tick → 驱动的按名链表，一次性（`period_cnt=1`） |
+| `setrelative` | ✅ | 转成绝对时刻后走同一条路 |
+| `rdalarm` | ✅ | 返回设定的绝对时间；未挂时 `-ENOENT` |
+| `cancelalarm` | ✅ | 按名注销，清状态 |
+| `setperiodic` / `cancelperiodic` | ❌ | `CONFIG_RTC_PERIODIC` 未开，框架不会调用 |
+| `destroy` / `ioctl` | ❌ | 可选方法，框架对 NULL 有检查 |
+
+两条必须写下来的语义要点：
+
+1. **alarm 是绝对时刻，不是延时。** 所以 `settime` 之后挂着的 alarm 必须重排——这一点最初漏了：
+   alarm 被换算成 delta 写进硬件，时钟一改，它就会在错误的墙钟时间触发。现在 `settime` 会调
+   `bk7258_rtc_arm()` 重算。
+2. **µs 单调计数不在框架语义里。** `rdtime` 只有秒（未开 `CONFIG_RTC_HIRES`，而且 32.768 kHz 的计数器
+   当系统定时器不合适）。所以 `bk_aon_rtc_get_us()` 不能改成"包一层 ops"：`flash_notify` /
+   `saradc_notify` / `wifi_adapter` 要的是 µs/ms 单调量，那部分只能留在驱动里。这是兼容面存在的原因，
+   不是偷懒。
+
+**观测到的一个边界**：BK7258 只有一个 AON RTC 单元（`AON_RTC_ID_2` 仅在 `SOC_AON_RTC_UNIT_NUM > 1` 时
+存在），框架 alarm 与 `pm` / `low_pwr` 的唤醒 alarm 共用同一个单元的按名链表。
