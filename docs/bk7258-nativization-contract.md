@@ -1210,3 +1210,26 @@ EasyFlash 初始化成功这一行是关键证据：它读 ENV 分区，走的�
 | `flash_bypass.c.o` 在 map | **0** |
 | `nm -u` | 0 |
 | `.text` | 与上一片相同（该函数此前已在镜像里） |
+
+---
+
+## 阶段二第三批：T14 第 6 片 `flash_server` + `flash_notify`
+
+| 单元 | 行数 | 导出 | 镜像内活符号 |
+| --- | --- | --- | --- |
+| `flash_server.c` | 560 | 3（`bk_flash_svr_init/deinit`、`calc_crc32_xor`） | 1（`bk_flash_svr_init`） |
+| `flash_notify.c` | 213 | 7（operate-status 两个、`mb_flash_ipc_init`、`mb_flash_op_prepare/finish`、注册/注销通知） | 3（`mb_flash_ipc_init`、`prepare`、`finish`） |
+
+第 5 片学到的教训直接套用：**两个文件都整份搬运**，不抽函数。验收 3/3 与 7/7 逐字节相同。
+
+`flash_notify` 那三个活符号是整个 flash 族的纪律所在——每个 flash 操作前后都要
+`mb_flash_op_prepare()` / `mb_flash_op_finish()`，因为控制器是 CP/AP 共用的；`mb_flash_ipc_init()`
+在建链时把这条通路搭起来。
+
+| 项 | 结果 |
+| --- | --- |
+| 导出符号 | **3 / 3** 与 **7 / 7** |
+| 指令 + 重定位 | 两组全部相同 |
+| 两个成员在 map | 均 **0** |
+| `nm -u` | 0 |
+| `.text` | 与上一片相同（两族符号此前已在镜像里） |
