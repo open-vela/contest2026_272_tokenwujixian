@@ -191,6 +191,11 @@ if(CONFIG_BK7258_WIFI_ARMINO_BASELINE)
       # were writing the same enable and end-count registers.
       cp/middleware/driver/timer/timer_driver.c
       cp/middleware/soc/common/hal/timer_hal.c
+      # The AON RTC register layer: chips/bk7258/bk7258_aon_rtc_hal.c provides
+      # the same 28 wrappers on the authority's aon_rtc_ll.h inlines.  The
+      # driver unit above it (aon_rtc_driver_64bit.c) is the next step, and
+      # stays until then.
+      cp/middleware/soc/common/hal/aon_rtc_hal_64bit.c
       cp/middleware/soc/bk7258/hal/timer_ll.c
       cp/middleware/soc/bk7258/hal/timer_hal.c
       cp/middleware/soc/bk7258/hal/timer_hal_debug.c
