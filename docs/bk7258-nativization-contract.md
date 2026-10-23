@@ -202,6 +202,7 @@ wdttest: raw_temp=557 (ret=0) stored_temp=27.0 (ret=0) stored_volt=1.0 (ret=0) i
 | 复位原因 / 重启 | `chips/bk7258/include/reset_reason.h`，已排到基线之前 | ✅ 预处理逐条相同（11 条声明 + 20 条宏） |
 | 温度 / 电压 | 仍用 `temp_detect.h`、`volt_detect.h` | — |
 | GPIO HAL | 仍用 `gpio_hal.h`（公开 API 暴露权威定义的 ABI 结构体，见下） | — |
+| **AON RTC** | `chips/bk7258/include/driver/aon_rtc.h`，芯片 include 根已排到基线之前 | ✅ 预处理逐条相同（10 条声明） |
 
 **为什么 `gpio_hal.h` 这类头暂时不接管**：它的 API 表面带结构体（`gpio_hal_t`、`gpio_map_t`）。
 C 不允许两个不同的匿名结构体共用同一个 typedef 名，所以"我们的头与权威头逐条比对"这个判据对它们不成立；
@@ -851,3 +852,53 @@ PRIMASK。改成 `getprimask()/setprimask()` 后正常。
 | 镜像内活符号 | 11 个全部仍由 `arch/libarch.a(bk7258_aon_rtc_hal.c.o)` 提供 |
 | `nm -u` | 0 |
 | `.text` / `.data` / `.bss` | 997,472 / 10,068 / 266,456 B —— **与替换前完全相同**（纯转接层的预期） |
+
+---
+
+## 阶段二第二批（下）：AON RTC 挂上 NuttX 框架，以及本批的 H 层
+
+### 一个实现、两个面
+
+RTC 的目标形态和批次 4 的 UART 同一条口径：**寄存器访问只有一份，对外有两个面**。
+
+```
+rtc_ops_s (/dev/rtc0, up_rtc_* → CLOCK_REALTIME)
+        │
+        ├──► bk_aon_rtc_get_us() ──► aon_rtc_hal ──► aon_rtc_ll ──► 寄存器
+        ▲
+bk_aon_rtc_*（pm / low_pwr / rosc_ppm / flash_notify / saradc_notify / wifi）
+```
+
+`chips/bk7258/bk7258_rtc.c` 里**直接读寄存器的次数为 0**：`rdtime` 调的就是原生化的
+`bk_aon_rtc_get_us()`。所以两个面落在同一份实现上，不存在两套时间逻辑。
+
+### 框架接入
+
+- `rtc_ops_s` 实现 `rdtime` / `settime` / `havesettime`，经 `rtc_initialize(0, …)` 暴露为 `/dev/rtc0`；
+- 同一张 ops 表经 `up_rtc_set_lowerhalf()` 交给 `arch_rtc.c`，于是 `up_rtc_getdatetime()` /
+  `up_rtc_settime()` 自动成立，`CLOCK_REALTIME` 与 `clock_settime()` 都落到这里；
+- `up_rtc_initialize()` 由我们提供（返回 `OK`；计数器本身由驱动 init 启动）。
+
+四个配置开关缺一不可，这是踩出来的：`CONFIG_RTC`（框架头）→ `CONFIG_RTC_DRIVER`（`rtc_lowerhalf_s`
+与 `/dev/rtc0` 上半部）→ `CONFIG_RTC_DATETIME`（日历时间，并会拉入 `up_rtc_*`）→
+`CONFIG_RTC_ARCH`（`arch_rtc.c` 这个桥，缺它 `up_rtc_*` 全无定义）。
+
+**注意这是新增能力，不是契约变更**：Armino 那 16 + 28 个符号一个没少、签名没动、语义没动；
+新增的是平台的第二个面（`/dev/rtc0`、`CLOCK_REALTIME`），Armino 的 `4 条不变式` 约束的是被替换的单元。
+
+### H 层：`driver/aon_rtc.h` 已接管
+
+按规则第 3 条补做（这一批最初漏了）：
+
+- 文件落在与权威头相同的相对路径 `chips/bk7258/include/driver/aon_rtc.h`，用 NuttX 的 include guard 与排版；
+- 证明：`header_equiv.py` 用同一套编译参数分别预处理两边，**10 条声明逐条相同**；
+- 替换效果：芯片 include 根已排在基线 `-I` 之前，`<driver/aon_rtc.h>` 现在解析到我们的文件；
+- "改头不改行为"的三项证据：`.text` / `.data` / `.bss` = **1,003,296 / 10,076 / 266,464 B**，与换头前
+  完全相同；符号面零差异；`nm -u` 为 0。
+
+### 还没做的（RTC 的最后一块）
+
+**alarm 面没有接框架。** `bk_alarm_register/unregister` 仍是自己那份链表 + tick 比较器，
+而 `rtc_ops_s` 的 `setalarm` / `rdalarm` / `cancelalarm` 未实现。也就是说 `pm` / `low_pwr_*` 的深睡唤醒
+还走纯 Armino 路径。这块要和 T12（PM）一起做才合理：那份链表就该成为 NuttX alarm 面的实现，
+`bk_alarm_*` 退化为薄封装。

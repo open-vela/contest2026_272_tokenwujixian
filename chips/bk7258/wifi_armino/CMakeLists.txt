@@ -191,6 +191,13 @@ if(CONFIG_BK7258_WIFI_ARMINO_BASELINE)
       # were writing the same enable and end-count registers.
       cp/middleware/driver/timer/timer_driver.c
       cp/middleware/soc/common/hal/timer_hal.c
+      # The AON RTC driver: chips/bk7258/bk7258_aon_rtc.c provides the same 16
+      # symbols (two 64-bit units, tick/upper comparators, the per-unit alarm
+      # list, the two ISR entry points and the wake-source registration) with
+      # every #if gate carried.  Only the __LINE__ constants in two log/assert
+      # messages differ from the authority object.
+      cp/middleware/driver/rtc/aon_rtc_driver_64bit.c
+      # The register layer under it, already replaced (see below).
       # The AON RTC register layer: chips/bk7258/bk7258_aon_rtc_hal.c provides
       # the same 28 wrappers on the authority's aon_rtc_ll.h inlines.  The
       # driver unit above it (aon_rtc_driver_64bit.c) is the next step, and

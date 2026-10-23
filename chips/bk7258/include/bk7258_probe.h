@@ -50,6 +50,12 @@ void bk7258_trap_probe(void);
 
 void bk7258_drv_model_probe(void);
 
+/* Read /dev/rtc0 and CLOCK_REALTIME, move the clock through the RTC ioctl and
+ * read both faces back.  Evidence for the AON RTC + framework landing.
+ */
+
+void bk7258_rtc_probe(void);
+
 #ifdef __cplusplus
 }
 #endif

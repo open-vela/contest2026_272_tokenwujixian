@@ -33,6 +33,7 @@ int bk7258_status_led_initialize(void);
 #include <arch/chip/bk7258_ap_boot.h>
 #include <arch/chip/bk7258_mb_ipc.h>
 #include <arch/chip/bk7258_memorymap.h>
+#include <arch/chip/bk7258_rtc.h>
 #include <arch/chip/bk7258_timer.h>
 #include <arch/chip/bk7258_wifi.h>
 #include <arch/board/board.h>
@@ -299,6 +300,26 @@ void board_late_initialize(void)
   bk7258_ca_init();
 
 #ifdef CONFIG_BK7258_COMPONENT_CP
+
+  /* /dev/rtc0 over the AON RTC counter (always-on domain, keeps counting
+   * across sleep).  Registered before the timer so the time base exists
+   * before anything asks for the wall clock.
+   */
+
+#ifdef CONFIG_RTC
+  {
+    int rtc_ret = bk7258_rtc_initialize();
+    if (rtc_ret < 0)
+      {
+        syslog(LOG_ERR, "[BK7258] RTC lower-half init failed: %d\n", rtc_ret);
+      }
+    else
+      {
+        syslog(LOG_INFO, "[BK7258] /dev/rtc0 registered OK\n");
+      }
+  }
+#endif
+
 #ifdef CONFIG_BK7258_TIMER0
   {
     int timer_ret = bk7258_timer_initialize();
