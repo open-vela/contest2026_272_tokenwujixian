@@ -73,6 +73,7 @@ else()
        bk7258_arm.c
        bk7258_trap_base.c
        bk7258_sys_audio_driver.c
+       bk7258_aon_rtc_hal.c
        bk7258_printf.c)
 
   if(CONFIG_BK7258_PSRAM)

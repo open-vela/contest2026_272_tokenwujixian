@@ -827,3 +827,27 @@ PRIMASK。改成 `getprimask()/setprimask()` 后正常。
 批次 13 上板（镜像 `309486ca…`）：启动序列与前一批逐行一致（`psram init ok`、`EasyFlash success`、
 `wifi inited(1) ret(0)`、AP `scheduler-running`、`nsh-ap>` 就绪），没有 AT 相关报错。堆起点
 `H28096C30:00008AD0`（较前 +184 B，与 at_server 的 `.bss` −168 B 及对齐相符）。
+
+---
+
+## 阶段二第二批：T13 RTC（第 1 步，`aon_rtc_hal` 28 个符号）
+
+`cp/middleware/soc/common/hal/aon_rtc_hal_64bit.c` → `chips/bk7258/bk7258_aon_rtc_hal.c`。
+
+这一层是纯转接：每个函数从 `hal->id` 解析块基址，再调一个 `aon_rtc_ll_*` 内联，寄存器布局仍留在权威的
+`aon_rtc_ll.h` / `aon_rtc_struct.h`。`aon_rtc_hal_t` 是这一块的实现细节，照旧留在权威头里（与 `uart_hal_t`、
+`gpio_hal_t` 同一个 struct-typedef 墙）。
+
+它上面是 RTC 驱动（tick、闹钟链表、两路唤醒），再往上接 PM、flash-notify、SARADC-notify 的 64 位 tick
+读取——所以这一层先落地，驱动单元（`aon_rtc_driver_64bit.c`，1,390 行 / 15 符号 / 6 活）留到下一步。
+
+### 验收
+
+| 项 | 结果 |
+| --- | --- |
+| 导出符号 | **28 / 28**，集合差异为空 |
+| 指令 + 重定位 | **28 / 28 逐条相同** |
+| `aon_rtc_hal_64bit.c.o` 在 map | **0** |
+| 镜像内活符号 | 11 个全部仍由 `arch/libarch.a(bk7258_aon_rtc_hal.c.o)` 提供 |
+| `nm -u` | 0 |
+| `.text` / `.data` / `.bss` | 997,472 / 10,068 / 266,456 B —— **与替换前完全相同**（纯转接层的预期） |
