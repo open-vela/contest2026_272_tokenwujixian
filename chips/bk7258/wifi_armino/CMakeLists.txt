@@ -191,6 +191,11 @@ if(CONFIG_BK7258_WIFI_ARMINO_BASELINE)
       # were writing the same enable and end-count registers.
       cp/middleware/driver/timer/timer_driver.c
       cp/middleware/soc/common/hal/timer_hal.c
+      # T14 third slice: the flash command layer itself (read/write/erase,
+      # status register, protection state machine, cross-core bracketing).
+      # chips/bk7258/bk7258_flash_driver.c provides the same 30 symbols,
+      # byte for byte.
+      cp/middleware/driver/flash/flash_driver.c
       # T14 second slice: the partition table and its access checks.
       # chips/bk7258/bk7258_flash_partition.c provides the same 9 symbols,
       # byte for byte; this is the layer an mtd_partition table would come from.
