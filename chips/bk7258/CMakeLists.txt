@@ -77,6 +77,7 @@ else()
        bk7258_aon_rtc.c
        bk7258_rtc.c
        bk7258_flash_hal.c
+       bk7258_flash_partition.c
        bk7258_printf.c)
 
   if(CONFIG_BK7258_PSRAM)
@@ -146,6 +147,13 @@ if(CONFIG_BK7258_COMPONENT_CP)
                              ${NUTTX_CHIP_ABS_DIR}/armino_baseline/cp/middleware/driver/uart
                              ${NUTTX_CHIP_ABS_DIR}/armino_baseline/cp/components/bk_common/include
                              ${NUTTX_CHIP_ABS_DIR}/armino_baseline/cp/middleware/driver/bk7258
+                             # The flash directory must precede
+                             # wifi/hal_port/include: both carry a
+                             # flash_driver.h, hal_port's is a reduced copy
+                             # without FLASH_MAX_SIZE / FLASH_API_MAGIC_CODE /
+                             # FLASH_SECTOR_SIZE_OFFSET, and it redefines
+                             # flash_op_status_t against the baseline one.
+                             ${NUTTX_CHIP_ABS_DIR}/armino_baseline/cp/middleware/driver/flash
                              # bk7258_aon_rtc.c keeps its authority signature
                              # from aon_rtc_driver_64bit.h in this directory.
                              ${NUTTX_CHIP_ABS_DIR}/armino_baseline/cp/middleware/driver/rtc
