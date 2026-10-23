@@ -932,3 +932,27 @@ bk_aon_rtc_*（pm / low_pwr / rosc_ppm / flash_notify / saradc_notify / wifi）
 
 **观测到的一个边界**：BK7258 只有一个 AON RTC 单元（`AON_RTC_ID_2` 仅在 `SOC_AON_RTC_UNIT_NUM > 1` 时
 存在），框架 alarm 与 `pm` / `low_pwr` 的唤醒 alarm 共用同一个单元的按名链表。
+
+---
+
+## 阶段二第三批：T14 Flash/MTD（第 1 片，`flash_hal`）
+
+`cp/middleware/soc/common/hal/flash_hal.c` → `chips/bk7258/bk7258_flash_hal.c`（36 行 / 2 符号）。
+
+从最底层开始：这个单元只做两件事——从 `hal->id` 解析块基址交给 `flash_ll_*` 内联，以及把状态寄存器
+里的保护位解码成一个值。上面的 `flash_partition` / `flash_server` / `flash_notify` / `flash_driver` /
+`flash_driver_ext` / `flash_bypass` 依次跟进，PSRAM 两个单元走 NuttX 内存侧而不是 MTD。
+
+**这一族的 NuttX 落点是 `mtd_dev_s`**（`drv->erase/write/read/byteinfo/imaxgeo/erasesize`，`mtd_register()`
+挂成 `/dev/mtdN`），所以底层先落地，MTD 驱动就架在它上面；分区表随后由 `mtd_partition` 生成，
+文件系统可以直接用 littlefs。
+
+### 验收
+
+| 项 | 结果 |
+| --- | --- |
+| 导出符号 | **2 / 2** |
+| 指令 + 重定位 | **2 / 2 相同** |
+| `flash_hal.c.o` 在 map | **0** |
+| `nm -u` | 0 |
+| `.text` / `.data` / `.bss` | 与替换前完全相同 |

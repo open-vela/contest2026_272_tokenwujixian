@@ -191,6 +191,9 @@ if(CONFIG_BK7258_WIFI_ARMINO_BASELINE)
       # were writing the same enable and end-count registers.
       cp/middleware/driver/timer/timer_driver.c
       cp/middleware/soc/common/hal/timer_hal.c
+      # T14 first slice: the flash register layer.  chips/bk7258/
+      # bk7258_flash_hal.c provides the same 2 symbols, byte for byte.
+      cp/middleware/soc/common/hal/flash_hal.c
       # The AON RTC driver: chips/bk7258/bk7258_aon_rtc.c provides the same 16
       # symbols (two 64-bit units, tick/upper comparators, the per-unit alarm
       # list, the two ISR entry points and the wake-source registration) with
