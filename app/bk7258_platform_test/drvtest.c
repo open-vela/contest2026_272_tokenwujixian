@@ -7,6 +7,7 @@
  *   bk7258_drvtest trap             exception lock / repair / direct UART
  *   bk7258_drvtest model            device-model table round trip
  *   bk7258_drvtest rtc              /dev/rtc0 and CLOCK_REALTIME
+ *   bk7258_drvtest wdg              /dev/watchdog0 status/keepalive
  *   bk7258_drvtest wdt peek         AON PMU R0 / R7A and the cached reason
  *   bk7258_drvtest wdt stop         disarm the interrupt watchdog
  *   bk7258_drvtest wdt start <ms>   arm it (0 = the 8 s default)
@@ -33,6 +34,7 @@ static void usage(void)
          "       bk7258_drvtest trap\n"
          "       bk7258_drvtest model\n"
          "       bk7258_drvtest rtc\n"
+         "       bk7258_drvtest wdg\n"
          "       bk7258_drvtest wdt peek|stop|feed|sensor|reset\n"
          "       bk7258_drvtest wdt start <ms>\n"
          "       bk7258_drvtest wdt reason <n>\n");
@@ -123,6 +125,12 @@ int main(int argc, char *argv[])
   if (strcmp(argv[1], "rtc") == 0)
     {
       bk7258_rtc_probe();
+      return 0;
+    }
+
+  if (strcmp(argv[1], "wdg") == 0)
+    {
+      bk7258_wdg_probe();
       return 0;
     }
 
