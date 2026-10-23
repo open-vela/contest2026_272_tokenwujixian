@@ -1331,3 +1331,26 @@ COMPILE_OPTIONS "-fsigned-char")`。修完 8/8 一致。
 **留给下次的第一件事**：`wdt` 的 8 个符号定性（`aon_wdt_hal_set_period`、`bk_aon_wdt_feed/get_period/
 set_period`、`bk_task_wdt_stop/timeout_check`…）。其中 `bk_task_wdt_*` 可能是批次 1 记录过的有意变更
 （惰性 arm），其余需逐个对照。
+
+### 工具还修了 4 处，其中一处让上一轮结论作废
+
+| # | 缺陷 | 后果 |
+| --- | --- | --- |
+| 4 | `objdump --disassemble=<sym>` 在 `-ffunction-sections` 下按**地址**匹配，同地址多节时返回错节 | 读数全错（`wdt` 那8个"差异"就是这么来的） |
+| 5 | 符号值带 **Thumb 位**（`0x1`），没掩掉 | 切片起点错，整函数读空 |
+| 6 | 偏移按**十六进制**打印（`#0x600`） | 大偏移访问全丢 |
+| 7 | **`str.w` / `ldr.w` 的点后缀没匹配** | **最常见的宽访问全被丢弃** —— 上一轮"22 个里 18 个 OK"因此作废 |
+
+修法：整对象反汇编一次，按 readelf 的节归属 + 符号偏移切片；`value &= ~1`；偏移用 `int(x, 0)`；内存操作正则允许 `(?:\.\w+)?`。
+
+### 重扫（工具可信之后）
+
+| 单元 | 可比符号 | 差异 | 定性 |
+| --- | --- | --- | --- |
+| `printf` | 26 | 16 | ✅ 有意重写（批次 5：syslog sink、mod-disable 列表） |
+| **`trap_base`** | 22 | **2**（`arch_is_enter_exception`、`arch_set_enter_exception`） | ❓ 待定性 |
+| **`uart_driver`** | 57 | **5**（`bk_uart_disable_rx/tx`、`uart_wait_tx_over`、`uart_write_string`、`uart_write_byte_for_fr`） | ❓ 待定性 |
+| **`wdt`** | 30 | **8** | ❓ 待定性 |
+| 其余 18 个 | — | 0 | ✅ 序列一致 |
+
+**教训**：判据工具本身必须先自证。这轮工具修了 7 处缺陷，其中第 7 处（`str.w`）会把任何差异都吃掉——如果没在已知样本上验证，我会拿一份"全部通过"的报告去继续重写，而真相是根本没比到东西。
