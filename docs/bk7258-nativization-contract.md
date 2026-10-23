@@ -1279,3 +1279,27 @@ EasyFlash 初始化成功这一行是关键证据：它读 ENV 分区，走的�
 COMPILE_OPTIONS "-fsigned-char")`。修完 8/8 一致。
 
 **规则**：以后凡断言"逐字节相同"，比的对象必须是**构建产物**；standalone 编译只能用来快速迭代。
+
+### 全量扫描结果（2026-10-22，第 1 步）
+
+工具：`my_docs/bk7258-wifi/tools/mmio_seq.py`。基线：用 `armino_units.tsv` / `component_flags.tsv` 记录的
+组件参数**重新编译权威源码**（`driver` 组件还要补上构建当时用的 `-include compat/bk7258_armino_nuttx_config.h`
+与 NuttX 的 include 路径，否则那份基线不是基线）。逐符号按"数据访问偏移与顺序 + 字面量符号 + 调用目标"比对。
+
+**22 个已搬单元，18 个一致，4 个有差异：**
+
+| 单元 | 差异符号数 | 定性 |
+| --- | --- | --- |
+| `bk7258_printf.c` | 16 | **预期内**。批次 5 有意重写：sink 改成 `syslog`、`bk_printf_init()` 不再碰 UART0、加 mod-disable 列表。这是行为变更，不是缺陷。 |
+| `bk7258_wdt.c` | 8（`aon_wdt_hal_set_period`、`bk_aon_wdt_feed/get_period/set_period`、`bk_task_wdt_stop/timeout_check`…） | **待定性** |
+| `bk7258_uart_driver.c` | 4（`bk_uart_disable_rx/tx`、`uart_wait_tx_over`、`uart_write_byte_for_fr`） | **待定性** |
+| `bk7258_gpio_hal.c` | 2（`gpio_hal_func_map/unmap`） | **待定性** |
+
+工具本身在过程中修了三处（都是自证环节抓出来的）：
+
+1. 调用目标解析把 `bl 0 <sym>` 里的 `0` 当成了符号名；
+2. 字面量池**偏移**（`lit:<sym+0xNN>`）是布局噪声，必须归一化掉，否则任何尺寸变化都误报；
+3. **尾调用**（`b.w` + `R_ARM_THM_JUMP24`）没算成调用，把 `uart_wait_tx_over`（编译成一条尾跳）读成 0 条指令。
+
+结论：这条路线可用，但**"待定性"的 3 个单元必须先定性**——要么是文档里记过的有意变更，要么是缺陷。
+在定性完成前，不得再把这三处称为"逐字节相同"。
