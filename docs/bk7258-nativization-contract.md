@@ -1116,3 +1116,29 @@ gpio: restored to 0
 
 电平跟着写走，读回的是真实锁存值。**RTC / 看门狗 / GPIO 三个标准面全部上板验证完毕**（`/dev/rtc0`
 含 alarm 与内核面、`/dev/watchdog0`、`/dev/gpio0`）。
+
+---
+
+## 阶段二第三批：T14 第 3 片 `flash_driver`（核心，30 符号）
+
+`cp/middleware/driver/flash/flash_driver.c` → `chips/bk7258/bk7258_flash_driver.c`（1,053 行 / 30 符号）。
+
+SPI flash 命令层（读/写/擦、状态寄存器、QE、line mode）、建在状态寄存器上的**保护位状态机**，以及每个
+操作都必须走的跨核协调（`mb_flash_op_prepare/finish`——控制器是 CP/AP 共用的）。
+
+两条给后来者的性质：
+
+- **每个操作都被 `mb_flash_op_prepare()/finish()` 夹住**，这不是可选项，AP 也在用同一个控制器；
+- **保护配置写在 flash 自己的状态寄存器里**，这里写错可能让器件进入只有上电或解锁序列才能恢复的保护态。
+  所以本文件不含任何推测性改动。
+
+### 验收
+
+| 项 | 结果 |
+| --- | --- |
+| 导出符号 | **30 / 30**，集合差异为空 |
+| 指令 + 重定位 | **30 / 30 逐条相同** |
+| `flash_driver.c.o` 在 map | **0** |
+| `nm -u` | 0 |
+| `.text` | 1,013,732 → 1,013,672 B（−60，重排） |
+| 门禁 | `decode pass` + `package integrity gate: pass` |
