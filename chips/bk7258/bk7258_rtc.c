@@ -103,6 +103,7 @@ static time_t s_epoch_s;
 static struct bk7258_alarm_s s_alarm;
 
 static int bk7258_rtc_arm(void);
+static time_t bk7258_rtc_time2sec(const struct rtc_time *rt);
 
 /****************************************************************************
  * Private Functions
@@ -144,6 +145,7 @@ static int bk7258_rtc_settime(struct rtc_lowerhalf_s *lower,
                               const struct rtc_time *rtctime)
 {
   uint64_t us;
+  time_t   when;
 
   if (rtctime == NULL)
     {
@@ -152,9 +154,21 @@ static int bk7258_rtc_settime(struct rtc_lowerhalf_s *lower,
 
   us = bk_aon_rtc_get_us();
 
+  /* What we get here depends on the configuration, and getting it wrong is
+   * silent: with CONFIG_RTC_DATETIME the framework (and arch_rtc.c's
+   * up_rtc_settime) hands over a calendar, so tm_sec is 0..59 and the instant
+   * has to come from the whole date.  Without it tm_sec *is* the counter.
+   */
+
+#ifdef CONFIG_RTC_DATETIME
+  when = bk7258_rtc_time2sec(rtctime);
+#else
+  when = (time_t)rtctime->tm_sec;
+#endif
+
   /* Only the epoch moves; the counter itself is never written. */
 
-  s_epoch_s = (time_t)rtctime->tm_sec - (time_t)(us / 1000000u);
+  s_epoch_s = when - (time_t)(us / 1000000u);
 
   /* A pending alarm is an absolute instant, so it has to follow the clock. */
 
@@ -418,7 +432,11 @@ void bk7258_rtc_probe(void)
       printf("rtc: CLOCK_REALTIME=%ld s\n", (long)ts.tv_sec);
     }
 
-  /* Move it to a fixed instant and read both faces back. */
+  /* (a) Device face: RTC_SET_TIME / RTC_RD_TIME round trip.  This does NOT move
+   * the kernel clock -- in NuttX /dev/rtc0 and CLOCK_REALTIME are separate
+   * objects, and only clock_settime() (below) reaches ours through arch_rtc's
+   * up_rtc_settime.
+   */
 
   rt.tm_year = 2026 - 1900;
   rt.tm_mon  = 1 - 1;
@@ -427,20 +445,43 @@ void bk7258_rtc_probe(void)
   rt.tm_min  = 0;
   rt.tm_sec  = 0;
 
-  printf("rtc: RTC_SET_TIME(2026-01-01 00:00:00) -> %d\n",
+  printf("rtc: (a) RTC_SET_TIME(2026-01-01) -> %d\n",
          ioctl(fd, RTC_SET_TIME, &rt));
 
   if (ioctl(fd, RTC_RD_TIME, &rt) == 0)
     {
-      printf("rtc: rtc0 after set = %04d-%02d-%02d %02d:%02d:%02d\n",
+      printf("rtc: (a) rtc0 reads back = %04d-%02d-%02d %02d:%02d:%02d\n",
              rt.tm_year + 1900, rt.tm_mon + 1, rt.tm_mday,
              rt.tm_hour, rt.tm_min, rt.tm_sec);
     }
 
-  if (clock_gettime(CLOCK_REALTIME, &ts) == 0)
-    {
-      printf("rtc: CLOCK_REALTIME after set = %ld s\n", (long)ts.tv_sec);
-    }
+  /* (b) Kernel face: clock_settime -> up_rtc_settime -> our ops.  After it, both
+   * CLOCK_REALTIME and /dev/rtc0 must report the same instant.
+   */
+
+  {
+    struct timespec set;
+    struct timespec got;
+
+    set.tv_sec  = 1893456000;  /* 2030-01-01 00:00:00 UTC */
+    set.tv_nsec = 0;
+
+    printf("rtc: (b) clock_settime(2030-01-01) -> %d\n",
+           clock_settime(CLOCK_REALTIME, &set));
+
+    if (clock_gettime(CLOCK_REALTIME, &got) == 0)
+      {
+        printf("rtc: (b) CLOCK_REALTIME = %ld s (want 1893456000)\n",
+               (long)got.tv_sec);
+      }
+
+    if (ioctl(fd, RTC_RD_TIME, &rt) == 0)
+      {
+        printf("rtc: (b) rtc0 follows = %04d-%02d-%02d %02d:%02d:%02d\n",
+               rt.tm_year + 1900, rt.tm_mon + 1, rt.tm_mday,
+               rt.tm_hour, rt.tm_min, rt.tm_sec);
+      }
+  }
 
   /* Alarm face: ask the framework for +5 s through /dev/rtc0 and wait for the
    * signal.  That exercises lower half -> the driver's alarm engine -> its tick
