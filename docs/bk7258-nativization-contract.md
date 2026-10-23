@@ -1354,3 +1354,38 @@ set_period`、`bk_task_wdt_stop/timeout_check`…）。其中 `bk_task_wdt_*` �
 | 其余 18 个 | — | 0 | ✅ 序列一致 |
 
 **教训**：判据工具本身必须先自证。这轮工具修了 7 处缺陷，其中第 7 处（`str.w`）会把任何差异都吃掉——如果没在已知样本上验证，我会拿一份"全部通过"的报告去继续重写，而真相是根本没比到东西。
+
+### 三个待定性单元的结论（全部可解释，无缺陷）
+
+**`trap_base`（2 个）—— 共享区搬家。** 两边算的是同一个字段，只是区域基址不同：
+
+| | 基址字面量 | 偏移 | 最终地址 |
+| --- | --- | --- | --- |
+| 基线 | `0x2805D000` | `#0xb30` | `0x2805DB30` = 厂商 PWR_MNG(`0x2805DB00`)+0x30 |
+| 我们 | `0x2809F000` | `#0x730` | `0x2809F730` = 我们的 PWR_MNG(`0x2809F700`)+0x30 |
+
+`+0x30` 正是 `FIXED_ADDR_EXCEPTION_DUMPER`。PWR_MNG 区域由板级 SRAM 划分搬过
+（`pm/nuttx_port/include/ram_regions.h`），所以地址不同是**记录在案的设计**。
+
+**`wdt`（8 个）—— 源文件合并带来的内联差异，加一处我有意的记账。**
+
+权威把它拆成 4 个文件（`wdt_driver` / `aon_wdt_driver` / `wdt_hal` / `aon_wdt_hal`），跨 TU 无法内联；
+我们合成 `bk7258_wdt.c` 一个文件，于是 `aon_wdt_hal_set_period`↔`aon_wdt_ll_set_period` 之间被内联、
+`bk_aon_wdt_feed` 里那次 `hal` 调用被折成 `ll` 调用。**寄存器与顺序不变**，只是展开层次不同。
+`bk_wdt_feed_handle` 多出的 `clock_systime_ticks` + 一次 `str`，是看门狗标准面那批加的喂狗记账（有意）。
+
+**`uart_driver`（5 个）—— 同一类 TU 上下文差异 + 一处工具噪声。**
+`uart_wait_tx_over`（基线内联 ll、我们尾跳）、`bk_uart_disable_rx/tx`（静态助手 `uart_deinit_rx_gpio`
+内联与否）、`uart_write_string`（同）；`uart_write_byte_for_fr` 只是 `tail:.rodata.__FUNCTION__` 的误判。
+
+### 定性小结
+
+| 单元 | 结论 |
+| --- | --- |
+| `printf` | 有意重写（批次 5） |
+| **`gpio_hal`** | **真缺陷，已修**（缺 `gpio_driver_base.h` → `GPIO_LOGW` 变隐式调用） |
+| `trap_base` | PWR_MNG 区域搬家，板级设计 |
+| `wdt` | 4→1 文件合并导致的内联差异 + 一处有意记账 |
+| `uart_driver` | TU 上下文内联差异 + 工具噪声 |
+
+**净结果：22 个已搬单元里，1 个真缺陷（已修），其余全部可解释。** 这条判据可以用于重写了。
