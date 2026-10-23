@@ -1430,3 +1430,7 @@ set_period`、`bk_task_wdt_stop/timeout_check`…）。其中 `bk_task_wdt_*` �
 （`send_flash_op_state` → `bk7258_flash_send_op_state`）。**静态符号是 TU 内部的，重写允许改名**，
 所以工具改为：LOCAL binding 的函数在调用序列里归一成 `<static>`，只比**全局**调用目标。
 这样既不放过"调错了全局函数"，也不因重命名误报。
+
+上板（镜像 `708f840b…`）：三个标准面注册成功，`EasyFlash V4.1.0 is initialize success`（走我们重写过的
+`flash_notify` + 分区表 + flash 驱动），`psram init ok`、`wifi inited(1) ret(0)`、`nsh-ap>` 就绪。
+**第一个真重写通过验收。**
