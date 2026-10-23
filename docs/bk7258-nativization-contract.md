@@ -46,6 +46,14 @@
      往返，内核口 `clock_settime`/`clock_gettime` 并确认 `/dev/rtc0` 跟着变；
    - **例外必须写明**：确实没有 NuttX 等价物的那一小块（例：AON RTC 的 µs 单调计数，框架只有秒级）
      留在驱动内部，并在本文档"ops 语义完整性"一类的表里写清理由；
+   - **薄封装是合法的，判的是"基底"而不是"调用点长相"**（用户 2026-10-23 口径）：Armino 形状的
+     `GLOBAL_INT_DISABLE/RESTORE`、`os_malloc/os_memset`、`BK_LOGx` 只要**下面接的是 NuttX**，就应当保留，
+     不要去改调用点。实测证据：`rtos_disable_int()` → `up_irq_save()`（BASEPRI）；
+     `os_malloc` → `os_malloc_debug` → `malloc` → `--redefine-syms` → `__wrap_malloc` → `kmm_zalloc`；
+     `BK_LOGx` → `bk_printf_ext` → `syslog`。**改这三类调用点是 churn，不是原生化。**
+   - 因此写真书只在两种情况下动手：**(a) 基底不是 NuttX**（下面接的仍是 Armino 寄存器/RTOS/堆）；
+     **(b) 契约类型被换成"看起来更 NuttX"的类型**（例：签名里 `UINT32` 不能换 `uint32_t`，
+     这套头里两者宽度相同但类型不同，换了直接 `conflicting types`）。
    - 推论：**一个外设如果 NuttX 有框架而我们没挂，它就是没做完**，不能算"已经原生化"。
      当前欠账：看门狗（`/dev/watchdog0`）、GPIO（`/dev/gpio0`）、温度/电压（`/dev/adc0`），
      以及 UART 的"两面未合一"（控制台 ops 直接调 `uart_ll_*`，Armino 面走 `uart_hal_*`）。
