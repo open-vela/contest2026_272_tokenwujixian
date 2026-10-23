@@ -1102,3 +1102,17 @@ wdg: KEEPALIVE -> 0
 | `flash_partition.c.o` 在 map | **0** |
 | `nm -u` | 0 |
 | `.text` | 1,013,220 → 1,013,732 B（+512：分区表与检查逻辑的少量重排） |
+
+上板（镜像 `250b5cb4…`）：`bk7258_drvtest gpio` →
+
+```
+gpio: read(before)=0
+gpio: write(1) -> 0
+gpio: read(after write 1)=1
+gpio: write(0) -> 0
+gpio: read(after write 0)=0
+gpio: restored to 0
+```
+
+电平跟着写走，读回的是真实锁存值。**RTC / 看门狗 / GPIO 三个标准面全部上板验证完毕**（`/dev/rtc0`
+含 alarm 与内核面、`/dev/watchdog0`、`/dev/gpio0`）。
