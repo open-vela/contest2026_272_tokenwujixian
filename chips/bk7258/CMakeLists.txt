@@ -160,6 +160,9 @@ if(CONFIG_BK7258_COMPONENT_CP)
                              ${NUTTX_CHIP_ABS_DIR}/armino_baseline/cp/middleware/driver/uart
                              ${NUTTX_CHIP_ABS_DIR}/armino_baseline/cp/components/bk_common/include
                              ${NUTTX_CHIP_ABS_DIR}/armino_baseline/cp/middleware/driver/bk7258
+                             # bk7258_gpio_hal.c needs gpio_driver_base.h for the
+                             # GPIO_LOGW macro the authority picks up there.
+                             ${NUTTX_CHIP_ABS_DIR}/armino_baseline/cp/middleware/driver/gpio
                              # The flash directory must precede
                              # wifi/hal_port/include: both carry a
                              # flash_driver.h, hal_port's is a reduced copy

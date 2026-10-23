@@ -63,6 +63,14 @@
 #include <driver/gpio_types.h>
 
 #include "gpio_hal.h"
+
+/* GPIO_LOGW comes from here (via BK_LOGW).  The authority includes it, and
+ * without it the GPIO_RETURN_ON_INVALID_ID macro's log call becomes an
+ * implicitly declared function -- invisible today only because every
+ * gpio_hal_* symbol is gc'd out of this image.
+ */
+
+#include "gpio_driver_base.h"
 #include "gpio_map.h"
 
 #if CONFIG_USR_GPIO_CFG_EN
