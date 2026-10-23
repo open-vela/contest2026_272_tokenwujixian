@@ -1045,3 +1045,15 @@ bk_aon_rtc_*（pm / low_pwr / rosc_ppm / flash_notify / saradc_notify / wifi）
 | `.text` | 1,010,900 → 1,013,220 B（+2,320：gpio 上半部 + 我们的 ops） |
 | `nm -u` | 0 |
 | 探针 | `bk7258_drvtest gpio` → read / write1 / read / write0 / read / 还原 |
+
+上板（镜像 `e5317a9b…`）：`bk7258_drvtest wdg` →
+
+```
+wdg: flags=0x3 timeout=8000 timeleft=7791
+wdg: SETTIMEOUT(10000) -> 0
+wdg: after set timeout=10000
+wdg: KEEPALIVE -> 0
+```
+
+`timeleft=7791` = 8000 − 209 ms，即距上一次 1 s 喂狗的实际间隔，证明它读的是真实喂狗点而不是自己猜的
+计数。`flags=0x3`（ACTIVE|RESET）、`SETTIMEOUT` 真的改了周期。
