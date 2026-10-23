@@ -1389,3 +1389,44 @@ set_period`、`bk_task_wdt_stop/timeout_check`…）。其中 `bk_task_wdt_*` �
 | `uart_driver` | TU 上下文内联差异 + 工具噪声 |
 
 **净结果：22 个已搬单元里，1 个真缺陷（已修），其余全部可解释。** 这条判据可以用于重写了。
+
+---
+
+## 第一个"真重写"：`flash_notify`
+
+搬运版只满足不变式 1、2。这一轮把它按 NuttX 惯用法重写，判据换成 MMIO 序列 + 错误分支 + 上板。
+
+### 改了什么（写法规格）
+
+| 项 | 搬运版 | 重写版 |
+| --- | --- | --- |
+| 静态量命名 | `s_flash_op_notify`、`flash_erase_ipc_state` | `g_flash_op_notify`、`g_flash_erase_ipc_state`（NuttX 文件级静态量用 `g_`） |
+| 类型 | `u32`、隐式 int | `uint32_t`，`stddef.h` 显式引入 |
+| 静态助手 | `send_flash_op_state()` | `bk7258_flash_send_op_state()`（带芯片前缀，见下） |
+| ISR 命名 | `mb_flash_ipc_tx_cmpl_isr` | `bk7258_flash_ipc_tx_cmpl_isr` |
+| 魔数 | 裸 `2000` / `5000` | `FLASH_WAIT_ACK_SPINS` / `FLASH_WAIT_ACK_TIMEOUT_US`，并写清单位是微秒 |
+| 条件编译 | `#if 1` 包住整段"新设计" | 去掉 `#if 1`；`#if CONFIG_FLASH_MB` 的**两个分支都保留** |
+| extern 声明 | 文件头裸放 | 移到使用点旁，参数写成 `uint32_t` |
+| 注释 | Armino 中文/缩写 | 说明"为什么"：5 ms 窗口为什么不用系统 tick、为什么超时返回 `BK_OK` 而不报错 |
+
+**刻意没改的**（改了就是语义变更）：
+- 返回值类型 `bk_err_t`、`BK_OK`/`BK_FAIL`/`BK_ERR_FLASH_WAIT_CB_NOT_REGISTER` —— 调用方按它判断；
+- `mb_chnl_*` / `flash_op_status_t` / `.itcm_sec_code` 段属性；
+- **等待循环的双重边界**（2000 次 + 5 ms，且循环耗尽返回 `BK_OK`）。把超时改成错误会把"对端慢"变成"flash 写失败"；
+- `bk_aon_rtc_get_us()` 作为微秒时钟（系统 tick 是 1 ms，对 5 ms 窗口太粗）。
+
+### 验收
+
+| 项 | 结果 |
+| --- | --- |
+| MMIO 序列 | **7 / 7 与基线一致**（数据访问偏移与顺序、字面量、全局调用目标） |
+| `.text` | 1,013,680 B —— **与重写前完全相同**（写法变了，机器码几乎不变） |
+| 门禁 | `decode pass` + `package integrity gate: pass` |
+| 上板 | 待烧（镜像 `708f840b…`）——flash 在启动路径上，EasyFlash 那行是关键证据 |
+
+### 工具的第 8 次修正
+
+第一次比较时 `mb_flash_op_prepare/finish` 报了差异，原因是静态助手改名
+（`send_flash_op_state` → `bk7258_flash_send_op_state`）。**静态符号是 TU 内部的，重写允许改名**，
+所以工具改为：LOCAL binding 的函数在调用序列里归一成 `<static>`，只比**全局**调用目标。
+这样既不放过"调错了全局函数"，也不因重命名误报。
