@@ -1466,3 +1466,11 @@ Armino 惯用法密度最高的文件（51 处 / 443 行），只有 12 个短�
 工具因此加了第 9 条规则：**惯用法等价表**（`os_memset↔memset`、`os_malloc↔kmm_zalloc`、
 `rtos_disable_int↔内联`、`bk_printf_ext↔syslog`…）。表外的调用目标仍必须逐条相同——这样既不放过
 "调错了业务函数"，也不因换惯用法误报。
+
+`drv_model` 重写上板（镜像 `7abc97dc…`）：启动序列与重写前逐行一致（三个 `/dev` 节点、`EasyFlash V4.1.0
+is initialize success`、`psram init ok`、`wifi inited(1) ret(0)`、`nsh-ap>`）。
+
+顺带验了一条复位路径：AP 上 `reboot bootloader` → `Rptun driver reset remote cp reason: 3` →
+CP 侧 `FATAL: Reset by remote core: ap reason: 3` → `Rptun driver reset remote ap reason: 3` →
+`set ap rr: 0x2` → `!RST` → 完整重启。两核都复位、AP 原因落盘，BootROM 冷启动链走完（串口下载窗口有时限，
+没有工具在等就继续启动，所以最终回到 `nsh-ap>`）。
