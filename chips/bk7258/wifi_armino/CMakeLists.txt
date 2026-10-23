@@ -191,6 +191,11 @@ if(CONFIG_BK7258_WIFI_ARMINO_BASELINE)
       # were writing the same enable and end-count registers.
       cp/middleware/driver/timer/timer_driver.c
       cp/middleware/soc/common/hal/timer_hal.c
+      # T14 sixth slice: the flash server (CRC helper + server init) and the
+      # notify layer whose mb_flash_op_prepare/finish brackets every operation.
+      # 3 + 7 symbols, byte for byte, carried whole.
+      cp/middleware/driver/flash/flash_server.c
+      cp/middleware/driver/flash/flash_notify.c
       # T14 fifth slice: the flash bypass path, carried whole for the reason
       # bk7258_flash_bypass.c states (extracting the one export changes the
       # codegen).  Same 1 exported symbol, byte for byte.
