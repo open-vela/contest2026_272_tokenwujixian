@@ -1142,3 +1142,18 @@ SPI flash 命令层（读/写/擦、状态寄存器、QE、line mode）、建在
 | `nm -u` | 0 |
 | `.text` | 1,013,732 → 1,013,672 B（−60，重排） |
 | 门禁 | `decode pass` + `package integrity gate: pass` |
+
+上板（镜像 `3cf190fd…`）：启动第一屏就是三个标准面注册成功
+
+```
+[BK7258] /dev/gpio0 registered OK
+[BK7258] /dev/watchdog0 registered OK
+[BK7258] /dev/rtc0 registered OK
+...
+cpu0:ef:I(120):EasyFlash V4.1.0 is initialize success.
+cpu0:I(152):driver_init: psram init ok
+cpu0:wifi:I(440):wifi inited(1) ret(0)
+```
+
+EasyFlash 初始化成功这一行是关键证据：它读 ENV 分区，走的是**我们已经替换的** `flash_partition` +
+`flash_driver`。
