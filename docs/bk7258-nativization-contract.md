@@ -54,6 +54,12 @@ awk '/\.a\([^)]*\)[[:space:]]*$/ {prov=$NF} /^[[:space:]]+0x[0-9a-f]+[[:space:]]
 arm-none-eabi-nm -u nuttx | wc -l         # 必须为 0
 
 # 5) 段属性（RAM 常驻函数）
+# 6) 交付镜像必须走 full_flow.sh
+#    build_worktree.sh 只重建 build/cp/nuttx，不刷新 package/all-app.bin，也不重写 manifest。
+#    拿 build_worktree 之后的旧包去烧，门禁会报：
+#      error: cp L1 report SHA-256 differs from the manifest
+#      error: independent decoder rejected the current package
+
 arm-none-eabi-objdump -t <新 .o> | grep <symbol>   # .itcm_sec_code 等要与基线一致
 ```
 
@@ -956,3 +962,8 @@ bk_aon_rtc_*（pm / low_pwr / rosc_ppm / flash_notify / saradc_notify / wifi）
 | `flash_hal.c.o` 在 map | **0** |
 | `nm -u` | 0 |
 | `.text` / `.data` / `.bss` | 与替换前完全相同 |
+
+**操作教训（2026-10-22）**：源码改完后，用于烧板的镜像必须由 `full_flow.sh` 产出。`build_worktree.sh`
+只重建 ELF，`package/all-app.bin` 与 manifest 仍停在上一版，于是完整性门禁报
+`cp L1 report SHA-256 differs from the manifest` / `independent decoder rejected the current package`。
+症状是门禁拒绝，不是镜像损坏——重跑 `full_flow.sh` 即恢复（本次 `decode pass` + `integrity gate: pass`）。
