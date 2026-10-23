@@ -1157,3 +1157,21 @@ cpu0:wifi:I(440):wifi inited(1) ret(0)
 
 EasyFlash 初始化成功这一行是关键证据：它读 ENV 分区，走的是**我们已经替换的** `flash_partition` +
 `flash_driver`。
+
+---
+
+## 阶段二第三批：T14 第 4 片 `flash_driver_ext`
+
+`cp/middleware/driver/flash/flash_driver_ext.c` → `chips/bk7258/bk7258_flash_driver_ext.c`（527 行 / 7 符号）。
+
+快速擦除、按字拷贝助手、**BLE 与 Wi-Fi 共享控制器时的分片写**，以及"射频正在连接时先把 flash 操作挡住"
+的 BLE 睡眠钩子。它继承下层（`flash_driver` / `flash_server`）的队列与锁纪律——这正是写操作不会撞上射频
+的原因。
+
+| 项 | 结果 |
+| --- | --- |
+| 导出符号 | **7 / 7** |
+| 指令 + 重定位 | **7 / 7 相同** |
+| `flash_driver_ext.c.o` 在 map | **0** |
+| `nm -u` | 0 |
+| `.text` | 1,013,672 → 1,013,680 B（+8，对齐） |
