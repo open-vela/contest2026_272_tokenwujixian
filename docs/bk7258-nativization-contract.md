@@ -1434,3 +1434,35 @@ set_period`、`bk_task_wdt_stop/timeout_check`…）。其中 `bk_task_wdt_*` �
 上板（镜像 `708f840b…`）：三个标准面注册成功，`EasyFlash V4.1.0 is initialize success`（走我们重写过的
 `flash_notify` + 分区表 + flash 驱动），`psram init ok`、`wifi inited(1) ret(0)`、`nsh-ap>` 就绪。
 **第一个真重写通过验收。**
+
+---
+
+## 第二个真重写：`drv_model`
+
+Armino 惯用法密度最高的文件（51 处 / 443 行），只有 12 个短函数。
+
+### 改了什么
+
+| 项 | 之前 | 之后 |
+| --- | --- | --- |
+| 临界区 | `GLOBAL_INT_DECLARATION/DISABLE/RESTORE`（包在 `rtos_disable_int()` 上） | NuttX 的 `irqstate_t flags` + `up_irq_save()` / `up_irq_restore()` |
+| 清零 | `os_memset()` | `memset()`（`<string.h>`） |
+| 头 | `<os/mem.h>`、`<os/os.h>` | `<string.h>`、`<nuttx/irq.h>` |
+
+**签名里的 `UINT32` 没有换**——这套头里 `uint32_t` 是 `unsigned long`，而权威头声明的是 `UINT32`（`unsigned int`），
+换成 `uint32_t` 会与 `bk_drv_model.h` 冲突（`conflicting types`）。契约类型不因"看起来更 NuttX"而改。
+
+也没有用 `enter_critical_section()`：那个符号在本 TU 的链接闭包里没有定义（NuttX 非 SMP 下它是宏，
+且 sched 库不在芯片层链接表里），`up_irq_save()` 是同等惯用法且无额外依赖。
+
+### 验收
+
+| 项 | 结果 |
+| --- | --- |
+| 数据访问序列 | **逐条一致**（10/7/3/1 条访问，偏移与顺序相同） |
+| 调用序列 | 差异只有 `rtos_disable_int/enable_int` 被内联、`os_memset`→`memset` —— 都是换惯用法的预期 |
+| 全量扫描 | 22 个对象里 18 个一致，其余 4 个仍是已定性的（printf/trap_base/uart/wdt） |
+
+工具因此加了第 9 条规则：**惯用法等价表**（`os_memset↔memset`、`os_malloc↔kmm_zalloc`、
+`rtos_disable_int↔内联`、`bk_printf_ext↔syslog`…）。表外的调用目标仍必须逐条相同——这样既不放过
+"调错了业务函数"，也不因换惯用法误报。
