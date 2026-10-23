@@ -1046,6 +1046,14 @@ bk_aon_rtc_*（pm / low_pwr / rosc_ppm / flash_notify / saradc_notify / wifi）
 | `nm -u` | 0 |
 | 探针 | `bk7258_drvtest gpio` → read / write1 / read / write0 / read / 还原 |
 
+**上板发现的一处语义错误（已修）**：第一版 `go_read` 调的是 `bk7258_gpio_read()`，而它与它镜像的
+Armino `bk_gpio_get_input/get_output` 一样，报的是**配置寄存器里的使能位**，不是电平。于是
+`write(0)` 之后读回仍然是 1 —— 因为输入使能位根本没变。正确的读回对象是**输出锁存位**
+`BK7258_GPIO_CFG_OUTPUT`，那才是驱动实际输出的电平。
+
+这也是第 5 条的一个实例：ops 的方法体不能随便挑一个"名字看起来对"的函数，必须挑**语义上对**的那个。
+输入脚要读焊盘时没有现成 API（`gpio_hal_get_input` 是使能位），这一点要在扩展多引脚时补。
+
 上板（镜像 `e5317a9b…`）：`bk7258_drvtest wdg` →
 
 ```

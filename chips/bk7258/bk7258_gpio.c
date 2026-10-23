@@ -1353,7 +1353,15 @@ static int bk7258_gpio_go_read(struct gpio_dev_s *dev, bool *value)
       return -EINVAL;
     }
 
-  *value = bk7258_gpio_read(priv->pin);
+  /* Read the output latch, not bk7258_gpio_read(): that one (like the Armino
+   * bk_gpio_get_input/get_output it mirrors) reports the *enable* bits in the
+   * config register, so it answers "is this pin an input" and never changes
+   * when the level changes.  BK7258_GPIO_CFG_OUTPUT is the level the driver
+   * drives, which is what an output device must report back.
+   */
+
+  *value = (getreg32(BK7258_GPIO_CFG(priv->pin)) &
+            BK7258_GPIO_CFG_OUTPUT) != 0;
   return OK;
 }
 
