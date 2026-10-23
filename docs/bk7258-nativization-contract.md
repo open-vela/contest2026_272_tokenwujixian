@@ -1303,3 +1303,31 @@ COMPILE_OPTIONS "-fsigned-char")`。修完 8/8 一致。
 
 结论：这条路线可用，但**"待定性"的 3 个单元必须先定性**——要么是文档里记过的有意变更，要么是缺陷。
 在定性完成前，不得再把这三处称为"逐字节相同"。
+
+### 定性：`gpio_hal`（2 个）——真缺陷，已修
+
+`gpio_hal_func_map/unmap` 在权威里 `HAL_LOGW`/`GPIO_LOGW` 都是**宏**（`GPIO_LOGW` 来自
+`middleware/driver/gpio/gpio_driver_base.h:26`），两份源码逐行相同。但我们的 TU **没有那个 include**，
+于是 `GPIO_LOGW` 成了隐式函数调用（对象里出现 `R_ARM_THM_CALL GPIO_LOGW`，而镜像里根本没有这个符号）。
+
+今天不炸的唯一原因是批次 3 之后 `gpio_hal_*` 全部被 gc 掉——**一旦有人调用就是链接错误**。
+
+修法：`#include "gpio_driver_base.h"`，并把 `middleware/driver/gpio` 加到芯片 include 列表。修完
+`gpio_hal_func_map` 37/37、`gpio_hal_func_unmap` 11/11 一致。
+
+**这一类缺陷值得单独记**：`HAL_LOGW` 这种"日志宏间接依赖一个头"在搬运时最容易漏——源码照抄不会报错，
+因为它只影响一个宏的可见性，隐式声明在 C 里只是 warning（本仓库加 `-Wno-error`）。
+
+### 定性：`uart_driver`（4 个）——编译上下文的 inlining 差异，接受
+
+| 符号 | 差异 | 判定 |
+| --- | --- | --- |
+| `uart_wait_tx_over` | 基线把 `uart_ll_wait_tx_over` **内联**成 14 条寄存器读；我们编译成一条尾跳 `b.w uart_ll_wait_tx_over` | 行为等价：读的是同一个**未改动**的 ll 内联，只是没在调用点展开。同 `flash_bypass` 的 IPA 现象 |
+| `bk_uart_disable_rx/tx` | 静态助手 `uart_deinit_rx_gpio` 在基线里被内联（出现 `gpio_dev_unmap`+`bk_gpio_pull_up` 两次调用），我们保留为调用 | 同上，源码逐行相同 |
+| `uart_write_byte_for_fr` | 只有一条 `tail:.rodata.__FUNCTION__` 的差异 | **工具噪声**：尾调用判定把一个 rodata 重定位当成了跳转目标 |
+
+结论：`uart_driver` **不动代码**，把这条记进文档；它和 `flash_bypass` 同属"整文件 TU 上下文效应"。
+
+**留给下次的第一件事**：`wdt` 的 8 个符号定性（`aon_wdt_hal_set_period`、`bk_aon_wdt_feed/get_period/
+set_period`、`bk_task_wdt_stop/timeout_check`…）。其中 `bk_task_wdt_*` 可能是批次 1 记录过的有意变更
+（惰性 arm），其余需逐个对照。
