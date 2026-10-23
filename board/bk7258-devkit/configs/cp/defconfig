@@ -264,6 +264,9 @@ CONFIG_RTC=y
 
 # NuttX watchdog framework, for /dev/watchdog0 over the interrupt watchdog.
 CONFIG_WATCHDOG=y
+
+# NuttX gpio character device, for /dev/gpio0.
+CONFIG_DEV_GPIO=y
 CONFIG_RTC_DRIVER=y
 CONFIG_RTC_ARCH=y
 CONFIG_RTC_ALARM=y

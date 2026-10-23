@@ -224,4 +224,10 @@ int bk7258_gpio_wifi_rxen(void);
 }
 #endif
 
+/* NuttX face: register /dev/gpio0 over the CP status LED pin and its ops.
+ * Requires CONFIG_DEV_GPIO.
+ */
+
+int bk7258_gpio_initialize(void);
+
 #endif /* __VENDOR_BEKEN_CHIP_BK7258_INCLUDE_BK7258_GPIO_H */
