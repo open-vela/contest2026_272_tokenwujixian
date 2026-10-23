@@ -917,7 +917,7 @@ bk_aon_rtc_*（pm / low_pwr / rosc_ppm / flash_notify / saradc_notify / wifi）
 | `rtc_ops_s` 方法 | 实现 | 语义 |
 | --- | --- | --- |
 | `rdtime` | ✅ | 计数器 + epoch → 日历字段（秒级） |
-| `settime` | ✅ | 只移动 epoch，从不写计数器；**并重排已挂的 alarm** |
+| `settime` | ✅ | 入参在 `CONFIG_RTC_DATETIME` 下是**日历**（不是秒数），用 `timegm` 换算；只移动 epoch，从不写计数器；**并重排已挂的 alarm** |
 | `havesettime` | ✅ | 恒 true（软件 epoch 可写） |
 | `setalarm` | ✅ | 绝对时间 → 剩余 tick → 驱动的按名链表，一次性（`period_cnt=1`） |
 | `setrelative` | ✅ | 转成绝对时刻后走同一条路 |
@@ -935,6 +935,16 @@ bk_aon_rtc_*（pm / low_pwr / rosc_ppm / flash_notify / saradc_notify / wifi）
    当系统定时器不合适）。所以 `bk_aon_rtc_get_us()` 不能改成"包一层 ops"：`flash_notify` /
    `saradc_notify` / `wifi_adapter` 要的是 µs/ms 单调量，那部分只能留在驱动里。这是兼容面存在的原因，
    不是偷懒。
+
+**两个上板才发现的语义点**（2026-10-22）：
+
+1. `settime` 的入参形状随配置变。开了 `CONFIG_RTC_DATETIME`，框架与 `arch_rtc.c` 的 `up_rtc_settime`
+   都先 `gmtime_r` 再调 ops，所以进 ops 的是**日历字段**；我最初把 `tm_sec` 当成 epoch 秒，结果是
+   `RTC_SET_TIME` 返回 0 但时间变成 1970（`tm_sec == 0`）。修法：`timegm` 整组日历。
+2. **写 `/dev/rtc0` 不会移动内核的 `CLOCK_REALTIME`。** 在 NuttX 里这是两个对象：内核时钟在启动时由
+   RTC 播种一次（`clock_basetime` → `up_rtc_getdatetime`），之后只有 `clock_settime()` 会经
+   `up_rtc_settime` 回到我们的 ops。所以验收要分两条：设备口做 `RTC_SET_TIME`/`RTC_RD_TIME` 往返，
+   内核口做 `clock_settime`/`clock_gettime` 并确认 `/dev/rtc0` 跟着变。
 
 **观测到的一个边界**：BK7258 只有一个 AON RTC 单元（`AON_RTC_ID_2` 仅在 `SOC_AON_RTC_UNIT_NUM > 1` 时
 存在），框架 alarm 与 `pm` / `low_pwr` 的唤醒 alarm 共用同一个单元的按名链表。
