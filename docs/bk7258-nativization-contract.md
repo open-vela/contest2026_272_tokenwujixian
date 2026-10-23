@@ -3,7 +3,7 @@
 本文件是「把一个 Armino 基线单元换成我们自己的实现」这件事的**契约与验收记录**。
 每换一批，就在这里加一节：符号表 + 函数体要点 + 上板证据。
 
-## 四条不变式（用户定的口径）
+## 五条不变式（用户定的口径；第 5 条 2026-10-22 补）
 
 1. **符号不变**
    - 用 `arm-none-eabi-nm --defined-only -g <旧 .o>` 抓出基线单元的**全部**导出符号；
@@ -35,6 +35,20 @@
    - 头与源文件的路径就是它替代的那个东西的路径：`chips/bk7258/include/driver/wdt.h` 就是 `driver/wdt.h`；
    - 不引入 `overrides/`、`_api`、`_shim` 这类只描述迁移动作的名字；
    - 判断标准一句：这个名字回答的是"它是什么"，还是"它怎么来的"？后者一律改掉。
+
+5. **标准 ops 在中间，原实现在里面**
+   - 对外的 Armino 形状符号是**兼容面**：其余模块（`pm`、`low_pwr`、`rosc_ppm`、`flash_notify`、
+     `saradc_notify`、`bk_wifi_adapter`…）一行不改就能继续调用，这是"分批迁移"能成立的前提；
+   - 兼容面**不许再自带一套寄存器访问**，而要落在 NuttX 的标准框架上：`uart_ops_s`、`rtc_ops_s`、
+     `mtd_dev_s`、`dma_dev_s`、`adc_ops_s`、`watchdog_ops_s`、`pm_register`…；
+   - **ops 的方法体就是原 Armino 的寄存器写法**：一个单元只有一份实现，Armino 面和 `/dev/<node>` 共用它；
+   - 判定方式：同一个语义必须两个面都跑通。RTC 的验收就是两组——设备口 `RTC_SET_TIME`/`RTC_RD_TIME`
+     往返，内核口 `clock_settime`/`clock_gettime` 并确认 `/dev/rtc0` 跟着变；
+   - **例外必须写明**：确实没有 NuttX 等价物的那一小块（例：AON RTC 的 µs 单调计数，框架只有秒级）
+     留在驱动内部，并在本文档"ops 语义完整性"一类的表里写清理由；
+   - 推论：**一个外设如果 NuttX 有框架而我们没挂，它就是没做完**，不能算"已经原生化"。
+     当前欠账：看门狗（`/dev/watchdog0`）、GPIO（`/dev/gpio0`）、温度/电压（`/dev/adc0`），
+     以及 UART 的"两面未合一"（控制台 ops 直接调 `uart_ll_*`，Armino 面走 `uart_hal_*`）。
 
 ## 机械验收命令
 
