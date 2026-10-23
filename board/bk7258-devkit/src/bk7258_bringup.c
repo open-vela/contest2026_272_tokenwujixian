@@ -32,6 +32,7 @@ int bk7258_status_led_initialize(void);
 
 #include <arch/chip/bk7258_ap_boot.h>
 #include <arch/chip/bk7258_mb_ipc.h>
+#include <arch/chip/bk7258_gpio.h>
 #include <arch/chip/bk7258_memorymap.h>
 #include <arch/chip/bk7258_reset.h>
 #include <arch/chip/bk7258_rtc.h>
@@ -306,6 +307,20 @@ void board_late_initialize(void)
    * across sleep).  Registered before the timer so the time base exists
    * before anything asks for the wall clock.
    */
+
+#ifdef CONFIG_DEV_GPIO
+  {
+    int gio_ret = bk7258_gpio_initialize();
+    if (gio_ret < 0)
+      {
+        syslog(LOG_ERR, "[BK7258] /dev/gpio0 register failed: %d\n", gio_ret);
+      }
+    else
+      {
+        syslog(LOG_INFO, "[BK7258] /dev/gpio0 registered OK\n");
+      }
+  }
+#endif
 
 #ifdef CONFIG_WATCHDOG
   {

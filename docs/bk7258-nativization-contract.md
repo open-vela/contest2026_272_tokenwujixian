@@ -1024,3 +1024,24 @@ bk_aon_rtc_*（pm / low_pwr / rosc_ppm / flash_notify / saradc_notify / wifi）
 | `.text` | 1,009,168 → 1,010,900 B（+1,732：框架 + 我们 5 个 ops） |
 | `nm -u` | 0 |
 | 探针 | `bk7258_drvtest wdg` → GETSTATUS / SETTIMEOUT / GETSTATUS / KEEPALIVE，不碰 STOP |
+
+---
+
+## 阶段二第三批：GPIO 的标准面（`/dev/gpio0`）
+
+`chips/bk7258/bk7258_gpio.c` 尾部新增 `gpio_operations_s` 与 `gpio_pin_register()`：
+`go_read` → `bk7258_gpio_read()`，`go_write` → `bk7258_gpio_write()`。**ops 的方法体就是这一层原有的
+读写函数**，没有第二套寄存器路径——第 5 条不变式。
+
+引脚归属交给板级：`bk7258_gpio_pin_register(dev, minor)` 收引脚、方向、minor 号，默认只暴露
+**GPIO40（红色状态灯）**。选它的理由是"写错的代价可见且无害"，而且它是板上唯一已知的输出；
+它与 `bk7258_status_led.c` 共用这个脚，所以**探针读完会写回原值**，这不是所有权声明。
+
+### 验收
+
+| 项 | 结果 |
+| --- | --- |
+| 框架进镜像 | `gpio_pin_register` 在符号表，`CONFIG_DEV_GPIO=y` |
+| `.text` | 1,010,900 → 1,013,220 B（+2,320：gpio 上半部 + 我们的 ops） |
+| `nm -u` | 0 |
+| 探针 | `bk7258_drvtest gpio` → read / write1 / read / write0 / read / 还原 |

@@ -62,6 +62,12 @@ void bk7258_rtc_probe(void);
 
 void bk7258_wdg_probe(void);
 
+/* Drive /dev/gpio0 (the red status LED) and read it back.  Evidence for the
+ * gpio device's standard face.
+ */
+
+void bk7258_gpio_probe(void);
+
 #ifdef __cplusplus
 }
 #endif

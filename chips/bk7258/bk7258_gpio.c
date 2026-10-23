@@ -1312,4 +1312,147 @@ bk_err_t bk_gpio_driver_deinit(void)
   return BK_OK;
 }
 
+/****************************************************************************
+ * NuttX GPIO device face
+ *
+ * The same pins, seen through NuttX's gpio character device (CONFIG_DEV_GPIO).
+ * This is the fifth invariant again: the Armino gpio API in this file stays the
+ * compatibility surface, /dev/gpioN is the standard one, and the ops bodies are
+ * bk7258_gpio_read() / bk7258_gpio_write() -- there is no second register path.
+ *
+ * Only pins the board registers are exposed, and the board owns the pin
+ * politics: bk7258_gpio_pin_register() takes the pin, the kind (in/out) and the
+ * minor number.  By default the CP exposes the red status LED (GPIO40), which
+ * bk7258_status_led.c also drives -- useful as a visible "did the write reach
+ * the pad" probe, not as an ownership claim.  A probe that toggles it should put
+ * the previous value back.
+ *
+ * CP only.
+ ****************************************************************************/
+
+#include <nuttx/ioexpander/gpio.h>
+
+struct bk7258_gpio_dev_s
+{
+  struct gpio_dev_s gpio;
+  uint32_t pin;
+};
+
+/* The red status LED.  Chosen because a wrong write here is visible and
+ * harmless, and because it is the one output the board already knows about.
+ */
+
+#define BK7258_GPIO0_PIN   40
+
+static int bk7258_gpio_go_read(struct gpio_dev_s *dev, bool *value)
+{
+  struct bk7258_gpio_dev_s *priv = (struct bk7258_gpio_dev_s *)dev;
+
+  if (value == NULL)
+    {
+      return -EINVAL;
+    }
+
+  *value = bk7258_gpio_read(priv->pin);
+  return OK;
+}
+
+static int bk7258_gpio_go_write(struct gpio_dev_s *dev, bool value)
+{
+  struct bk7258_gpio_dev_s *priv = (struct bk7258_gpio_dev_s *)dev;
+
+  bk7258_gpio_write(priv->pin, value);
+  return OK;
+}
+
+static const struct gpio_operations_s g_bk7258_gpio_ops =
+{
+  .go_read  = bk7258_gpio_go_read,
+  .go_write = bk7258_gpio_go_write,
+};
+
+static struct bk7258_gpio_dev_s g_bk7258_gpio0 =
+{
+  .gpio =
+    {
+      .gp_pintype = GPIO_OUTPUT_PIN,
+      .gp_ops     = &g_bk7258_gpio_ops,
+    },
+  .pin = BK7258_GPIO0_PIN,
+};
+
+int bk7258_gpio_pin_register(struct bk7258_gpio_dev_s *dev, int minor)
+{
+  return gpio_pin_register(&dev->gpio, minor);
+}
+
+int bk7258_gpio_initialize(void)
+{
+  /* Make sure the pin really is an output before the device exists, and keep
+   * whatever level it currently drives.
+   */
+
+  if (bk7258_gpio_config_output(BK7258_GPIO0_PIN,
+                                bk7258_gpio_read(BK7258_GPIO0_PIN)) < 0)
+    {
+      return -EIO;
+    }
+
+  return bk7258_gpio_pin_register(&g_bk7258_gpio0, 0);
+}
+
+/****************************************************************************
+ * Probe hook (see bk7258_probe.h)
+ ****************************************************************************/
+
+#include <fcntl.h>
+#include <stdio.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+
+#include "bk7258_probe.h"
+
+/* Drive the standard gpio device and read it back through the same ioctl the
+ * gpio app uses.  The pin is the red status LED, which bk7258_status_led.c also
+ * writes, so the probe puts the original level back at the end.
+ */
+
+void bk7258_gpio_probe(void)
+{
+  bool before = false;
+  bool after  = false;
+  int  fd     = open("/dev/gpio0", O_RDWR);
+
+  if (fd < 0)
+    {
+      printf("gpio: open(/dev/gpio0) failed: %d\n", errno);
+      return;
+    }
+
+  if (ioctl(fd, GPIOC_READ, (unsigned long)(uintptr_t)&before) == 0)
+    {
+      printf("gpio: read(before)=%d\n", before);
+    }
+
+  printf("gpio: write(1) -> %d\n", ioctl(fd, GPIOC_WRITE, 1));
+
+  if (ioctl(fd, GPIOC_READ, (unsigned long)(uintptr_t)&after) == 0)
+    {
+      printf("gpio: read(after write 1)=%d\n", after);
+    }
+
+  printf("gpio: write(0) -> %d\n", ioctl(fd, GPIOC_WRITE, 0));
+
+  if (ioctl(fd, GPIOC_READ, (unsigned long)(uintptr_t)&after) == 0)
+    {
+      printf("gpio: read(after write 0)=%d\n", after);
+    }
+
+  /* Restore. */
+
+  ioctl(fd, GPIOC_WRITE, before ? 1 : 0);
+  printf("gpio: restored to %d\n", before);
+  close(fd);
+}
+
 #endif /* !CONFIG_BK7258_COMPONENT_AP */
