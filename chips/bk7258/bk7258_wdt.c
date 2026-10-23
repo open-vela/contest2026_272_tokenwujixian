@@ -79,6 +79,14 @@
 
 #include <nuttx/clock.h>
 
+/* When the watchdog was last fed, in system ticks.  Written by the periodic
+ * feed handler and by the NuttX face's keepalive, read by getstatus, so
+ * /dev/watchdog0 reports the same truth the hardware is living with instead of
+ * a per-device guess.
+ */
+
+static volatile uint32_t s_wdt_last_feed_tick;
+
 #include <os/os.h>
 #include <os/mem.h>
 
@@ -388,6 +396,8 @@ void bk_wdt_feed_handle(void)
   GLOBAL_INT_DECLARATION();
   GLOBAL_INT_DISABLE();
 
+  s_wdt_last_feed_tick = clock_systime_ticks();
+
 #if (CONFIG_INT_WDT)
   bk_int_wdt_feed();
 #endif
@@ -677,7 +687,6 @@ struct bk7258_wdg_s
 {
   struct watchdog_lowerhalf_s lower;
   uint32_t timeout_ms;
-  uint32_t last_feed;
 };
 
 static int bk7258_wdg_start(struct watchdog_lowerhalf_s *lower);
@@ -707,7 +716,7 @@ static int bk7258_wdg_start(struct watchdog_lowerhalf_s *lower)
 {
   struct bk7258_wdg_s *priv = (struct bk7258_wdg_s *)lower;
 
-  priv->last_feed = clock_systime_ticks();
+  s_wdt_last_feed_tick = clock_systime_ticks();
   return bk_wdt_start(priv->timeout_ms) == BK_OK ? OK : -EIO;
 }
 
@@ -720,7 +729,7 @@ static int bk7258_wdg_keepalive(struct watchdog_lowerhalf_s *lower)
 {
   struct bk7258_wdg_s *priv = (struct bk7258_wdg_s *)lower;
 
-  priv->last_feed = clock_systime_ticks();
+  s_wdt_last_feed_tick = clock_systime_ticks();
   return bk_wdt_feed() == BK_OK ? OK : -EIO;
 }
 
@@ -739,7 +748,7 @@ static int bk7258_wdg_getstatus(struct watchdog_lowerhalf_s *lower,
    * period since our last feed, clamped at zero.
    */
 
-  elapsed = (clock_systime_ticks() - priv->last_feed);
+  elapsed = clock_systime_ticks() - s_wdt_last_feed_tick;
 
   status->flags     = WDFLAGS_ACTIVE | WDFLAGS_RESET;
   status->timeout   = priv->timeout_ms;
@@ -759,14 +768,19 @@ static int bk7258_wdg_settimeout(struct watchdog_lowerhalf_s *lower,
       return -EINVAL;
     }
 
-  priv->timeout_ms = timeout;
-  priv->last_feed  = clock_systime_ticks();
+  priv->timeout_ms     = timeout;
+  s_wdt_last_feed_tick = clock_systime_ticks();
 
   return bk_wdt_start(timeout) == BK_OK ? OK : -EIO;
 }
 
 int bk7258_wdg_initialize(void)
 {
+  if (s_wdt_last_feed_tick == 0)
+    {
+      s_wdt_last_feed_tick = clock_systime_ticks();
+    }
+
   return watchdog_register("/dev/watchdog0", &g_bk7258_wdg.lower);
 }
 
