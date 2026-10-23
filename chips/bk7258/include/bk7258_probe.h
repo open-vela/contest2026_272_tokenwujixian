@@ -56,6 +56,12 @@ void bk7258_drv_model_probe(void);
 
 void bk7258_rtc_probe(void);
 
+/* Walk /dev/watchdog0: status, settimeout, keepalive.  Evidence for the
+ * watchdog's standard face.
+ */
+
+void bk7258_wdg_probe(void);
+
 #ifdef __cplusplus
 }
 #endif

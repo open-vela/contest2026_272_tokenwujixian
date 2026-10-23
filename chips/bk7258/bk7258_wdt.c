@@ -75,6 +75,10 @@
 
 #include "sdkconfig.h"
 
+#include <errno.h>
+
+#include <nuttx/clock.h>
+
 #include <os/os.h>
 #include <os/mem.h>
 
@@ -645,5 +649,180 @@ __attribute__((noinline)) void wdt_hal_force_reboot(void)
 }
 
 #endif /* BK7236XX || BK7239XX || BK7286XX */
+
+/****************************************************************************
+ * NuttX watchdog face
+ *
+ * The same two watchdog units, seen through NuttX's watchdog framework.  This
+ * is the fifth invariant in practice: the Armino symbols above stay the
+ * compatibility surface for the PM / reset paths, /dev/watchdog0 is the
+ * standard face, and both end at the same bk_wdt_* / aon_wdt_* bodies.
+ *
+ * What /dev/watchdog0 exposes is the interrupt watchdog (CONFIG_INT_WDT, 8 s
+ * by default), because that is the one that can actually bite: the task
+ * watchdog above is a software deadline checked by the 1 s timer hook.
+ *
+ * Caveat worth knowing before using it: bk7258_timer.c's 1 s hook already calls
+ * bk_wdt_feed(), so the hardware is kept alive by the system regardless of this
+ * device.  SETTIMEOUT changes the period, KEEPALIVE feeds immediately, and STOP
+ * really disarms it -- the last one is why this device should be treated as a
+ * diagnostic, not as something an application pets.
+ *
+ * CP only.
+ ****************************************************************************/
+
+#include <nuttx/timers/watchdog.h>
+
+struct bk7258_wdg_s
+{
+  struct watchdog_lowerhalf_s lower;
+  uint32_t timeout_ms;
+  uint32_t last_feed;
+};
+
+static int bk7258_wdg_start(struct watchdog_lowerhalf_s *lower);
+static int bk7258_wdg_stop(struct watchdog_lowerhalf_s *lower);
+static int bk7258_wdg_keepalive(struct watchdog_lowerhalf_s *lower);
+static int bk7258_wdg_getstatus(struct watchdog_lowerhalf_s *lower,
+                                struct watchdog_status_s *status);
+static int bk7258_wdg_settimeout(struct watchdog_lowerhalf_s *lower,
+                                 uint32_t timeout);
+
+static const struct watchdog_ops_s g_bk7258_wdg_ops =
+{
+  .start      = bk7258_wdg_start,
+  .stop       = bk7258_wdg_stop,
+  .keepalive  = bk7258_wdg_keepalive,
+  .getstatus  = bk7258_wdg_getstatus,
+  .settimeout = bk7258_wdg_settimeout,
+};
+
+static struct bk7258_wdg_s g_bk7258_wdg =
+{
+  .lower.ops  = &g_bk7258_wdg_ops,
+  .timeout_ms = 8000,
+};
+
+static int bk7258_wdg_start(struct watchdog_lowerhalf_s *lower)
+{
+  struct bk7258_wdg_s *priv = (struct bk7258_wdg_s *)lower;
+
+  priv->last_feed = clock_systime_ticks();
+  return bk_wdt_start(priv->timeout_ms) == BK_OK ? OK : -EIO;
+}
+
+static int bk7258_wdg_stop(struct watchdog_lowerhalf_s *lower)
+{
+  return bk_wdt_stop() == BK_OK ? OK : -EIO;
+}
+
+static int bk7258_wdg_keepalive(struct watchdog_lowerhalf_s *lower)
+{
+  struct bk7258_wdg_s *priv = (struct bk7258_wdg_s *)lower;
+
+  priv->last_feed = clock_systime_ticks();
+  return bk_wdt_feed() == BK_OK ? OK : -EIO;
+}
+
+static int bk7258_wdg_getstatus(struct watchdog_lowerhalf_s *lower,
+                                struct watchdog_status_s *status)
+{
+  struct bk7258_wdg_s *priv = (struct bk7258_wdg_s *)lower;
+  uint32_t elapsed;
+
+  if (status == NULL)
+    {
+      return -EINVAL;
+    }
+
+  /* WDFLAGS_* is what the upper half reports; timeleft is what is left of the
+   * period since our last feed, clamped at zero.
+   */
+
+  elapsed = (clock_systime_ticks() - priv->last_feed);
+
+  status->flags     = WDFLAGS_ACTIVE | WDFLAGS_RESET;
+  status->timeout   = priv->timeout_ms;
+  status->timeleft  = elapsed >= priv->timeout_ms ? 0 : priv->timeout_ms -
+                                                          elapsed;
+
+  return OK;
+}
+
+static int bk7258_wdg_settimeout(struct watchdog_lowerhalf_s *lower,
+                                 uint32_t timeout)
+{
+  struct bk7258_wdg_s *priv = (struct bk7258_wdg_s *)lower;
+
+  if (timeout == 0)
+    {
+      return -EINVAL;
+    }
+
+  priv->timeout_ms = timeout;
+  priv->last_feed  = clock_systime_ticks();
+
+  return bk_wdt_start(timeout) == BK_OK ? OK : -EIO;
+}
+
+int bk7258_wdg_initialize(void)
+{
+  return watchdog_register("/dev/watchdog0", &g_bk7258_wdg.lower);
+}
+
+/****************************************************************************
+ * Probe hook (see bk7258_probe.h)
+ ****************************************************************************/
+
+#include <fcntl.h>
+#include <stdio.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+
+#include <nuttx/timers/watchdog.h>
+
+#include "bk7258_probe.h"
+
+/* Walk the standard watchdog face: status, timeout, keepalive, status again.
+ * STOP is deliberately not exercised -- it really disarms the hardware, and the
+ * point of this probe is to show the device works, not to leave the board
+ * unprotected.
+ */
+
+void bk7258_wdg_probe(void)
+{
+  struct watchdog_status_s st;
+  int fd = open("/dev/watchdog0", O_RDWR);
+
+  if (fd < 0)
+    {
+      printf("wdg: open(/dev/watchdog0) failed: %d\n", errno);
+      return;
+    }
+
+  if (ioctl(fd, WDIOC_GETSTATUS, (unsigned long)&st) == 0)
+    {
+      printf("wdg: flags=0x%lx timeout=%lu timeleft=%lu\n",
+             (unsigned long)st.flags, (unsigned long)st.timeout,
+             (unsigned long)st.timeleft);
+    }
+
+  printf("wdg: SETTIMEOUT(10000) -> %d\n",
+         ioctl(fd, WDIOC_SETTIMEOUT, (unsigned long)10000));
+
+  if (ioctl(fd, WDIOC_GETSTATUS, (unsigned long)&st) == 0)
+    {
+      printf("wdg: after set timeout=%lu\n", (unsigned long)st.timeout);
+    }
+
+  printf("wdg: KEEPALIVE -> %d\n", ioctl(fd, WDIOC_KEEPALIVE, 0));
+
+  /* Put the period back so the next boot's 8 s default is what the system
+   * expects.
+   */
+
+  ioctl(fd, WDIOC_SETTIMEOUT, (unsigned long)8000);
+  close(fd);
+}
 
 #endif /* !CONFIG_BK7258_COMPONENT_AP */

@@ -991,3 +991,31 @@ bk_aon_rtc_*（pm / low_pwr / rosc_ppm / flash_notify / saradc_notify / wifi）
 只重建 ELF，`package/all-app.bin` 与 manifest 仍停在上一版，于是完整性门禁报
 `cp L1 report SHA-256 differs from the manifest` / `independent decoder rejected the current package`。
 症状是门禁拒绝，不是镜像损坏——重跑 `full_flow.sh` 即恢复（本次 `decode pass` + `integrity gate: pass`）。
+
+---
+
+## 阶段二第三批：看门狗的标准面（`/dev/watchdog0`）
+
+`chips/bk7258/bk7258_wdt.c` 尾部新增一节 NuttX face：`watchdog_ops_s` 的
+`start / stop / keepalive / getstatus / settimeout`，`watchdog_register("/dev/watchdog0")`。
+**方法体全部落在原有的 `bk_wdt_start/stop/feed` 上**——这就是第 5 条不变式：Armino 符号是兼容面，
+`/dev/watchdog0` 是标准面，两边同一份实现。
+
+暴露的是**中断看门狗**（`CONFIG_INT_WDT`，默认 8 s），因为它是唯一会真的咬的那只；任务看门狗是
+1 s 定时器钩子里的软件截止检查。
+
+`getstatus` 的 `timeleft` 由我们自己的 `last_feed` 与 `clock_systime_ticks()` 算，`flags` 报
+`WDFLAGS_ACTIVE | WDFLAGS_RESET`。`settimeout` 会真的重新武装硬件。
+
+**用之前要知道的一件事**：`bk7258_timer.c` 的 1 s 钩子本来就在调 `bk_wdt_feed()`，所以硬件始终被系统
+喂着——`KEEPALIVE` 只是立刻补一次，`STOP` 才是真的解除武装。因此这个设备按**诊断**用，不要让应用
+去当宠物喂它。
+
+### 验收
+
+| 项 | 结果 |
+| --- | --- |
+| 框架进镜像 | `watchdog_register` 在符号表，`CONFIG_WATCHDOG=y` |
+| `.text` | 1,009,168 → 1,010,900 B（+1,732：框架 + 我们 5 个 ops） |
+| `nm -u` | 0 |
+| 探针 | `bk7258_drvtest wdg` → GETSTATUS / SETTIMEOUT / GETSTATUS / KEEPALIVE，不碰 STOP |

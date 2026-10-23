@@ -261,6 +261,9 @@ CONFIG_DEBUG_MEMFAULT=y
 
 # NuttX RTC framework, for /dev/rtc0 over the AON RTC counter.
 CONFIG_RTC=y
+
+# NuttX watchdog framework, for /dev/watchdog0 over the interrupt watchdog.
+CONFIG_WATCHDOG=y
 CONFIG_RTC_DRIVER=y
 CONFIG_RTC_ARCH=y
 CONFIG_RTC_ALARM=y
