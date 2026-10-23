@@ -258,3 +258,9 @@ CONFIG_ARM_MPU_NREGIONS=8
 # bk7258_mpu_test: dumps and checks the region table, plus two fault probes.
 CONFIG_BK7258_MPU_TEST=y
 CONFIG_DEBUG_MEMFAULT=y
+
+# NuttX RTC framework, for /dev/rtc0 over the AON RTC counter.
+CONFIG_RTC=y
+CONFIG_RTC_DRIVER=y
+CONFIG_RTC_ARCH=y
+CONFIG_RTC_DATETIME=y

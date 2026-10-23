@@ -74,6 +74,8 @@ else()
        bk7258_trap_base.c
        bk7258_sys_audio_driver.c
        bk7258_aon_rtc_hal.c
+       bk7258_aon_rtc.c
+       bk7258_rtc.c
        bk7258_printf.c)
 
   if(CONFIG_BK7258_PSRAM)
@@ -143,6 +145,9 @@ if(CONFIG_BK7258_COMPONENT_CP)
                              ${NUTTX_CHIP_ABS_DIR}/armino_baseline/cp/middleware/driver/uart
                              ${NUTTX_CHIP_ABS_DIR}/armino_baseline/cp/components/bk_common/include
                              ${NUTTX_CHIP_ABS_DIR}/armino_baseline/cp/middleware/driver/bk7258
+                             # bk7258_aon_rtc.c keeps its authority signature
+                             # from aon_rtc_driver_64bit.h in this directory.
+                             ${NUTTX_CHIP_ABS_DIR}/armino_baseline/cp/middleware/driver/rtc
                              # bk7258_driver.c and bk7258_dd.c keep their
                              # authority signatures from dd_pub.h and
                              # drv_model.h in this directory.
