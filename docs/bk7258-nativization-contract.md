@@ -1233,3 +1233,49 @@ EasyFlash 初始化成功这一行是关键证据：它读 ENV 分区，走的�
 | 两个成员在 map | 均 **0** |
 | `nm -u` | 0 |
 | `.text` | 与上一片相同（两族符号此前已在镜像里） |
+
+---
+
+## 判据升级：从"逐字节相同"到"MMIO 序列相同"
+
+### 为什么要换
+
+前 20 多个单元用的是**搬运 + 逐字节证明**：函数体原样搬过来、只改排版，机器码与权威对象逐字节相同。
+这只满足不变式 1、2，**不变式 3（C 写法原生 Vela 化）没有做到**——`GLOBAL_INT_*`、`UINT32`、`os_*`、
+`BK_LOG*` 全都留在原地。用户 2026-10-22 指出："两个文件都整份搬运，那不就是没有原生化了吗"——成立。
+
+而第 5 条规则原话是"ops 的**方法体就是原 Armino 的寄存器写法**"，说的是**寄存器写法**，不是源码文本。
+所以重写函数体是允许的、也是要求的；判据应该是"同样的寄存器访问序列与语义"，不是"同样的机器码"。
+
+### 新判据与工具
+
+`my_docs/bk7258-wifi/tools/mmio_seq.py`（仓库外）比对两个对象里同名符号的：
+
+- **数据访问序列**：`ldr/str/ldrb/strb/...` 的**偏移量**与**顺序**（寄存器编号不参与比较——重写允许分配不同）；
+- **字面量池加载**：MMIO 基地址就是从这儿来的，等于在比"访问的是同一块寄存器"；
+- **调用目标**：`bl <symbol>` 的符号名。
+
+用法：`mmio_seq.py <旧.o> '*' -- <新.o> '*'`，退出码 0 表示全部一致。
+
+### 工具自证：它在已知相同的样本上跑，并抓出一个真缺陷
+
+正样本是已搬运的 flash 族（机器码逐字节相同，序列必然相同）：`flash_notify` 7/7、`flash_server` 3/3、
+`flash_driver_ext` 7/7 全部一致——工具可信。
+
+但 `flash_partition` 报了 2 个差异：`toHex` / `toHexByte` / `toHexStream`。
+
+```
+权威(toHex): uxtb r3,r0 / sub.w r2,r3,#48 / cmp r2,#9 / bhi …
+我们(toHex): mov r3,r0  / subs r0,#48    / uxtb r2,r0 / cmp r2,#9 / bls …
+```
+
+**这是真问题，而且暴露了我两处方法错误**：
+
+1. 之前"9/9 逐字节相同"是拿**standalone 编译**（Armino flags）比的，不是**构建真正产出的对象**
+   （arch 目标的 NuttX flags）。两者对 `char` 的处理不同 —— 就是 `trap_base` 那个 `-fsigned-char` 坑；
+2. 只比 standalone 就永远发现不了这种"flag 差异导致的构建产物不同"。
+
+修法同 `trap_base`：`set_property(SOURCE bk7258_flash_partition.c TARGET_DIRECTORY arch PROPERTY
+COMPILE_OPTIONS "-fsigned-char")`。修完 8/8 一致。
+
+**规则**：以后凡断言"逐字节相同"，比的对象必须是**构建产物**；standalone 编译只能用来快速迭代。

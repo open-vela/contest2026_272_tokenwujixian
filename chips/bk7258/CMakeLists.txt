@@ -101,6 +101,14 @@ if(CONFIG_BK7258_COMPONENT_CP)
   # otherwise.
   set_property(SOURCE bk7258_trap_base.c TARGET_DIRECTORY arch
                PROPERTY COMPILE_OPTIONS "-fsigned-char")
+
+  # Same reason: toHex/toHexByte/toHexStream in the partition layer branch on
+  # char values, and without the baseline's -fsigned-char they compile to
+  # different code than the authority object (uxtb + unsigned compares instead
+  # of signed ones).  Caught by my_docs/bk7258-wifi/tools/mmio_seq.py comparing
+  # the *built* object, not a standalone compile.
+  set_property(SOURCE bk7258_flash_partition.c TARGET_DIRECTORY arch
+               PROPERTY COMPILE_OPTIONS "-fsigned-char")
 endif()
 
 target_sources(arch PRIVATE ${SRCS})
