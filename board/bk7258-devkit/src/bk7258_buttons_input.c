@@ -55,6 +55,7 @@ typedef void (*remote_decide_fn)(enum remote_decision_e decision, void *ctx);
 typedef int  (*remote_pending_fn)(void *ctx);
 typedef void (*remote_scroll_fn)(int dir, void *ctx);
 typedef void (*remote_action_fn)(void *ctx);
+typedef int  (*remote_wake_fn)(void *ctx);
 
 struct remote_input_ops_s
 {
@@ -64,6 +65,7 @@ struct remote_input_ops_s
                 remote_scroll_fn scroll,
                 remote_action_fn model_next,
                 remote_action_fn session_new,
+                remote_wake_fn wake,
                 void *ctx);
   void (*detach)(void);
 };
@@ -294,6 +296,7 @@ static remote_pending_fn s_pending;
 static remote_scroll_fn s_scroll;
 static remote_action_fn s_model_next;
 static remote_action_fn s_session_new;
+static remote_wake_fn s_wake;
 static void *s_ctx;
 
 static void action_cancel(void)
@@ -378,6 +381,7 @@ static int keymap_attach(remote_decide_fn decide,
                          remote_scroll_fn scroll,
                          remote_action_fn model_next,
                          remote_action_fn session_new,
+                         remote_wake_fn wake,
                          void *ctx)
 {
   s_decide = decide;
@@ -385,6 +389,7 @@ static int keymap_attach(remote_decide_fn decide,
   s_scroll = scroll;
   s_model_next = model_next;
   s_session_new = session_new;
+  s_wake = wake;
   s_ctx = ctx;
   return 0;
 }
@@ -396,6 +401,7 @@ static void keymap_detach(void)
   s_scroll = NULL;
   s_model_next = NULL;
   s_session_new = NULL;
+  s_wake = NULL;
   s_ctx = NULL;
 }
 
@@ -426,7 +432,20 @@ static uint32_t now_ms(void)
 static void gesture_fire(uint32_t keys, enum gesture_e g)
 {
   const char *which = "-";
-  const struct keymap_s *m = keymap_lookup(keys, g, &which);
+  const struct keymap_s *m;
+
+  /* While the standby clock is up, a key press only unlocks the screen and is
+   * swallowed: the same S2 that wakes the device must not also answer a pending
+   * approval (or scroll). The wake entry point reports back whether it ate the
+   * press. */
+  if (s_wake != NULL && s_wake(s_ctx))
+    {
+      printf("[key] standby: keys=%lx gesture=%d -> wake (swallowed)\n",
+             (unsigned long)keys, g);
+      return;
+    }
+
+  m = keymap_lookup(keys, g, &which);
 
   printf("[key] %s: keys=%lx gesture=%d -> %s\n", which,
          (unsigned long)keys, g,
