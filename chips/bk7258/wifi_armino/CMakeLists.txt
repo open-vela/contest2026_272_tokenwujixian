@@ -191,6 +191,10 @@ if(CONFIG_BK7258_WIFI_ARMINO_BASELINE)
       # were writing the same enable and end-count registers.
       cp/middleware/driver/timer/timer_driver.c
       cp/middleware/soc/common/hal/timer_hal.c
+      # T14 fourth slice: the flash extensions (fast erase, split write for
+      # the radio/flash share, BLE sleep gating).  chips/bk7258/
+      # bk7258_flash_driver_ext.c provides the same 7 symbols, byte for byte.
+      cp/middleware/driver/flash/flash_driver_ext.c
       # T14 third slice: the flash command layer itself (read/write/erase,
       # status register, protection state machine, cross-core bracketing).
       # chips/bk7258/bk7258_flash_driver.c provides the same 30 symbols,

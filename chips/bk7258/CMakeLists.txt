@@ -79,6 +79,7 @@ else()
        bk7258_flash_hal.c
        bk7258_flash_partition.c
        bk7258_flash_driver.c
+       bk7258_flash_driver_ext.c
        bk7258_printf.c)
 
   if(CONFIG_BK7258_PSRAM)
