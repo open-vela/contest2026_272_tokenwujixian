@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-/* Start/stop the independent BK7258 ICU Timer0 channel. */
+/* Register TIMER_ID1 as /dev/timer1 (CONFIG_BK7258_TIMER). */
 
 int bk7258_timer_initialize(void);
 

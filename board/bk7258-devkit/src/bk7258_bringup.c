@@ -351,17 +351,17 @@ void board_late_initialize(void)
   }
 #endif
 
-#ifdef CONFIG_BK7258_TIMER0
+#ifdef CONFIG_BK7258_TIMER
   {
     int timer_ret = bk7258_timer_initialize();
     if (timer_ret < 0)
       {
-        syslog(LOG_ERR, "[BK7258] Timer0 lower-half init failed: %d\n",
+        syslog(LOG_ERR, "[BK7258] /dev/timer1 init failed: %d\n",
                timer_ret);
       }
     else
       {
-        syslog(LOG_INFO, "[BK7258] Timer0 lower-half registered\n");
+        syslog(LOG_INFO, "[BK7258] /dev/timer1 registered\n");
       }
 
     up_putc('L');
