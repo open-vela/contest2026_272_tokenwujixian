@@ -78,14 +78,7 @@
 #include <errno.h>
 
 #include <nuttx/clock.h>
-
-/* When the watchdog was last fed, in system ticks.  Written by the periodic
- * feed handler and by the NuttX face's keepalive, read by getstatus, so
- * /dev/watchdog0 reports the same truth the hardware is living with instead of
- * a per-device guess.
- */
-
-static volatile uint32_t s_wdt_last_feed_tick;
+#include <nuttx/timers/watchdog.h>
 
 #include <os/os.h>
 #include <os/mem.h>
@@ -132,7 +125,7 @@ static volatile uint32_t s_wdt_last_feed_tick;
 #define WDT_RETURN_ON_DRIVER_NOT_INIT() \
   do \
     { \
-      if (!s_wdt_driver_is_init) \
+      if (!g_bk7258_wdg.driver_init) \
         { \
           WDT_LOGE("WDT driver not init\r\n"); \
           return BK_ERR_WDT_DRIVER_NOT_INIT; \
@@ -143,7 +136,7 @@ static volatile uint32_t s_wdt_last_feed_tick;
 #define WDT_RETURN_ON_NOT_INIT() \
   do \
     { \
-      if (!(s_wdt.init_bits & BIT(0))) \
+      if (!(g_bk7258_wdg.drv.init_bits & BIT(0))) \
         { \
           return BK_ERR_WDT_NOT_INIT; \
         } \
@@ -186,9 +179,26 @@ typedef struct
  * Private Data
  ****************************************************************************/
 
-static wdt_driver_t s_wdt = {0};
-static bool         s_wdt_driver_is_init = false;
-static uint32_t     s_wdt_period = CONFIG_INT_WDT_PERIOD_MS;
+/* The interrupt watchdog has one state owner: the NuttX lower half.  The
+ * Armino bk_wdt_* face below reads and writes these same fields, so a direct
+ * bk_wdt_stop() from pm or flash_driver_ext is what /dev/watchdog0 reports.
+ * The fields are the baseline's s_wdt, s_wdt_driver_is_init and
+ * s_wdt_period, plus the time of the last reload of the counter.
+ */
+
+struct bk7258_wdg_s
+{
+  struct watchdog_lowerhalf_s lower;
+  wdt_driver_t                drv;
+  bool                        driver_init;
+  uint32_t                    period_ms;
+  volatile uint32_t           feed_tick;  /* last feed, system ticks */
+};
+
+static struct bk7258_wdg_s g_bk7258_wdg =
+{
+  .period_ms = CONFIG_INT_WDT_PERIOD_MS,
+};
 
 #if CONFIG_TASK_WDT
 static uint64_t s_last_task_wdt_feed_tick = 0;
@@ -221,8 +231,8 @@ __IRAM_SEC static void wdt_init_common(void)
 
 __attribute__((section(".itcm_sec_code"))) static void wdt_deinit_common(void)
 {
-  s_wdt_period = CONFIG_INT_WDT_PERIOD_MS;
-  wdt_hal_reset_config_to_default(&s_wdt.hal);
+  g_bk7258_wdg.period_ms = CONFIG_INT_WDT_PERIOD_MS;
+  wdt_hal_reset_config_to_default(&g_bk7258_wdg.drv.hal);
 #if (CONFIG_SYSTEM_CTRL)
   close_wdt();
   /* sys_drv_dev_clk_pwr_up(CLK_PWR_ID_WDG_CPU, CLK_PWR_CTRL_PWR_DOWN); */
@@ -245,26 +255,26 @@ static void aon_wdt_deinit_common(void)
 
 bk_err_t bk_wdt_driver_init(void)
 {
-  if (s_wdt_driver_is_init)
+  if (g_bk7258_wdg.driver_init)
     {
       return BK_OK;
     }
 
-  os_memset(&s_wdt, 0, sizeof(s_wdt));
-  wdt_hal_init(&s_wdt.hal);
+  os_memset(&g_bk7258_wdg.drv, 0, sizeof(g_bk7258_wdg.drv));
+  wdt_hal_init(&g_bk7258_wdg.drv.hal);
 
   bk_timer_start(TIMER_ID2, WDT_BARK_TIME_MS, (timer_isr_t)bk_wdt_feed_handle);
   sys_drv_nmi_wdt_set_clk_div(NMI_WDT_CLK_DIV_16);
   aon_pmu_drv_wdt_rst_dev_enable();
 
-  s_wdt_driver_is_init = true;
+  g_bk7258_wdg.driver_init = true;
 
   return BK_OK;
 }
 
 bk_err_t bk_wdt_driver_deinit(void)
 {
-  if (!s_wdt_driver_is_init)
+  if (!g_bk7258_wdg.driver_init)
     {
       return BK_OK;
     }
@@ -273,7 +283,7 @@ bk_err_t bk_wdt_driver_deinit(void)
 
   bk_timer_stop(TIMER_ID2);
 
-  s_wdt_driver_is_init = false;
+  g_bk7258_wdg.driver_init = false;
 
   return BK_OK;
 }
@@ -292,11 +302,12 @@ __IRAM_SEC bk_err_t bk_wdt_start(uint32_t timeout_ms)
       timeout_ms = CONFIG_INT_WDT_PERIOD_MS;
     }
 
-  s_wdt_period = timeout_ms;
+  g_bk7258_wdg.period_ms = timeout_ms;
   wdt_init_common();
-  wdt_hal_init_wdt(&s_wdt.hal, timeout_ms);
-  s_wdt.init_bits |= BIT(0);
-  WDT_LOGV("bk_wdt_start, s_wdt.init_bits:%x\n", s_wdt.init_bits);
+  wdt_hal_init_wdt(&g_bk7258_wdg.drv.hal, timeout_ms);
+  g_bk7258_wdg.feed_tick = clock_systime_ticks();
+  g_bk7258_wdg.drv.init_bits |= BIT(0);
+  WDT_LOGV("bk_wdt_start, g_bk7258_wdg.drv.init_bits:%x\n", g_bk7258_wdg.drv.init_bits);
 
   return BK_OK;
 }
@@ -305,8 +316,8 @@ __attribute__((section(".itcm_sec_code"))) bk_err_t bk_wdt_stop(void)
 {
   WDT_RETURN_ON_DRIVER_NOT_INIT();
   wdt_deinit_common();
-  s_wdt.init_bits &= ~BIT(0);
-  /* WDT_LOGV("bk_wdt_stop, s_wdt.init_bits:%x\n", s_wdt.init_bits); */
+  g_bk7258_wdg.drv.init_bits &= ~BIT(0);
+  /* WDT_LOGV("bk_wdt_stop, g_bk7258_wdg.drv.init_bits:%x\n", g_bk7258_wdg.drv.init_bits); */
   return BK_OK;
 }
 
@@ -315,7 +326,8 @@ bk_err_t bk_wdt_feed(void)
   WDT_RETURN_ON_DRIVER_NOT_INIT();
   WDT_RETURN_ON_NOT_INIT();
 
-  wdt_hal_init_wdt(&s_wdt.hal, s_wdt_period);
+  wdt_hal_init_wdt(&g_bk7258_wdg.drv.hal, g_bk7258_wdg.period_ms);
+  g_bk7258_wdg.feed_tick = clock_systime_ticks();
 
   return BK_OK;
 }
@@ -388,15 +400,13 @@ void bk_task_wdt_timeout_check(void)
 
 bool bk_wdt_is_driver_inited(void)
 {
-  return s_wdt_driver_is_init;
+  return g_bk7258_wdg.driver_init;
 }
 
 void bk_wdt_feed_handle(void)
 {
   GLOBAL_INT_DECLARATION();
   GLOBAL_INT_DISABLE();
-
-  s_wdt_last_feed_tick = clock_systime_ticks();
 
 #if (CONFIG_INT_WDT)
   bk_int_wdt_feed();
@@ -681,14 +691,6 @@ __attribute__((noinline)) void wdt_hal_force_reboot(void)
  * CP only.
  ****************************************************************************/
 
-#include <nuttx/timers/watchdog.h>
-
-struct bk7258_wdg_s
-{
-  struct watchdog_lowerhalf_s lower;
-  uint32_t timeout_ms;
-};
-
 static int bk7258_wdg_start(struct watchdog_lowerhalf_s *lower);
 static int bk7258_wdg_stop(struct watchdog_lowerhalf_s *lower);
 static int bk7258_wdg_keepalive(struct watchdog_lowerhalf_s *lower);
@@ -706,18 +708,15 @@ static const struct watchdog_ops_s g_bk7258_wdg_ops =
   .settimeout = bk7258_wdg_settimeout,
 };
 
-static struct bk7258_wdg_s g_bk7258_wdg =
-{
-  .lower.ops  = &g_bk7258_wdg_ops,
-  .timeout_ms = 8000,
-};
+/* Every method reads and writes g_bk7258_wdg, the state the bk_wdt_* face
+ * above also uses; none of them keeps a copy of its own.
+ */
 
 static int bk7258_wdg_start(struct watchdog_lowerhalf_s *lower)
 {
   struct bk7258_wdg_s *priv = (struct bk7258_wdg_s *)lower;
 
-  s_wdt_last_feed_tick = clock_systime_ticks();
-  return bk_wdt_start(priv->timeout_ms) == BK_OK ? OK : -EIO;
+  return bk_wdt_start(priv->period_ms) == BK_OK ? OK : -EIO;
 }
 
 static int bk7258_wdg_stop(struct watchdog_lowerhalf_s *lower)
@@ -727,9 +726,6 @@ static int bk7258_wdg_stop(struct watchdog_lowerhalf_s *lower)
 
 static int bk7258_wdg_keepalive(struct watchdog_lowerhalf_s *lower)
 {
-  struct bk7258_wdg_s *priv = (struct bk7258_wdg_s *)lower;
-
-  s_wdt_last_feed_tick = clock_systime_ticks();
   return bk_wdt_feed() == BK_OK ? OK : -EIO;
 }
 
@@ -744,16 +740,28 @@ static int bk7258_wdg_getstatus(struct watchdog_lowerhalf_s *lower,
       return -EINVAL;
     }
 
-  /* WDFLAGS_* is what the upper half reports; timeleft is what is left of the
-   * period since our last feed, clamped at zero.
+  /* ACTIVE follows the driver's own started bit, so a bk_wdt_stop() from
+   * pm or flash_driver_ext shows up here.  timeleft is what is left of the
+   * period since the counter was last reloaded, clamped at zero.
    */
 
-  elapsed = clock_systime_ticks() - s_wdt_last_feed_tick;
+  elapsed = clock_systime_ticks() - priv->feed_tick;
 
-  status->flags     = WDFLAGS_ACTIVE | WDFLAGS_RESET;
-  status->timeout   = priv->timeout_ms;
-  status->timeleft  = elapsed >= priv->timeout_ms ? 0 : priv->timeout_ms -
-                                                          elapsed;
+  status->flags    = WDFLAGS_RESET;
+  if (priv->drv.init_bits & BIT(0))
+    {
+      status->flags |= WDFLAGS_ACTIVE;
+    }
+
+  status->timeout  = priv->period_ms;
+  status->timeleft = 0;
+
+  /* A stopped watchdog is not counting down. */
+
+  if ((status->flags & WDFLAGS_ACTIVE) && elapsed < priv->period_ms)
+    {
+      status->timeleft = priv->period_ms - elapsed;
+    }
 
   return OK;
 }
@@ -761,24 +769,22 @@ static int bk7258_wdg_getstatus(struct watchdog_lowerhalf_s *lower,
 static int bk7258_wdg_settimeout(struct watchdog_lowerhalf_s *lower,
                                  uint32_t timeout)
 {
-  struct bk7258_wdg_s *priv = (struct bk7258_wdg_s *)lower;
-
   if (timeout == 0)
     {
       return -EINVAL;
     }
 
-  priv->timeout_ms     = timeout;
-  s_wdt_last_feed_tick = clock_systime_ticks();
+  /* bk_wdt_start() records the period and reloads the counter. */
 
   return bk_wdt_start(timeout) == BK_OK ? OK : -EIO;
 }
 
 int bk7258_wdg_initialize(void)
 {
-  if (s_wdt_last_feed_tick == 0)
+  g_bk7258_wdg.lower.ops = &g_bk7258_wdg_ops;
+  if (g_bk7258_wdg.feed_tick == 0)
     {
-      s_wdt_last_feed_tick = clock_systime_ticks();
+      g_bk7258_wdg.feed_tick = clock_systime_ticks();
     }
 
   return watchdog_register("/dev/watchdog0", &g_bk7258_wdg.lower);
@@ -797,15 +803,35 @@ int bk7258_wdg_initialize(void)
 
 #include "bk7258_probe.h"
 
-/* Walk the standard watchdog face: status, timeout, keepalive, status again.
- * STOP is deliberately not exercised -- it really disarms the hardware, and the
- * point of this probe is to show the device works, not to leave the board
- * unprotected.
+static void bk7258_wdg_probe_status(int fd, const char *when)
+{
+  struct watchdog_status_s st;
+
+  if (ioctl(fd, WDIOC_GETSTATUS, (unsigned long)&st) == 0)
+    {
+      printf("wdg: %-22s active=%d timeout=%lu timeleft=%lu\n", when,
+             (st.flags & WDFLAGS_ACTIVE) != 0, (unsigned long)st.timeout,
+             (unsigned long)st.timeleft);
+    }
+  else
+    {
+      printf("wdg: %-22s GETSTATUS failed: %d\n", when, errno);
+    }
+}
+
+/* Walk the standard watchdog face, then change the state through the Armino
+ * face and read it back through /dev/watchdog0.  The second half is the
+ * evidence that the two faces share one state: before 2026-10-23 the device
+ * kept its own timeout and always reported ACTIVE.
+ *
+ * Expected: after "armino stop" active=0; after "armino start(default)"
+ * active=1 and timeout=CONFIG_INT_WDT_PERIOD_MS, even though /dev set 10000
+ * just before -- the same stop/start pair flash_driver_ext runs around an
+ * erase.  The hardware is disarmed only between the two calls.
  */
 
 void bk7258_wdg_probe(void)
 {
-  struct watchdog_status_s st;
   int fd = open("/dev/watchdog0", O_RDWR);
 
   if (fd < 0)
@@ -814,28 +840,27 @@ void bk7258_wdg_probe(void)
       return;
     }
 
-  if (ioctl(fd, WDIOC_GETSTATUS, (unsigned long)&st) == 0)
-    {
-      printf("wdg: flags=0x%lx timeout=%lu timeleft=%lu\n",
-             (unsigned long)st.flags, (unsigned long)st.timeout,
-             (unsigned long)st.timeleft);
-    }
+  bk7258_wdg_probe_status(fd, "initial");
 
   printf("wdg: SETTIMEOUT(10000) -> %d\n",
          ioctl(fd, WDIOC_SETTIMEOUT, (unsigned long)10000));
-
-  if (ioctl(fd, WDIOC_GETSTATUS, (unsigned long)&st) == 0)
-    {
-      printf("wdg: after set timeout=%lu\n", (unsigned long)st.timeout);
-    }
+  bk7258_wdg_probe_status(fd, "after dev settimeout");
 
   printf("wdg: KEEPALIVE -> %d\n", ioctl(fd, WDIOC_KEEPALIVE, 0));
 
-  /* Put the period back so the next boot's 8 s default is what the system
-   * expects.
-   */
+  printf("wdg: armino bk_wdt_stop -> %d\n", bk_wdt_stop());
+  bk7258_wdg_probe_status(fd, "after armino stop");
 
-  ioctl(fd, WDIOC_SETTIMEOUT, (unsigned long)8000);
+  printf("wdg: armino bk_wdt_start(%d) -> %d\n", CONFIG_INT_WDT_PERIOD_MS,
+         bk_wdt_start(CONFIG_INT_WDT_PERIOD_MS));
+  bk7258_wdg_probe_status(fd, "after armino start");
+
+  printf("wdg: dev STOP -> %d\n", ioctl(fd, WDIOC_STOP, 0));
+  bk7258_wdg_probe_status(fd, "after dev stop");
+
+  printf("wdg: dev START -> %d\n", ioctl(fd, WDIOC_START, 0));
+  bk7258_wdg_probe_status(fd, "after dev start");
+
   close(fd);
 }
 
