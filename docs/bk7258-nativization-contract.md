@@ -39,9 +39,20 @@
 5. **标准 ops 在中间，原实现在里面**
    - 对外的 Armino 形状符号是**兼容面**：其余模块（`pm`、`low_pwr`、`rosc_ppm`、`flash_notify`、
      `saradc_notify`、`bk_wifi_adapter`…）一行不改就能继续调用，这是"分批迁移"能成立的前提；
-   - 兼容面**不许再自带一套寄存器访问**，而要落在 NuttX 的标准框架上：`uart_ops_s`、`rtc_ops_s`、
-     `mtd_dev_s`、`dma_dev_s`、`adc_ops_s`、`watchdog_ops_s`、`pm_register`…；
-   - **ops 的方法体就是原 Armino 的寄存器写法**：一个单元只有一份实现，Armino 面和 `/dev/<node>` 共用它；
+   - 外设要挂到 NuttX 的标准框架上：`uart_ops_s`、`rtc_ops_s`、`mtd_dev_s`、`dma_dev_s`、`adc_ops_s`、
+     `watchdog_ops_s`、`pm_register`…；
+   - **一个单元只有一份实现**，Armino 面和 `/dev/<node>` 共用它。判两件事，**不判调用方向**：
+     (1) **寄存器一份**——同一个寄存器不许两面各写一套；
+     (2) **状态不分叉**——lower-half 不留会和驱动状态量走散的副本，Armino 直接调 `bk_*` 之后，
+     `/dev` 面读到的仍然对（从驱动的状态量现读）。
+     ops 调 `bk_*`、或 `bk_*` 调 ops 都可以；上游 NuttX 的 `esp_wdt.c` / `esp_rtc.c` / `esp_timer.c`
+     就是 ops 方法体调厂商 HAL；
+   - **目标形态：状态归 lower-half**（用户 2026-10-23 口径）。上游是
+     `/dev/xxx → ops（lower-half 持有状态）→ *_hal / *_ll（无状态）`，厂商驱动层不编进来。我们保留
+     Armino 驱动层只为兼容调用方，所以做法是：驱动的状态量**搬进 lower-half 结构体**，`bk_*` 兼容面
+     读写同一个结构体，调用方一行不改。上面两条是合格线，这一条才算原生化完成。
+     样板：`bk7258_wdt.c` 的 `struct bk7258_wdg_s`（`lower` + 基线的 `s_wdt` / `s_wdt_driver_is_init` /
+     `s_wdt_period` + 最后一次重装计数器的 tick）；
    - 判定方式：同一个语义必须两个面都跑通。RTC 的验收就是两组——设备口 `RTC_SET_TIME`/`RTC_RD_TIME`
      往返，内核口 `clock_settime`/`clock_gettime` 并确认 `/dev/rtc0` 跟着变；
    - **例外必须写明**：确实没有 NuttX 等价物的那一小块（例：AON RTC 的 µs 单调计数，框架只有秒级）
@@ -55,8 +66,25 @@
      **(b) 契约类型被换成"看起来更 NuttX"的类型**（例：签名里 `UINT32` 不能换 `uint32_t`，
      这套头里两者宽度相同但类型不同，换了直接 `conflicting types`）。
    - 推论：**一个外设如果 NuttX 有框架而我们没挂，它就是没做完**，不能算"已经原生化"。
-     当前欠账：看门狗（`/dev/watchdog0`）、GPIO（`/dev/gpio0`）、温度/电压（`/dev/adc0`），
-     以及 UART 的"两面未合一"（控制台 ops 直接调 `uart_ll_*`，Armino 面走 `uart_hal_*`）。
+     当前状态（2026-10-23 逐个读 ops 方法体核对；导出数用基线 `.o` 的 `nm --defined-only -g`
+     对 `libarch.a` 做 `comm -23`，CP 构建 `nuttx.map` 11:16）：
+
+     | 外设 | `/dev` 面 | 两面是否同一份实现 | 第 5 条 |
+     | --- | --- | --- | --- |
+     | RTC | `rtc_ops_s` 已挂 | 寄存器一份：ops 调 `bk_aon_rtc_get_us` / `bk_alarm_unregister`。状态不分叉：lower-half 只有 `lower`，时间从驱动现读，闹钟是 `bk_alarm` 链表上的一个节点 | 通过（`RTC_SET_TIME` ↔ `clock_settime` 的板上往返未做） |
+     | 看门狗 | `/dev/watchdog0` 已挂 | 2026-10-23 状态搬进 lower-half：`struct bk7258_wdg_s` 持有 `drv`（原 `s_wdt`）、`driver_init`、`period_ms`、`feed_tick`，`bk_wdt_*` 读写同一个结构体。修掉的两处分叉：原 `getstatus` 的 `timeout` 读 lower-half 自存的 `timeout_ms`（`bk7258_flash_driver_ext.c:540-544` stop/start 之后与驱动周期不一致），`flags` 写死 `ACTIVE`（`bk_wdt_stop()` 后仍报 active）。现在 `ACTIVE` 跟 `init_bits` BIT(0)，`timeout` 读 `period_ms`；`feed_tick` 只在真正重装计数器的 `bk_wdt_start`/`bk_wdt_feed` 里更新（原来在 `bk_wdt_feed_handle` 里无条件更新：1 s 节拍下 `INT_WDG_FEED_PERIOD_TICK`=500 恒满足，平时两者等价；看门狗被 stop 后 `bk_wdt_feed` 返回 `NOT_INIT` 不重装，旧写法仍刷新时间戳，`timeleft` 就是假的）。对基线函数体的偏离：`bk_wdt_start`/`bk_wdt_feed` 各多一次 `clock_systime_ticks()` 写 `feed_tick`，寄存器写序与返回值不变。43/43 导出不变，`nm -u` 0，`decode pass`。板上（镜像 `0874d004…`，`bk7258_drvtest wdg`）：dev `SETTIMEOUT(10000)` 后 timeout=10000；Armino `bk_wdt_stop()` 后 `/dev/watchdog0` 报 active=0、timeout=8000（基线 `wdt_deinit_common` 把周期复位成默认值，`/dev` 面跟着变）；Armino `bk_wdt_start(8000)` 后 active=1；dev `STOP`/`START` 返回 0，active 0/1 跟随。停狗期间 `timeleft` 原先仍按上次重装倒数（7999、7987），已改为未 ACTIVE 时报 0；镜像 `a21c3d6d…` 上板复核：`after armino stop`、`after dev stop` 两行 `timeleft=0`，其余各行与上一轮一致 | 通过 |
+     | UART | `/dev/console`、`/dev/ttyS0` | 两面都落在 `uart_ll_*`（`uart_hal_*` 是它的宏）。2026-10-23 起 `bk7258_lowputc()` 的 FIFO 轮询/写入和 `bk7258_lowsetup()` 的关中断/清中断也改走 `uart_ll_*`；反汇编仍是 `ldr [base,#0x18]` 测 bit20、`str [base,#0x1c]`，`lowsetup` 写序 `0x08←1, 0x20←0, 0x24←0xff, 0x10←cfg` 不变。状态：控制台 ops 自存 `priv->ie`；Armino 面能改 UART0 中断使能的 `bk_uart_init` 链在镜像里不可达（见批次 4 实现记录），所以今天不分叉——它一旦变得可达，`priv->ie` 就要改为现读 | 通过（例外：`lowsetup` 里 `GLOBAL_CTRL`、`CONFIG` 两次整字写保留——`uart_ll_soft_reset` 与逐字段 setter 都是读改写，换了就改变写入序列，违反第 2 条；SoC 中断路由 `BK7258_SYS_CPU0_INT_EN` 无 `uart_ll` 对应） |
+     | GPIO | `/dev/gpio0` 已挂 | 2026-10-23 起 `go_write/go_read` 调 `bk_gpio_set_output_*` / `bk_gpio_get_value`（反汇编确认；未上板），`/dev` 面与 Armino 面同一份。剩下：板级 helper `bk7258_gpio_write/config_*`（LCD、LED、SPI bitbang，AP 也编）自带 CFG 读改写；缺导出 23 个（`gpio_driver` 12、`gpio_driver_base` 11） | 未完 |
+     | 定时器 | `/dev/timer1`（`CONFIG_BK7258_TIMER`，原 `CONFIG_BK7258_TIMER0` 改名，CP 默认开） | 2026-10-23 重写：删掉自带寄存器序列的旧 `/dev/timer0` 面；状态归 lower-half——每通道一条 `struct bk7258_timer_s`（`lower`、`isr`=原 `s_timer_isr[]`、`timeout_us`、上半部 `callback/arg`），`bk_timer_*` 读写同一张表；寄存器序列抽成 `bk_timer_program()`，两面共用；中断仍只由 `bk_timer_group_isr()` 分发，通道的 `isr` 槽指向 `bk7258_timer_tick()` 再调上半部回调。只暴露 `TIMER_ID1`：`ID0` 是 `bk_timer_delay_us()` 的自由计数器，`ID2` 是 1 s 喂狗，交给用户态会被 ioctl 停掉。`timer_driver` 16/16 导出；**`timer_hal` 仍缺 7 个**（`timer_hal_init/init_timer/set_period/start_common/stop_common/get_count/cal_end_count`，参数是 `timer_hal_t *`，要引 `timer_hal.h` 的头链）。`nm -u` 0，`decode pass`。板上（镜像 `a21c3d6d…`，NuttX `timer` 示例，`/dev/timer1`，100 ms × 20）：`SETTIMEOUT` 后 timeout=100000；挂回调后 flags=2（HANDLER）；START 后每次采样 flags=3、`nsignals` 1→20 与采样逐一对应；STOP 后 flags=2、timeleft=0。`timeleft` 稳定在 99740–99855 µs：信号打断 `usleep`，所以采样都落在刚重装之后，计数器从 0 往上数时 `(end-cnt)/26` 正应接近满周期（若是倒数会接近 0），且数值有抖动，说明确实读到了计数器。 | 通过；`timer_hal` 7 个导出未补 |
+     | 温度/电压 | `/dev/adc0` 未挂 | 随 T15 的 ADC | 未完 |
+     | Flash | `mtd_dev_s` 未挂 | — | 未完（T14） |
+
+     被推翻的旧写法：本段原先把看门狗列为欠账、把 GPIO 写成"`/dev/gpio0` 未挂"、把 UART 写成
+     "ops 调 `uart_ll_*` 而 Armino 面走 `uart_hal_*`"。前两条在代码补上后没有回写；第三条错在
+     `uart_hal_*` 本身就是 `uart_ll_*` 的宏，两面在 ll 层已经是同一份，真正的缺口是 `bk7258_lowputc()`。
+     同日还用过一个错误口径："第 5 条要求 Armino 面调 ops，ops 调 `bk_*` 算方向反了"，据此把 RTC、
+     看门狗判为不通过。错在判了调用方向：上游 NuttX 的 lower-half 普遍是 ops 调厂商 HAL，
+     第 5 条要防的是两份寄存器访问和走散的状态副本，不是谁调谁。不要再用这个口径。
 
 ## 机械验收命令
 
@@ -851,7 +879,8 @@ PRIMASK。改成 `getprimask()/setprimask()` 后正常。
 
 `uart_driver`（批次 4）、`stack_base` / `dd` / `driver` / `drv_model` / `arm` / `trap_base`（批次 7–12）、
 `sys_audio_driver`（批次 11）、`sys_touch_driver`（批次 7 前）、`touch_driver_v1_1` 与 `at_server`
-（排除）——**T17 的单元全部收敛完毕**，其中 10 个以"逐字节相同"收尾，2 个以"无传输层、整体删除"收尾。
+（排除）——**T17 的单元按前 4 条全部收敛完毕**（2026-10-23 按第 5 条复核：GPIO 两面未合一、
+UART 剩 `bk7258_lowputc()`，见文首"当前状态"表），其中 10 个以"逐字节相同"收尾，2 个以"无传输层、整体删除"收尾。
 
 批次 13 上板（镜像 `309486ca…`）：启动序列与前一批逐行一致（`psram init ok`、`EasyFlash success`、
 `wifi inited(1) ret(0)`、AP `scheduler-running`、`nsh-ap>` 就绪），没有 AT 相关报错。堆起点
