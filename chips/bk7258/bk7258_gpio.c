@@ -1353,14 +1353,14 @@ static int bk7258_gpio_go_read(struct gpio_dev_s *dev, bool *value)
       return -EINVAL;
     }
 
-  /* Read the output latch, not bk7258_gpio_read(): that one (like the Armino
-   * bk_gpio_get_input/get_output it mirrors) reports the *enable* bits in the
-   * config register, so it answers "is this pin an input" and never changes
-   * when the level changes.  BK7258_GPIO_CFG_OUTPUT is the level the driver
-   * drives, which is what an output device must report back.
+  /* Read the output latch, not bk_gpio_get_input/get_output: those report
+   * the *enable* bits in the config register, so they answer "is this pin an
+   * input" and never change when the level changes.  BK7258_GPIO_CFG_OUTPUT
+   * in the word bk_gpio_get_value() returns is the level the driver drives,
+   * which is what an output device must report back.
    */
 
-  *value = (getreg32(BK7258_GPIO_CFG(priv->pin)) &
+  *value = (bk_gpio_get_value((gpio_id_t)priv->pin) &
             BK7258_GPIO_CFG_OUTPUT) != 0;
   return OK;
 }
@@ -1368,9 +1368,15 @@ static int bk7258_gpio_go_read(struct gpio_dev_s *dev, bool *value)
 static int bk7258_gpio_go_write(struct gpio_dev_s *dev, bool value)
 {
   struct bk7258_gpio_dev_s *priv = (struct bk7258_gpio_dev_s *)dev;
+  bk_err_t ret;
 
-  bk7258_gpio_write(priv->pin, value);
-  return OK;
+  /* The Armino face is the implementation: it also refuses a pin that is not
+   * in output mode, which bk7258_gpio_initialize() guarantees for pin 40.
+   */
+
+  ret = value ? bk_gpio_set_output_high((gpio_id_t)priv->pin)
+              : bk_gpio_set_output_low((gpio_id_t)priv->pin);
+  return ret == BK_OK ? OK : -EIO;
 }
 
 static const struct gpio_operations_s g_bk7258_gpio_ops =
