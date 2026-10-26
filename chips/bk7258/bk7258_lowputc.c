@@ -11,6 +11,15 @@
 #include "include/bk7258_ap_boot.h"
 #include "include/bk7258_memorymap.h"
 
+/* The FIFO path goes through uart_ll, the same layer bk7258_uart.c and the
+ * Armino uart_hal_* face use, so UART0's TX has one implementation.
+ */
+
+#include "uart_hal.h"
+#include "uart_ll.h"
+
+static uart_hw_t *const g_uart0_hw = (uart_hw_t *)BK7258_UART0_BASE;
+
 void bk7258_lowsetup(void)
 {
   uint32_t config;
@@ -20,8 +29,8 @@ void bk7258_lowsetup(void)
   bk7258_gpio_uart0_tx();
 
   putreg32(UINT32_C(1), BK7258_UART_GLOBAL_CTRL);
-  putreg32(UINT32_C(0), BK7258_UART_INT_ENABLE);
-  putreg32(UINT32_C(0xff), BK7258_UART_INT_STATUS);
+  uart_ll_set_int_enable_status(g_uart0_hw, UART_ID_0, 0);
+  uart_ll_clear_interrupt_status(g_uart0_hw, UART_ID_0, 0xff);
 
   config = BK7258_UART_CONFIG_TX_EN | BK7258_UART_CONFIG_8BITS |
            BK7258_UART_CONFIG_DIV(divider);
@@ -41,11 +50,11 @@ void bk7258_lowputc(char ch)
       return;
     }
 
-  while ((getreg32(BK7258_UART_FIFO_STATUS) & BK7258_UART_FIFO_WR_READY) == 0)
+  while (!uart_ll_is_fifo_write_ready(g_uart0_hw, UART_ID_0))
     {
     }
 
-  putreg32((uint8_t)ch, BK7258_UART_FIFO_PORT);
+  uart_ll_write_byte(g_uart0_hw, UART_ID_0, (uint8_t)ch);
 }
 
 void arm_lowputc(char ch)
