@@ -1,0 +1,63 @@
+/****************************************************************************
+ * chips/bk7258/include/driver/uart_types.h
+ *
+ * This file replaces cp/include/driver/uart_types.h on the include path once
+ * the preprocessing comparison (my_docs/bk7258-wifi/tools/header_equiv.py)
+ * shows the two declare the same contract.  The implementation is
+ * chips/bk7258/bk7258_uart_driver.c.
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ ****************************************************************************/
+
+#ifndef __CHIPS_BK7258_INCLUDE_DRIVER_UART_TYPES_H
+#define __CHIPS_BK7258_INCLUDE_DRIVER_UART_TYPES_H
+
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
+
+#include <common/bk_include.h>
+#include <driver/hal/hal_uart_types.h>
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+#define BK_ERR_UART_NOT_INIT              (BK_ERR_UART_BASE - 1)
+#define BK_ERR_UART_INVALID_ID            (BK_ERR_UART_BASE - 2)
+#define BK_ERR_UART_INVALID_SIZE          (BK_ERR_UART_BASE - 3)
+#define BK_ERR_UART_RX_TIMEOUT            (BK_ERR_UART_BASE - 4)
+#define BK_ERR_UART_BAUD_RATE_NOT_SUPPORT (BK_ERR_UART_BASE - 5)
+#define BK_ERR_UART_ID_NOT_INIT           (BK_ERR_UART_BASE - 6)
+#define BK_ERR_UART_MUTEX_INIT            (BK_ERR_UART_BASE - 7)
+
+/****************************************************************************
+ * Public Types
+ ****************************************************************************/
+
+typedef void (*uart_isr_t)(uart_id_t id, void *param);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __CHIPS_BK7258_INCLUDE_DRIVER_UART_TYPES_H */
