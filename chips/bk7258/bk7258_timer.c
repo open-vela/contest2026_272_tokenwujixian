@@ -10,8 +10,6 @@
 #include <nuttx/timers/arch_timer.h>
 
 #include <errno.h>
-#include <nuttx/spinlock.h>
-#include <syslog.h>
 #include <stdbool.h>
 
 #include "arm_internal.h"
@@ -21,246 +19,6 @@
 #include "include/bk7258_memorymap.h"
 #include "include/bk7258_irq.h"
 #include "include/bk7258_timer.h"
-
-static int g_bk7258_timer0_irq_count;
-struct bk7258_timer0_lowerhalf_s
-{
-  struct timer_lowerhalf_s lower;
-  spinlock_t lock;
-  tccb_t callback;
-  void *callback_arg;
-  uint32_t timeout_us;
-  uint32_t period;
-  bool started;
-};
-
-static struct bk7258_timer0_lowerhalf_s g_bk7258_timer0;
-
-/* Keep bring-up diagnostics bounded.  This is intentionally not the
- * permanent timer-driver observability mechanism; it only proves whether the
- * external IRQ reaches the NuttX ISR before the lower-half is implemented. */
-static unsigned int g_bk7258_timer0_log_count;
-
-static int bk7258_timer0_stop(struct timer_lowerhalf_s *lower);
-
-static int bk7258_timer0_isr(int irq, void *context, void *arg)
-{
-  uint32_t status;
-
-  (void)irq;
-  (void)context;
-  struct bk7258_timer0_lowerhalf_s *priv = &g_bk7258_timer0;
-  uint32_t next_us;
-  bool reload;
-
-  (void)arg;
-  status = getreg32(BK7258_TIMER0_CTRL);
-  g_bk7258_timer0_irq_count++;
-  if (g_bk7258_timer0_log_count < 8)
-    {
-      g_bk7258_timer0_log_count++;
-      syslog(LOG_INFO,
-             "[BK7258] timer0 ISR entered irq=%d count=%d ctrl=0x%08lx\n",
-             irq, g_bk7258_timer0_irq_count, (unsigned long)status);
-    }
-  /* Match Armino timer_isr(): sample the channel status and clear it before
-   * returning to NuttX. The controller uses the interrupt-enable/status field
-   * as a write-to-clear handshake. */
-  if ((status & BK7258_TIMER0_INT_ENABLE) != 0)
-    {
-      putreg32(status | BK7258_TIMER0_INT_ENABLE, BK7258_TIMER0_CTRL);
-    }
-  if (priv->callback == NULL)
-    {
-      return OK;
-    }
-
-  next_us = priv->timeout_us;
-  reload = priv->callback(&next_us, priv->callback_arg);
-  if (!reload)
-    {
-      priv->started = false;
-      putreg32(0, BK7258_TIMER0_CTRL);
-    }
-  else if (next_us != 0 && next_us <= UINT32_MAX / 26)
-    {
-      priv->timeout_us = next_us;
-      priv->period = next_us * 26;
-      putreg32(priv->period, BK7258_TIMER0_COUNT0);
-    }
-  return OK;
-}
-
-static int bk7258_timer0_start(struct timer_lowerhalf_s *lower)
-{
-  struct bk7258_timer0_lowerhalf_s *priv =
-    (struct bk7258_timer0_lowerhalf_s *)lower;
-  uint32_t period = priv->period;
-  irqstate_t flags;
-  int ret;
-
-  if (period == 0 || priv->callback == NULL)
-    {
-      return -EINVAL;
-    }
-
-  g_bk7258_timer0_irq_count = 0;
-  g_bk7258_timer0_log_count = 0;
-  ret = bk7258_icu_attach(3, bk7258_timer0_isr, NULL);
-  if (ret < 0)
-    {
-      return ret;
-    }
-
-  flags = enter_critical_section();
-  modifyreg32(BK7258_SYS_DEV_CLK_EN, BK7258_SYS_TIMER0_CLK_EN,
-              BK7258_SYS_TIMER0_CLK_EN);
-  /* Match Armino timer_ll_init(): select the 26 MHz XTAL and assert the
-   * timer-group soft reset before programming the channel. */
-  modifyreg32(BK7258_SYS_CLKDIV1, BK7258_SYS_TIMER0_XTAL,
-              BK7258_SYS_TIMER0_XTAL);
-  /* timer_ll_init(): disable channel and interrupt before the group reset. */
-  putreg32(0, BK7258_TIMER0_CTRL);
-  putreg32(UINT32_C(1), BK7258_TIMER0_GLOBAL_CTRL);
-  /* timer_chan_enable_interrupt_common(): enable the ICU source and channel
-   * interrupt before timer_hal_init_timer(), matching Armino's order. */
-  putreg32(BK7258_TIMER0_INT_ENABLE, BK7258_TIMER0_CTRL);
-  putreg32(period, BK7258_TIMER0_COUNT0);
-  /* timer_hal_init_timer(): divider 0 and clear stale channel status. */
-  modifyreg32(BK7258_TIMER0_CTRL, UINT32_C(0x78), 0);
-  putreg32(BK7258_TIMER0_INT_ENABLE, BK7258_TIMER0_CTRL);
-  for (unsigned int count = 0;
-       count < 1000 &&
-       (getreg32(BK7258_TIMER0_CTRL) & BK7258_TIMER0_INT_ENABLE) != 0;
-       count++)
-    {
-    }
-  if ((getreg32(BK7258_TIMER0_CTRL) & BK7258_TIMER0_INT_ENABLE) != 0)
-    {
-      leave_critical_section(flags);
-      bk7258_icu_disable(3);
-      return -ETIMEDOUT;
-    }
-  /* timer_hal_start_common(): start the channel only after status clear. */
-  putreg32(BK7258_TIMER0_ENABLE, BK7258_TIMER0_CTRL);
-  priv->started = true;
-  leave_critical_section(flags);
-
-  ret = bk7258_icu_enable(3);
-  syslog(LOG_INFO,
-         "[BK7258] timer0 started period=%lu ctrl=0x%08lx icu=0x%08lx ret=%d\n",
-         (unsigned long)period,
-         (unsigned long)getreg32(BK7258_TIMER0_CTRL),
-         (unsigned long)getreg32(BK7258_SYS_CPU0_INT_EN), ret);
-  if (ret < 0)
-    {
-      bk7258_timer0_stop(&priv->lower);
-    }
-  return ret;
-}
-
-static int bk7258_timer0_stop(struct timer_lowerhalf_s *lower)
-{
-  struct bk7258_timer0_lowerhalf_s *priv =
-    (struct bk7258_timer0_lowerhalf_s *)lower;
-  irqstate_t flags;
-  uint32_t before;
-  uint32_t after;
-  unsigned int count;
-
-  /* Stop delivery first so a final channel event cannot race the teardown. */
-  bk7258_icu_disable(3);
-  flags = enter_critical_section();
-  before = getreg32(BK7258_TIMER0_CTRL);
-  /* Disable the channel, then acknowledge the controller's W1C interrupt
-   * status handshake.  A plain zero write stops the counter but leaves the
-   * status bit latched on BK7258. */
-  putreg32(0, BK7258_TIMER0_CTRL);
-  putreg32(BK7258_TIMER0_INT_ENABLE, BK7258_TIMER0_CTRL);
-  for (count = 0; count < 1000; count++)
-    {
-      if ((getreg32(BK7258_TIMER0_CTRL) & BK7258_TIMER0_INT_ENABLE) == 0)
-        {
-          break;
-        }
-    }
-  after = getreg32(BK7258_TIMER0_CTRL);
-  leave_critical_section(flags);
-  irq_detach(BK7258_IRQ_TIMER0);
-  syslog(LOG_INFO,
-         "[BK7258] timer0 stopped count=%d ctrl-before=0x%08lx ctrl-after=0x%08lx clear-loops=%u\n",
-         g_bk7258_timer0_irq_count,
-         (unsigned long)before, (unsigned long)after, count);
-  priv->started = false;
-  return OK;
-}
-
-static void bk7258_timer0_setcallback(struct timer_lowerhalf_s *lower,
-                                      tccb_t callback, void *arg)
-{
-  struct bk7258_timer0_lowerhalf_s *priv =
-    (struct bk7258_timer0_lowerhalf_s *)lower;
-  irqstate_t flags = spin_lock_irqsave(&priv->lock);
-  priv->callback = callback;
-  priv->callback_arg = arg;
-  spin_unlock_irqrestore(&priv->lock, flags);
-}
-
-static int bk7258_timer0_getstatus(struct timer_lowerhalf_s *lower,
-                                   struct timer_status_s *status)
-{
-  struct bk7258_timer0_lowerhalf_s *priv =
-    (struct bk7258_timer0_lowerhalf_s *)lower;
-  irqstate_t flags = spin_lock_irqsave(&priv->lock);
-  status->flags = priv->started ? TCFLAGS_ACTIVE : 0;
-  status->flags |= priv->callback != NULL ? TCFLAGS_HANDLER : 0;
-  status->timeout = priv->timeout_us;
-  status->timeleft = priv->started ? priv->timeout_us : 0;
-  spin_unlock_irqrestore(&priv->lock, flags);
-  return OK;
-}
-
-static int bk7258_timer0_settimeout(struct timer_lowerhalf_s *lower,
-                                    uint32_t timeout)
-{
-  struct bk7258_timer0_lowerhalf_s *priv =
-    (struct bk7258_timer0_lowerhalf_s *)lower;
-  if (timeout == 0 || timeout > UINT32_MAX / 26)
-    {
-      return -EINVAL;
-    }
-  priv->timeout_us = timeout;
-  priv->period = timeout * 26;
-  return OK;
-}
-
-static int bk7258_timer0_maxtimeout(struct timer_lowerhalf_s *lower,
-                                    uint32_t *maxtimeout)
-{
-  (void)lower;
-  *maxtimeout = UINT32_MAX / 26;
-  return OK;
-}
-
-static const struct timer_ops_s g_bk7258_timer0_ops =
-{
-  .start = bk7258_timer0_start,
-  .stop = bk7258_timer0_stop,
-  .getstatus = bk7258_timer0_getstatus,
-  .settimeout = bk7258_timer0_settimeout,
-  .setcallback = bk7258_timer0_setcallback,
-  .maxtimeout = bk7258_timer0_maxtimeout,
-};
-
-int bk7258_timer_initialize(void)
-{
-  g_bk7258_timer0.lower.ops = &g_bk7258_timer0_ops;
-  spin_lock_init(&g_bk7258_timer0.lock);
-  g_bk7258_timer0.timeout_us = 10000;
-  g_bk7258_timer0.period = 260000;
-  return timer_register("/dev/timer0", &g_bk7258_timer0.lower) == NULL ?
-         -EIO : OK;
-}
 
 void up_timer_initialize(void)
 {
@@ -315,9 +73,7 @@ void up_timer_initialize(void)
  * names from <driver/timer.h>.  Those resolved to
  * middleware/driver/timer/timer_driver.c, which sat on timer_hal.c /
  * timer_ll.h -- a second owner of the same block this file already drives
- * (SOC_TIMER0_REG_BASE == BK7258_TIMER0_BASE == 0x44810000).  rosc_ppm's
- * TIMER_ID0 is the very channel /dev/timer0 uses, so the two wrote the
- * same enable and end-count registers.
+ * (SOC_TIMER0_REG_BASE == BK7258_TIMER0_BASE == 0x44810000).
  *
  * Hardware layout (timer_cap.h + timer_struct.h): one unit, two groups of
  * three channels, so TIMER_ID0..5.  group0 is at 0x44810000 (channels 0-2)
@@ -326,10 +82,9 @@ void up_timer_initialize(void)
  *   +0x20 read_ctrl     +0x24 read_value
  * ctrl: [0:2] per-channel enable, [3:6] clk_div, [7:9] per-channel int_en.
  *
- * Channel ownership is not arbitrated here -- it follows the callers above,
- * same as the original.  /dev/timer0 keeps channel 0 (see
- * bk7258_timer_initialize) and rosc_ppm may reprogram it; that is the
- * pre-existing behaviour, not something this face introduces.
+ * Channel ownership follows the callers above, same as the original:
+ * TIMER_ID0 is the bk_timer_delay_us() counter, TIMER_ID2 the watchdog
+ * feed.  The NuttX face at the end of this file exposes TIMER_ID1 only.
  ****************************************************************************/
 
 #ifndef CONFIG_BK7258_COMPONENT_AP
@@ -378,7 +133,23 @@ void up_timer_initialize(void)
 
 static void bk_timer_chan_irq_clear(uint32_t chan);
 
-static timer_isr_t s_timer_isr[BK_TIMER_CHAN_NUM];
+/* One state record per channel, owned by the NuttX lower half.  The
+ * bk_timer_* face reads and writes the same records: isr is the baseline's
+ * s_timer_isr[], timeout_us is the period the channel was last programmed
+ * with (by either face), and callback/arg are the upper half's.
+ */
+
+struct bk7258_timer_s
+{
+  struct timer_lowerhalf_s lower;
+  timer_id_t               id;
+  timer_isr_t              isr;
+  tccb_t                   callback;
+  void                    *arg;
+  uint32_t                 timeout_us;
+};
+
+static struct bk7258_timer_s g_bk7258_timer[BK_TIMER_CHAN_NUM];
 static bool s_timer_is_init;
 
 #define TIMER_RETURN_ON_NOT_INIT() \
@@ -452,9 +223,9 @@ static void bk_timer_group_isr(uint32_t g)
         }
 
       bk_timer_chan_irq_clear(chan);
-      if (s_timer_isr[chan] != NULL)
+      if (g_bk7258_timer[chan].isr != NULL)
         {
-          s_timer_isr[chan](chan);
+          g_bk7258_timer[chan].isr(chan);
         }
     }
 }
@@ -514,15 +285,16 @@ bk_err_t bk_timer_driver_deinit(void)
   return BK_OK;
 }
 
-bk_err_t bk_timer_start_without_callback(timer_id_t timer_id, uint32_t time_ms)
+/* The register sequence of bk_timer_start_without_callback(), shared with
+ * the NuttX face so both program a channel the same way.  Callers have done
+ * the id and init checks.
+ */
+
+static void bk_timer_program(timer_id_t timer_id, uint32_t end_count)
 {
-  TIMER_RETURN_ON_UNSUPPORTED_ID(timer_id);
   uint32_t g;
   uint32_t c;
   uint32_t regval;
-
-  TIMER_RETURN_ON_NOT_INIT();
-  TIMER_RETURN_ON_INVALID_ID(timer_id);
 
   g = bk_timer_group(timer_id);
   c = bk_timer_chan_in_group(timer_id);
@@ -540,7 +312,7 @@ bk_err_t bk_timer_start_without_callback(timer_id_t timer_id, uint32_t time_ms)
       regval = getreg32(BK_TIMER_CTRL(g));
     }
 
-  putreg32(bk_timer_end_count(time_ms, TIMER_UNIT_MS), BK_TIMER_CNT(g, c));
+  putreg32(end_count, BK_TIMER_CNT(g, c));
   regval &= ~BK_TIMER_CLK_DIV_MASK;
   putreg32(regval, BK_TIMER_CTRL(g));
 
@@ -575,6 +347,18 @@ bk_err_t bk_timer_start_without_callback(timer_id_t timer_id, uint32_t time_ms)
   /* timer_ll_enable */
 
   putreg32(getreg32(BK_TIMER_CTRL(g)) | (UINT32_C(1) << c), BK_TIMER_CTRL(g));
+}
+
+bk_err_t bk_timer_start_without_callback(timer_id_t timer_id, uint32_t time_ms)
+{
+  TIMER_RETURN_ON_UNSUPPORTED_ID(timer_id);
+
+  TIMER_RETURN_ON_NOT_INIT();
+  TIMER_RETURN_ON_INVALID_ID(timer_id);
+
+  bk_timer_program(timer_id, bk_timer_end_count(time_ms, TIMER_UNIT_MS));
+  g_bk7258_timer[timer_id].timeout_us =
+    time_ms > UINT32_MAX / 1000 ? UINT32_MAX : time_ms * 1000;
   return BK_OK;
 }
 
@@ -589,7 +373,7 @@ bk_err_t bk_timer_start(timer_id_t timer_id, uint32_t time_ms,
   ret = bk_timer_start_without_callback(timer_id, time_ms);
   if (ret == BK_OK)
     {
-      s_timer_isr[timer_id] = callback;
+      g_bk7258_timer[timer_id].isr = callback;
     }
 
   return ret;
@@ -637,7 +421,8 @@ bk_err_t bk_timer_cancel(timer_id_t timer_id)
   putreg32(0, BK_TIMER_CNT(g, c));
   putreg32(getreg32(BK_TIMER_CTRL(g)) & ~BK_TIMER_CLK_DIV_MASK,
            BK_TIMER_CTRL(g));
-  s_timer_isr[timer_id] = NULL;
+  g_bk7258_timer[timer_id].isr        = NULL;
+  g_bk7258_timer[timer_id].timeout_us = 0;
   return BK_OK;
 }
 
@@ -908,7 +693,7 @@ bk_err_t bk_timer_delay_with_callback(timer_id_t timer_id, uint64_t time_us,
   bk_timer_chan_irq_clear(timer_id);
   putreg32(regval | (UINT32_C(1) << c), BK_TIMER_CTRL(g));
 
-  s_timer_isr[timer_id] = callback;
+  g_bk7258_timer[timer_id].isr = callback;
   return BK_OK;
 }
 
@@ -931,4 +716,182 @@ void bk_timer_delay_us(uint32_t us)
   while ((uint32_t)(end - begin) < delay_cycle);
 }
 
+/****************************************************************************
+ * NuttX timer face
+ *
+ * /dev/timer1 is TIMER_ID1 seen through NuttX's timer framework.  Its state
+ * is the channel's record in g_bk7258_timer, the one the bk_timer_* face
+ * keeps; it programs the channel with bk_timer_program() and reads it back
+ * through bk_timer_get_*(), so there is one register path.  The interrupt
+ * stays with bk_timer_group_isr(): the channel's isr slot points at
+ * bk7258_timer_tick(), which runs the upper half's callback.
+ *
+ * Only TIMER_ID1 is exposed.  TIMER_ID0 is the free-running counter behind
+ * bk_timer_delay_us() and TIMER_ID2 carries the 1 s watchdog feed; giving
+ * either to user space would let an ioctl stop them.  TIMER_ID1's Armino
+ * user was the touch driver, which is no longer in the image.
+ ****************************************************************************/
+
+#ifdef CONFIG_BK7258_TIMER
+
+#define BK7258_TIMER_DEV_ID  TIMER_ID1
+#define BK7258_TIMER_MAX_US  (UINT32_MAX / 26)  /* 26 MHz XTAL, 32-bit count */
+
+static void bk7258_timer_tick(timer_id_t timer_id)
+{
+  struct bk7258_timer_s *priv = &g_bk7258_timer[timer_id];
+  uint32_t next_us = priv->timeout_us;
+
+  /* No handler: the channel just keeps reloading, like a bk_timer_start()
+   * channel with a NULL callback.
+   */
+
+  if (priv->callback == NULL)
+    {
+      return;
+    }
+
+  if (!priv->callback(&next_us, priv->arg))
+    {
+      bk_timer_stop(timer_id);
+      return;
+    }
+
+  if (next_us != priv->timeout_us && next_us != 0 &&
+      next_us <= BK7258_TIMER_MAX_US)
+    {
+      priv->timeout_us = next_us;
+      bk_timer_program(timer_id, bk_timer_end_count(next_us, TIMER_UNIT_US));
+    }
+}
+
+static int bk7258_timer_start(struct timer_lowerhalf_s *lower)
+{
+  struct bk7258_timer_s *priv = (struct bk7258_timer_s *)lower;
+
+  if (!s_timer_is_init)
+    {
+      return -ENODEV;
+    }
+
+  if (priv->timeout_us == 0)
+    {
+      return -EINVAL;
+    }
+
+  /* Point the isr slot at the tick before the channel can fire. */
+
+  priv->isr = bk7258_timer_tick;
+  bk_timer_program(priv->id,
+                   bk_timer_end_count(priv->timeout_us, TIMER_UNIT_US));
+  return OK;
+}
+
+static int bk7258_timer_stop(struct timer_lowerhalf_s *lower)
+{
+  struct bk7258_timer_s *priv = (struct bk7258_timer_s *)lower;
+
+  return bk_timer_stop(priv->id) == BK_OK ? OK : -EIO;
+}
+
+static bool bk7258_timer_active(struct bk7258_timer_s *priv)
+{
+  return s_timer_is_init &&
+         (bk_timer_get_enable_status() & BIT(priv->id)) != 0;
+}
+
+static int bk7258_timer_getstatus(struct timer_lowerhalf_s *lower,
+                                  struct timer_status_s *status)
+{
+  struct bk7258_timer_s *priv = (struct bk7258_timer_s *)lower;
+  uint32_t end;
+  uint32_t cnt;
+
+  status->flags    = 0;
+  status->timeout  = priv->timeout_us;
+  status->timeleft = 0;
+
+  if (priv->callback != NULL)
+    {
+      status->flags |= TCFLAGS_HANDLER;
+    }
+
+  if (bk7258_timer_active(priv))
+    {
+      status->flags |= TCFLAGS_ACTIVE;
+      end = bk_timer_get_period(priv->id);
+      cnt = bk_timer_get_cnt(priv->id);
+      if (cnt < end)
+        {
+          status->timeleft = (end - cnt) / 26;
+        }
+    }
+
+  return OK;
+}
+
+static int bk7258_timer_settimeout(struct timer_lowerhalf_s *lower,
+                                   uint32_t timeout)
+{
+  struct bk7258_timer_s *priv = (struct bk7258_timer_s *)lower;
+
+  if (timeout == 0 || timeout > BK7258_TIMER_MAX_US)
+    {
+      return -EINVAL;
+    }
+
+  priv->timeout_us = timeout;
+  if (bk7258_timer_active(priv))
+    {
+      bk_timer_program(priv->id, bk_timer_end_count(timeout, TIMER_UNIT_US));
+    }
+
+  return OK;
+}
+
+static void bk7258_timer_setcallback(struct timer_lowerhalf_s *lower,
+                                     tccb_t callback, void *arg)
+{
+  struct bk7258_timer_s *priv = (struct bk7258_timer_s *)lower;
+  irqstate_t flags;
+
+  /* up_irq_save: below the Armino headers enter_critical_section is no
+   * longer the <nuttx/irq.h> macro, and the pair only has to keep the
+   * group ISR from seeing a half-written callback/arg.
+   */
+
+  flags          = up_irq_save();
+  priv->callback = callback;
+  priv->arg      = arg;
+  up_irq_restore(flags);
+}
+
+static int bk7258_timer_maxtimeout(struct timer_lowerhalf_s *lower,
+                                   uint32_t *maxtimeout)
+{
+  *maxtimeout = BK7258_TIMER_MAX_US;
+  return OK;
+}
+
+static const struct timer_ops_s g_bk7258_timer_ops =
+{
+  .start       = bk7258_timer_start,
+  .stop        = bk7258_timer_stop,
+  .getstatus   = bk7258_timer_getstatus,
+  .settimeout  = bk7258_timer_settimeout,
+  .setcallback = bk7258_timer_setcallback,
+  .maxtimeout  = bk7258_timer_maxtimeout,
+};
+
+int bk7258_timer_initialize(void)
+{
+  struct bk7258_timer_s *priv = &g_bk7258_timer[BK7258_TIMER_DEV_ID];
+
+  priv->lower.ops  = &g_bk7258_timer_ops;
+  priv->id         = BK7258_TIMER_DEV_ID;
+  priv->timeout_us = 10000;
+  return timer_register("/dev/timer1", &priv->lower) == NULL ? -EIO : OK;
+}
+
+#endif /* CONFIG_BK7258_TIMER */
 #endif /* !CONFIG_BK7258_COMPONENT_AP */

@@ -187,8 +187,8 @@ if(CONFIG_BK7258_WIFI_ARMINO_BASELINE)
       # Timer belongs to the chip layer for the same reason: chips/bk7258/
       # bk7258_timer.c owns TIMER_ID0..5 (SOC_TIMER0_REG_BASE ==
       # BK7258_TIMER0_BASE == 0x44810000) and now supplies bk_timer_* too.
-      # rosc_ppm's TIMER_ID0 is the channel /dev/timer0 uses, so two drivers
-      # were writing the same enable and end-count registers.
+      # Before that, timer_driver.c and the chip's own timer code were two
+      # drivers writing the same enable and end-count registers.
       cp/middleware/driver/timer/timer_driver.c
       cp/middleware/soc/common/hal/timer_hal.c
       # T14 sixth slice: the flash server (CRC helper + server init) and the
