@@ -77,6 +77,7 @@
      | GPIO | `/dev/gpio0` 已挂 | 2026-10-26 改写。CP：Armino 面（`bk_gpio_*`、`gpio_dev_map/unmap`）改回基线函数体，全部经导出的 `s_gpio`（基线 `gpio_driver_t`）走 `gpio_hal_*`/`gpio_ll`；板级 helper（`bk7258_gpio_write/read/config_*/periph/uart0_*`）的 CFG 读写和外设复用改走 `gpio_ll_get/set_value`、`gpio_ll_get/set_perial_mode`，每个 helper 的读改写顺序不变；按 `#if` 分支检查，CP 编进来的代码里不再有直接 `getreg32/putreg32`。AP：不编基线、没有 `gpio_ll`，helper 继续直接写寄存器；其中 `bk7258_gpio_cfg_read/write` 必须是宏而不是 `static inline`——AP 是 `-O0`（`CONFIG_DEBUG_NOOPT`），函数形式给每次寄存器访问多一次调用，见下方按键对比；改成宏后 AP 中断路径各函数与改动前逐条指令相同，只有开机用的 `select_func_locked`、`periph` 不同；这是 AP 镜像里唯一的 GPIO 路径（例外）。导出：`gpio_hal` 27/27；补了 10 个（6 个 `gpio_*_sel`、`gpio_check_dev/capacity_match`、`gpio_get_interrupt_status`、`s_gpio`）；**推迟 13 个**，镜像里零引用——T12（PM）：`gpio_enter/exit_low_power`、`gpio_enable_interrupt_mult_for_wake`、`bk_gpio_retention_set/clr`、`gpio_retention_map_set/clr`、`s_gpio_bak_int_type_regs`、`s_gpio_bak_int_enable_regs`、`s_gpio_is_lowpower_keep_status`、`s_gpio_is_setted_wake_status`；T16（跨核）：`gpio_ipc`、`gpio_ipcsection`。契约头：`driver/gpio.h`、`driver/gpio_types.h`、`gpio_hal.h` 收归 `chips/bk7258/include/`，在 `bk7258_gpio.c`、`bk7258_gpio_hal.c`、`bk7258_driver.c` 三组编译参数下预处理比对差异 0，收头前后 CP/AP `.text`/`.data` 逐字节相同。CP 侧相对上一版的行为变化（按基线）：`gpio_dev_map` 要求引脚在 `usr_gpio_cfg.h` 的 `GPIO_DEFAULT_DEV_CONFIG` 里，复用前先关输出/输入/上下拉/中断；`bk_gpio_enable_interrupt` 前有 1000 次空循环；`bk_gpio_driver_init` 补上 `gpio_hal_init()`。`nm -u` 0，`decode pass`。板上（镜像 `29ad30f9…`，烧录日志 17:04 `Writing Flash OK`）：CP `bk7258_drvtest gpio` 写 1 读回 1、写 0 读回 0、恢复原值——`go_write` 返回 0 说明 `bk7258_gpio_config_output`（已改走 `gpio_ll`）确实把 GPIO40 置成了输出模式 同一镜像 AP 侧（用户观察，未留日志）：屏幕 UI 与状态灯正常；`nxrecorder` 录 `/dev/audio/pcm0c`、`nxplayer` 放 `/dev/audio/pcm0p`，能听到录音，即功放使能 GPIO 正常；AP `ping` 公网 10/10 按键（同一镜像）：KEY1/KEY2 单击 `hit`；KEY3（GPIO8）长按时 ai_agent 打出 `[ptt_button] PTT press → recording` 与 `PTT release → ASR`，期间 `/dev/audio/pcm0c` 采到 126 个块（峰值 1842–3108），即 GPIO8 两个边沿都经中断送到 `/dev/btn0`（ASR 失败是未配 API key，与 GPIO 无关）。按键丢边沿对比（都先跑 `ai_agent`，LVGL 在跑；数的是 `[key] missed edge`）：改动前 `8d11ea48…`：KEY1+KEY2 同按 14 次丢 0、单键 11 次丢 0；AP 用函数形式的 `29ad30f9…`：同按 4 次丢 3、KEY2 单击 9 次丢 1；AP 改宏后 `0cb717de…`（10-27 09:22 烧录）：同按 10 次丢 1、KEY2 单击 10 次丢 2、KEY3 丢 1 次按下沿，均由电平采样补回，手势照常触发，PTT press/release 正常。**未结论**：改宏后 AP 中断路径机器码已与改动前相同，CP 运行期也没有 GPIO 调用者，剩下的丢失找不到代码层面的来源；它要么是 10-14 记录过的老问题（`missed edge` 诊断正为此而加），要么与 LVGL 换屏时的负载有关（几次丢失都靠近 `idle rotate`）。样本小（改宏后 24 次事件丢 4，改动前 25 次丢 0），差异接近但不足以定论，需要同一方法、更大样本再对比 | 通过（剩余丢边沿另查） |
      | 定时器 | `/dev/timer1`（`CONFIG_BK7258_TIMER`，原 `CONFIG_BK7258_TIMER0` 改名，CP 默认开） | 2026-10-23 重写：删掉自带寄存器序列的旧 `/dev/timer0` 面；状态归 lower-half——每通道一条 `struct bk7258_timer_s`（`lower`、`isr`=原 `s_timer_isr[]`、`timeout_us`、上半部 `callback/arg`），`bk_timer_*` 读写同一张表；寄存器序列抽成 `bk_timer_program()`，两面共用；中断仍只由 `bk_timer_group_isr()` 分发，通道的 `isr` 槽指向 `bk7258_timer_tick()` 再调上半部回调。只暴露 `TIMER_ID1`：`ID0` 是 `bk_timer_delay_us()` 的自由计数器，`ID2` 是 1 s 喂狗，交给用户态会被 ioctl 停掉。导出：`timer_driver` 16/16、common `timer_hal` 7/7、bk7258 `timer_hal` 2/2（2026-10-26 补齐，对基线 `.o` 做 `comm -23` 为空）。契约头收归 `chips/bk7258/include/`：`driver/timer.h`、`driver/timer_types.h`、`timer_hal.h`，用 `sys_hal.c` 的编译参数预处理比对，声明与宏逐条相同（54/395/506 条声明、1786/2293/2349 个宏，差异 0），`-H` 确认解析到我们的头。寄存器路径只剩一条：`bk_timer_*` 全部改走 `timer_hal_*` / `timer_ll_*`，与基线分层一致；SYS 块的时钟门控、XTAL 选择、ICU 路由仍直接写 SYS 寄存器，归 T12 的 `sys_driver`。相对上一版的行为变化：编程通道时补上基线 `timer_hal_init_timer` 的中断状态清除；`bk_timer_delay_us` 改走 `timer_hal_delay_us`，每次读计数加 `rtos_enter_critical`；`timer_hal_cal_end_count` 按 SYS 的实际时钟选择算，不再写死 26 MHz。`nm -u` 0，`decode pass`。板上（镜像 `a21c3d6d…`，NuttX `timer` 示例，`/dev/timer1`，100 ms × 20）：`SETTIMEOUT` 后 timeout=100000；挂回调后 flags=2（HANDLER）；START 后每次采样 flags=3、`nsignals` 1→20 与采样逐一对应；STOP 后 flags=2、timeleft=0。`timeleft` 稳定在 99740–99855 µs：信号打断 `usleep`，所以采样都落在刚重装之后，计数器从 0 往上数时 `(end-cnt)/26` 正应接近满周期（若是倒数会接近 0），且数值有抖动，说明确实读到了计数器。 | 通过。10-26 `timer_hal` 改写后复测（镜像 `8d11ea48…`，烧录日志 15:52 `Writing Flash OK`）：`timer` 示例 flags 0→2→3→2、`nsignals` 1→20 逐次对应、STOP 后 timeleft=0，与改写前一致；同一镜像 `bk7258_drvtest wdg` 各行与上一轮相同，且 `initial` 的 `timeleft=7737` 说明 263 ms 前刚有一次 `bk_wdt_feed` 重装，即 `TIMER_ID2` 的 1 s 喂狗回调在新的中断清除路径上照常运行；同一镜像在 CP 上 `ping` 公网两轮各 10/10（`bk_timer_delay_us` 改走 `timer_hal_delay_us` 后 Wi-Fi 路径正常） |
      | 温度/电压 | `/dev/adc0` 未挂 | 随 T15 的 ADC | 未完 |
+     | PSRAM | 无设备框架，标准面是堆区 | 2026-10-27：`psram_driver` + `psram_hal` 收成一个单元，寄存器走 `psram_ll_*`、SYS 位走 `sys_drv_psram_*`，早期初始化与 `bk_psram_init()` 共用 `psram_hw_init()`；29/29 导出，板上 `bk7258_psram_test` 两核分片均 PASS（见批次 14） | 通过（例外：AHBP 电调用 HAL 入口、通道位图用临界区、不建互斥量，理由见批次 14） |
      | Flash | `mtd_dev_s` 未挂 | — | 未完（T14） |
 
      被推翻的旧写法：本段原先把看门狗列为欠账、把 GPIO 写成"`/dev/gpio0` 未挂"、把 UART 写成
@@ -1511,3 +1512,78 @@ is initialize success`、`psram init ok`、`wifi inited(1) ret(0)`、`nsh-ap>`�
 CP 侧 `FATAL: Reset by remote core: ap reason: 3` → `Rptun driver reset remote ap reason: 3` →
 `set ap rr: 0x2` → `!RST` → 完整重启。两核都复位、AP 原因落盘，BootROM 冷启动链走完（串口下载窗口有时限，
 没有工具在等就继续启动，所以最终回到 `nsh-ap>`）。
+
+---
+
+## 批次 14：PSRAM（`psram_driver` + `psram_hal`，29 个符号，T14 的存储半边）
+
+替换 `cp/middleware/driver/psram/psram_driver.c`（16 符号）与
+`cp/middleware/soc/common/hal/psram_hal.c`（13 符号），共 **29** 个符号，落在
+`chips/bk7258/bk7258_psram.c`。这是同一块控制器上**两套并行实现**的收口：该文件此前已有一份
+为 `arm_addregion()` 写的自带寄存器序列的 bring-up，和 Armino 那两个单元各配一遍同样的控制器。
+
+### 逐函数比对（第 2 条）：以权威为准
+
+寄存器偏移（`REG2=0x08`、`REG4=0x10`、`REG5=0x14`、`REG8=0x20`、`REG9=0x24`、
+`REGA=0x28`、`REGB=0x2c`）与 `PSRAM_MODE6`/`PSRAM_MODE7`、三组芯片 ID 都对得上。
+差异全在旧端口这一侧，逐条按权威改回：
+
+| 位置 | 旧端口 | 权威 |
+| --- | --- | --- |
+| `cmd_read` | 单次等待、超时返回 `-ETIMEDOUT` | 5 次尝试，每次失败后 `sf_reset(0)`、`sf_reset(1)`、`cmd_reset` 再重发；耗尽返回 0 |
+| `cmd_write` | 有界等待 | 无限等待命令位清除 |
+| APS6408L 配置 | 写 addr0 后直接读 addr4 | 写 addr4 之前多一次 `cmd_read(0)` |
+| 上电 | 直接写 `ANA_REG13`/`CLKDIV2`/`DEV_CLK_EN` | `sys_drv_psram_psldo_vset(1,0)` → `sys_drv_psram_ldo_enable(1)` → `bk_delay_us(1000)` → AHBP 上电 → `sys_drv_psram_psram_disckg(1)` → `set_clk(80M)` → `sys_drv_dev_clk_pwr_up` → `delay(3000)` |
+| 电压 | 隐含在 ANA_REG13 位里 | `bk_psram_set_voltage(PSRAM_OUT_1_95V)` 显式一步 |
+| 120 MHz | 直接改 CLKDIV2 | `psram_hal_set_default_clk()` → `set_clk(PSRAM_120M)`（sel=1, div=1） |
+| 芯片 ID 记忆 | 无 | easyflash `psram_id`，由 `bk_psram_id_auto_detect()` 起线程写入 |
+
+### 分层与一份实现（第 5 条）
+
+寄存器走权威的 `psram_ll_macro_def.h`，SYS/时钟位走 `sys_drv_psram_*` 与
+`sys_drv_dev_clk_pwr_up`，所以这个块只有一份program。PSRAM 在 NuttX 里没有设备框架，
+它的"标准面"就是**堆区**：`bk7258_psram_initialize(size, id)` 只做探测与上报，
+硬件序列和 `bk_psram_init()` 共用同一个 `psram_hw_init()`——早期调用把
+`bk7258_psram_init_done` 置位，`driver_init()` 里的 `bk_psram_init()` 随后直接返回。
+
+三处写明理由的偏离：
+
+1. **AHBP 电源**用 `sys_hal_module_power_ctrl()` 而不是
+   `bk_pm_module_vote_power_ctrl()`：这段在 `arm_addregion()` 里跑，PM 模块还没起；
+   且 PSRAM 是常驻堆区，引用计数没有意义。T12 把权威 `pm.c` 搬过来后，这里换回 submodule 投票即可。
+2. **写通通道位图**用临界区代替权威的 Armino 互斥量，语义相同（一次位图更新是原子的）。
+3. **`bk_psram_init()` 不建互斥量**：第一个调用者在 `nx_start()` 之前，之后只有读标志，没有并发可防
+   （权威自己也用 `rtos_is_scheduler_started()` 跳过互斥量）。
+
+另有一处**新增**（非权威）：`bk7258_psram_probe()` 在加堆前对首尾各写一组 3 个模式并恢复原值，
+防止"能应答 ID 但存不住数据"的片子把分配器搞坏。
+
+### 契约头（第 3 条）
+
+`driver/psram.h`、`driver/psram_types.h`、`psram_hal.h` 收归 `chips/bk7258/include/`，
+用 `bk7258_psram.c` 与 `bk7258_driver.c` 两组编译参数预处理比对：声明 120/207/457 条、
+宏 1425/1425/2163 个，差异均为 0。`psram_driver.h` 只有日志标签宏，不是契约，未收。
+
+### 验收
+
+| 项 | 结果 |
+| --- | --- |
+| 导出符号 | **29 / 29**（对两个基线 `.o` 的 `nm --defined-only -g` 做 `comm -23`，为空） |
+| `psram_driver.c.o` / `psram_hal.c.o` 在 map | **0** |
+| `nm -u` | CP / AP 均 0 |
+| 打包 | `decode pass` |
+| 收头前后 CPU 代码 | `.text`/`.data` 逐字节相同，镜像 sha256 不变 |
+
+板上（镜像 `de7a3d62…`）：
+
+- 开机 `cpu0:I(126):driver_init: psram init ok`；CP 侧 PSRAM 行、AP 侧
+  `[BK7258] PSRAM id=0x0000 size=16777216 split: core region 60b00000-60ffffff`（AP 分支固定
+  `device_id=0`、只读设备确认 CP 已初始化，不重复探测）。
+- `bk7258_psram_test 4096` → `PASS: 4096 KiB, 3 patterns`，分配地址 `0x60b00010`（AP 分片）；
+  CP 分片 `bk7258_psram_test 4915` → `PASS: 4915 KiB`，地址 `0x60610618`。
+- `free` 的 `Umem` 总量 5278192 B，与 `CONFIG_BK7258_PSRAM_CP_HEAP_SIZE=0x500000` 吻合，
+  说明 5 MiB 分片确实进了堆。
+- 说明：测试默认 8192 KiB 大于单核分片 5 MiB，会 `malloc failed`——这是默认值与分区不匹配，
+  不是回归；用 ≤4915 KiB 即可。
+
+已知未验：`ping`（本次没跑）。T14 的另一半是 flash 族 7 个单元挂 `mtd_dev_s`，仍未做。

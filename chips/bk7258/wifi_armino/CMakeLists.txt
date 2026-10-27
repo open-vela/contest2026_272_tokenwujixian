@@ -252,7 +252,13 @@ if(CONFIG_BK7258_WIFI_ARMINO_BASELINE)
       # authority's bodies.  cli_temp_detect.c stays: it is a caller.
       cp/components/temp_detect/temp_detect.c
       cp/components/temp_detect/bk_sensor.c
-      cp/components/temp_detect/volt_detect.c)
+      cp/components/temp_detect/volt_detect.c
+      # PSRAM: chips/bk7258/bk7258_psram.c carries the psram_driver.c and
+      # psram_hal.c bodies on the authority's psram_ll register layer.  This
+      # is the pair that used to be the block's only owner, next to the
+      # port's own bring-up copy.
+      cp/middleware/driver/psram/psram_driver.c
+      cp/middleware/soc/common/hal/psram_hal.c)
 
   # driver.c is excluded (chips/bk7258/bk7258_driver.c is its port), so the
   # CONFIG_SPI collision it needed this list for is handled inside that file
