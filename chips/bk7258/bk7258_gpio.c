@@ -37,6 +37,85 @@
 #include "include/bk7258_memorymap.h"
 #include "include/irq.h"
 
+/* On the CP the board helpers below reach the pads through the authority's
+ * gpio_ll.h, the same layer the Armino face further down uses, so the CP
+ * image has one register path for the GPIO block.  The AP builds no Armino
+ * code and has no gpio_ll; its helpers keep the direct register writes,
+ * which are the only GPIO path in that image.
+ */
+
+#ifndef CONFIG_BK7258_COMPONENT_AP
+#  include "sdkconfig.h"
+#  include "gpio_hal.h"
+#  include "gpio_driver_base.h"
+#endif
+
+/* Pad config (AON GPIO block) and peripheral mux (SYS GPIO_FUNC) access for
+ * the board helpers.  On the CP these are gpio_ll's whole-word get/set and
+ * its mux field accessor, so each helper keeps exactly the read-modify-write
+ * sequence it had.  gpio_ll_init() is called before each mux access because
+ * the mux pointer it sets is a static in every file that includes
+ * gpio_ll.h, and nothing else initialises this file's copy.
+ */
+
+#ifndef CONFIG_BK7258_COMPONENT_AP
+#  define BK7258_GPIO_HW ((gpio_hw_t *)GPIO_LL_REG_BASE)
+
+_Static_assert(SOC_AON_GPIO_REG_BASE == BK7258_AON_GPIO_BASE,
+               "gpio_ll and BK7258_GPIO_CFG() must address the same block");
+_Static_assert(sizeof(BK7258_GPIO_HW->gpio_num[0]) == 4,
+               "gpio_ll pad index must match BK7258_GPIO_CFG()");
+
+static inline uint32_t bk7258_gpio_cfg_read(unsigned int pin)
+{
+  return gpio_ll_get_value(BK7258_GPIO_HW, pin);
+}
+
+static inline void bk7258_gpio_cfg_write(unsigned int pin, uint32_t v)
+{
+  gpio_ll_set_value(BK7258_GPIO_HW, pin, v);
+}
+
+static inline uint32_t bk7258_gpio_func_read(unsigned int pin)
+{
+  gpio_ll_init(BK7258_GPIO_HW);
+  return gpio_ll_get_perial_mode(BK7258_GPIO_HW, pin);
+}
+
+static inline void bk7258_gpio_func_write(unsigned int pin, uint32_t func)
+{
+  gpio_ll_init(BK7258_GPIO_HW);
+  gpio_ll_set_perial_mode(BK7258_GPIO_HW, pin, func);
+}
+#else
+/* The AP is built -O0 (CONFIG_DEBUG_NOOPT), where static inline is not
+ * inlined.  As functions these two added a call to every pad access, and
+ * the GPIO interrupt path (dispatch -> clear/rearm/enable) is mostly pad
+ * accesses: with them, KEY1+KEY2 together lost 3 of 4 edges on the board
+ * against 0 of 14 before.  As macros they compile to the same
+ * instructions as the direct getreg32/putreg32 they replaced.
+ */
+
+#  define bk7258_gpio_cfg_read(pin)     getreg32(BK7258_GPIO_CFG(pin))
+#  define bk7258_gpio_cfg_write(pin, v) putreg32(v, BK7258_GPIO_CFG(pin))
+
+static inline uint32_t bk7258_gpio_func_read(unsigned int pin)
+{
+  return (getreg32(BK7258_SYS_GPIO_FUNC(pin)) & BK7258_GPIO_FUNC_MASK(pin)) >>
+         (((uint32_t)pin & 7) << 2);
+}
+
+static inline void bk7258_gpio_func_write(unsigned int pin, uint32_t func)
+{
+  uint32_t regval;
+
+  regval  = getreg32(BK7258_SYS_GPIO_FUNC(pin));
+  regval &= ~BK7258_GPIO_FUNC_MASK(pin);
+  regval |= (func & UINT32_C(0xf)) << (((uint32_t)pin & 7) << 2);
+  putreg32(regval, BK7258_SYS_GPIO_FUNC(pin));
+}
+#endif
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -85,13 +164,7 @@ static bool g_gpio_irq_initialized;
 
 static void bk7258_gpio_select_func_locked(unsigned int pin)
 {
-  uint32_t reg;
-  uint32_t regval;
-
-  reg     = BK7258_SYS_GPIO_FUNC(pin);
-  regval  = getreg32(reg);
-  regval &= ~BK7258_GPIO_FUNC_MASK(pin);
-  putreg32(regval, reg);
+  bk7258_gpio_func_write(pin, 0);
 }
 
 static inline bool bk7258_gpio_valid(unsigned int pin)
@@ -105,11 +178,11 @@ static void bk7258_gpio_set_opposite_level_irq_locked(unsigned int pin,
 {
   uint32_t regval;
 
-  regval  = getreg32(BK7258_GPIO_CFG(pin));
+  regval  = bk7258_gpio_cfg_read(pin);
   regval &= ~BK7258_GPIO_INT_TYPE_MASK;
   regval |= high ? BK7258_GPIO_INT_LOW_LEVEL :
                    BK7258_GPIO_INT_HIGH_LEVEL;
-  putreg32(regval, BK7258_GPIO_CFG(pin));
+  bk7258_gpio_cfg_write(pin, regval);
 }
 
 static void bk7258_gpio_set_irq_type_locked(unsigned int pin, bool rising)
@@ -117,12 +190,12 @@ static void bk7258_gpio_set_irq_type_locked(unsigned int pin, bool rising)
   uint32_t regval;
   uint32_t type;
 
-  regval = getreg32(BK7258_GPIO_CFG(pin));
+  regval = bk7258_gpio_cfg_read(pin);
   type    = rising ? BK7258_GPIO_INT_RISING_EDGE :
                      BK7258_GPIO_INT_FALLING_EDGE;
   regval &= ~BK7258_GPIO_INT_TYPE_MASK;
   regval |= type;
-  putreg32(regval, BK7258_GPIO_CFG(pin));
+  bk7258_gpio_cfg_write(pin, regval);
 }
 
 static void bk7258_gpio_clear_irq_locked(unsigned int pin)
@@ -130,9 +203,9 @@ static void bk7258_gpio_clear_irq_locked(unsigned int pin)
   uint32_t regval;
   uint32_t bit;
 
-  regval = getreg32(BK7258_GPIO_CFG(pin));
+  regval = bk7258_gpio_cfg_read(pin);
   regval |= BK7258_GPIO_INT_CLEAR;
-  putreg32(regval, BK7258_GPIO_CFG(pin));
+  bk7258_gpio_cfg_write(pin, regval);
 
   bit = UINT32_C(1) << (pin & 31);
   putreg32(bit, pin < 32 ? BK7258_GPIO_INT_STATUS0 :
@@ -143,10 +216,10 @@ static void bk7258_gpio_enable_irq_locked(unsigned int pin)
 {
   uint32_t regval;
 
-  regval  = getreg32(BK7258_GPIO_CFG(pin));
+  regval  = bk7258_gpio_cfg_read(pin);
   regval &= ~BK7258_GPIO_INT_CLEAR;
   regval |= BK7258_GPIO_INT_ENABLE;
-  putreg32(regval, BK7258_GPIO_CFG(pin));
+  bk7258_gpio_cfg_write(pin, regval);
 }
 
 static void bk7258_gpio_rearm_opposite_level_locked(unsigned int pin)
@@ -154,10 +227,10 @@ static void bk7258_gpio_rearm_opposite_level_locked(unsigned int pin)
   bool high;
   uint32_t regval;
 
-  regval  = getreg32(BK7258_GPIO_CFG(pin));
+  regval  = bk7258_gpio_cfg_read(pin);
   high    = (regval & BK7258_GPIO_CFG_INPUT) != 0;
   regval &= ~BK7258_GPIO_INT_ENABLE;
-  putreg32(regval, BK7258_GPIO_CFG(pin));
+  bk7258_gpio_cfg_write(pin, regval);
 
   /* Arm the level opposite the sampled state.  If the input changes while
    * the interrupt is disabled, cleared, or reconfigured, the new level
@@ -205,7 +278,7 @@ int bk7258_gpio_config_input(unsigned int pin,
   flags = enter_critical_section();
   bk7258_gpio_select_func_locked(pin);
 
-  regval  = getreg32(BK7258_GPIO_CFG(pin));
+  regval  = bk7258_gpio_cfg_read(pin);
   regval &= ~(BK7258_GPIO_CFG_MODE_MASK |
               BK7258_GPIO_CFG_PULL_MASK |
               BK7258_GPIO_CFG_SECOND_FUNC);
@@ -225,7 +298,7 @@ int bk7258_gpio_config_input(unsigned int pin,
         break;
     }
 
-  putreg32(regval, BK7258_GPIO_CFG(pin));
+  bk7258_gpio_cfg_write(pin, regval);
   leave_critical_section(flags);
   return OK;
 }
@@ -248,7 +321,7 @@ int bk7258_gpio_config_output(unsigned int pin, bool initial)
    * section prevents another register update from introducing a glitch.
    */
 
-  regval = getreg32(BK7258_GPIO_CFG(pin));
+  regval = bk7258_gpio_cfg_read(pin);
   if (initial)
     {
       regval |= BK7258_GPIO_CFG_OUTPUT;
@@ -258,13 +331,13 @@ int bk7258_gpio_config_output(unsigned int pin, bool initial)
       regval &= ~BK7258_GPIO_CFG_OUTPUT;
     }
 
-  putreg32(regval, BK7258_GPIO_CFG(pin));
+  bk7258_gpio_cfg_write(pin, regval);
 
   regval &= ~(BK7258_GPIO_CFG_MODE_MASK |
               BK7258_GPIO_CFG_PULL_MASK |
               BK7258_GPIO_CFG_SECOND_FUNC);
   regval |= BK7258_GPIO_CFG_MODE_OUTPUT;
-  putreg32(regval, BK7258_GPIO_CFG(pin));
+  bk7258_gpio_cfg_write(pin, regval);
   leave_critical_section(flags);
   return OK;
 }
@@ -280,7 +353,7 @@ void bk7258_gpio_write(unsigned int pin, bool high)
     }
 
   flags  = enter_critical_section();
-  regval = getreg32(BK7258_GPIO_CFG(pin));
+  regval = bk7258_gpio_cfg_read(pin);
   if (high)
     {
       regval |= BK7258_GPIO_CFG_OUTPUT;
@@ -290,7 +363,7 @@ void bk7258_gpio_write(unsigned int pin, bool high)
       regval &= ~BK7258_GPIO_CFG_OUTPUT;
     }
 
-  putreg32(regval, BK7258_GPIO_CFG(pin));
+  bk7258_gpio_cfg_write(pin, regval);
   leave_critical_section(flags);
 }
 
@@ -301,7 +374,7 @@ bool bk7258_gpio_read(unsigned int pin)
       return false;
     }
 
-  return (getreg32(BK7258_GPIO_CFG(pin)) & BK7258_GPIO_CFG_INPUT) != 0;
+  return (bk7258_gpio_cfg_read(pin) & BK7258_GPIO_CFG_INPUT) != 0;
 }
 
 int bk7258_gpio_irq_attach(unsigned int pin, xcpt_t handler, void *arg)
@@ -358,9 +431,9 @@ int bk7258_gpio_irq_enable(unsigned int pin, bool rising, bool falling)
       return ret;
     }
 
-  regval  = getreg32(BK7258_GPIO_CFG(pin));
+  regval  = bk7258_gpio_cfg_read(pin);
   regval &= ~BK7258_GPIO_INT_ENABLE;
-  putreg32(regval, BK7258_GPIO_CFG(pin));
+  bk7258_gpio_cfg_write(pin, regval);
 
   g_gpio_irqs[pin].rising  = rising;
   g_gpio_irqs[pin].falling = falling;
@@ -402,9 +475,9 @@ void bk7258_gpio_irq_disable(unsigned int pin)
     }
 
   flags = enter_critical_section();
-  regval  = getreg32(BK7258_GPIO_CFG(pin));
+  regval  = bk7258_gpio_cfg_read(pin);
   regval &= ~BK7258_GPIO_INT_ENABLE;
-  putreg32(regval, BK7258_GPIO_CFG(pin));
+  bk7258_gpio_cfg_write(pin, regval);
   bk7258_gpio_clear_irq_locked(pin);
   g_gpio_irqs[pin].rising  = false;
   g_gpio_irqs[pin].falling = false;
@@ -420,15 +493,13 @@ static void bk7258_gpio_uart0(unsigned int pin)
   uint32_t regval;
 
   flags  = enter_critical_section();
-  regval = getreg32(BK7258_GPIO_CFG(pin));
+  regval = bk7258_gpio_cfg_read(pin);
   regval &= ~(BK7258_GPIO_CFG_MODE_MASK | BK7258_GPIO_CFG_PULL_MASK);
   regval |= BK7258_GPIO_CFG_MODE_DIS | BK7258_GPIO_CFG_PULL_UP |
             BK7258_GPIO_CFG_SECOND_FUNC;
-  putreg32(regval, BK7258_GPIO_CFG(pin));
+  bk7258_gpio_cfg_write(pin, regval);
 
-  regval  = getreg32(BK7258_SYS_GPIO_FUNC(pin));
-  regval &= ~BK7258_GPIO_FUNC_MASK(pin);
-  putreg32(regval, BK7258_SYS_GPIO_FUNC(pin));
+  bk7258_gpio_func_write(pin, 0);
   leave_critical_section(flags);
 }
 
@@ -453,15 +524,12 @@ void bk7258_gpio_periph(unsigned int pin, unsigned int func)
     }
 
   flags  = enter_critical_section();
-  regval = getreg32(BK7258_GPIO_CFG(pin));
+  regval = bk7258_gpio_cfg_read(pin);
   regval &= ~(BK7258_GPIO_CFG_MODE_MASK | BK7258_GPIO_CFG_PULL_MASK);
   regval |= BK7258_GPIO_CFG_MODE_DIS | BK7258_GPIO_CFG_SECOND_FUNC;
-  putreg32(regval, BK7258_GPIO_CFG(pin));
+  bk7258_gpio_cfg_write(pin, regval);
 
-  regval  = getreg32(BK7258_SYS_GPIO_FUNC(pin));
-  regval &= ~BK7258_GPIO_FUNC_MASK(pin);
-  regval |= (func & UINT32_C(0xf)) << (((uint32_t)pin & 7) << 2);
-  putreg32(regval, BK7258_SYS_GPIO_FUNC(pin));
+  bk7258_gpio_func_write(pin, func);
   leave_critical_section(flags);
 }
 
@@ -560,8 +628,6 @@ void bk7258_gpio_dispatch(void *context)
 static int bk7258_gpio_wifi_mux(unsigned int pin)
 {
   irqstate_t flags;
-  uintptr_t reg;
-  uint32_t mask;
   int ret;
 
   if (pin >= BK7258_GPIO_COUNT)
@@ -569,23 +635,20 @@ static int bk7258_gpio_wifi_mux(unsigned int pin)
       return -EINVAL;
     }
 
-  reg = BK7258_SYS_GPIO_FUNC(pin);
-  mask = BK7258_GPIO_FUNC_MASK(pin);
-
   /* GPIO26/TXEN and GPIO28/RXEN are both function slot 0 in Armino's
    * gpio_map.h.  Configure selector and pad ownership as one operation.
    */
 
   flags = enter_critical_section();
   bk7258_gpio_periph(pin, 0);
-  ret = (getreg32(reg) & mask) == 0 &&
-        (getreg32(BK7258_GPIO_CFG(pin)) &
-         BK7258_GPIO_CFG_SECOND_FUNC) != 0 ? OK : -EIO;
+  ret = bk7258_gpio_func_read(pin) == 0 &&
+        (bk7258_gpio_cfg_read(pin) & BK7258_GPIO_CFG_SECOND_FUNC) != 0 ?
+        OK : -EIO;
   leave_critical_section(flags);
   syslog(LOG_INFO,
-         "[BK7258] GPIO mux pin=%u func=0 ret=%d cfg=0x%08lx sel=0x%08lx\n",
-         pin, ret, (unsigned long)getreg32(BK7258_GPIO_CFG(pin)),
-         (unsigned long)getreg32(reg));
+         "[BK7258] GPIO mux pin=%u func=0 ret=%d cfg=0x%08lx sel=%lu\n",
+         pin, ret, (unsigned long)bk7258_gpio_cfg_read(pin),
+         (unsigned long)bk7258_gpio_func_read(pin));
   return ret;
 }
 
@@ -603,13 +666,12 @@ int bk7258_gpio_wifi_rxen(void)
  * Armino GPIO API face
  *
  * The Armino modules (uart_driver, adc_driver, pwr_clk, pm, ...) call the
- * bk_gpio_* names declared in <driver/gpio.h>.  Until now those resolved to
- * middleware/driver/gpio/gpio_driver_base.c, which sat on gpio_hal.c /
- * gpio_ll.h -- a second owner of the very registers this file already drives
- * (SOC_AON_GPIO_REG_BASE == BK7258_AON_GPIO_BASE == 0x44000400).  The bodies
- * below are the gpio_driver_base.c contract reimplemented over this file's
- * register access, so one file owns the block and the callers keep their
- * signatures.
+ * bk_gpio_* names declared in <driver/gpio.h>; they used to resolve to
+ * middleware/driver/gpio/gpio_driver_base.c and bk7258/gpio_driver.c.  The
+ * bodies below are those two files' bodies, on the same gpio_hal.c /
+ * gpio_ll.h layer they used (SOC_AON_GPIO_REG_BASE == BK7258_AON_GPIO_BASE ==
+ * 0x44000400), so the CP image has one register path for the block and the
+ * callers keep their signatures.
  *
  * Register bit layout (gpio_struct.h, the authority for this SoC):
  *   [0] input (R)  [1] output (R/W)  [2] input_en  [3] output_en (active-low)
@@ -627,46 +689,87 @@ int bk7258_gpio_wifi_rxen(void)
 #include <soc/bk7258/gpio_cap.h>
 #include <bk7258/soc/gpio_map.h>
 #include "sdkconfig.h"
+#include "gpio_hal.h"
+#include "gpio_driver_base.h"
+#include "gpio_driver.h"
+#include "aon_pmu_hal.h"
+#include "usr_gpio_cfg.h"
 
-/* gpio_ll.h:31 -- the ll name for SOC_GPIO_NUM. */
-#define GPIO_NUM_MAX  SOC_GPIO_NUM
-
-/* gpio_map_t is defined in middleware/soc/common/hal/include/gpio_hal.h:35-39,
- * which drags the whole Armino HAL include chain (gpio_ll.h -> gpio_hw.h ->
- * gpio_reg.h -> icu_driver.h).  Transcribed here instead, so this file needs
- * only the contract header and gpio_map.h.  GPIO_DEV_MAP's initializer below
- * keeps the transcription honest: a field-order drift will not compile.
+/* gpio_driver_base.c:44 -- the driver state, exported under the baseline's
+ * name.  The Armino face below reaches the pins only through s_gpio.hal,
+ * i.e. gpio_hal.c / gpio_ll.h; it has no register access of its own.
+ *
+ * Peripheral muxing goes through gpio_hal_func_map(), not
+ * gpio_ll_set_perial_mode(): the latter uses a static pointer that each
+ * translation unit sets with its own gpio_ll_init(), and gpio_hal_init()
+ * only sets the one in bk7258_gpio_hal.c.
  */
-typedef struct
+
+gpio_driver_t s_gpio =
 {
-  gpio_id_t  id;
-  gpio_dev_t dev[GPIO_PERI_FUNC_NUM];
-  bool       is_available;
-} bk_gpio_map_t;
+  .hal.hw = (gpio_hw_t *)GPIO_LL_REG_BASE,
+};
 
 /* gpio_driver_base.c:58 keeps its own copy of the map; the table is a
  * static there and in gpio_hal.c, so each validating file owns one.
  */
-static const bk_gpio_map_t gpio_map_table[] = GPIO_DEV_MAP;
 
-#define BK7258_GPIO_CFG_INPUT_EN   (UINT32_C(1) << 2)
-#define BK7258_GPIO_CFG_OUTPUT_EN  (UINT32_C(1) << 3)  /* active-low */
-#define BK7258_GPIO_CFG_PULL_DIR   (UINT32_C(1) << 4)
-#define BK7258_GPIO_CFG_PULL_EN    (UINT32_C(1) << 5)
-#define BK7258_GPIO_CFG_MONITOR    (UINT32_C(1) << 7)
-#define BK7258_GPIO_CFG_CAP_MASK   (UINT32_C(3) << 8)
-#define BK7258_GPIO_CFG_INT_EN     (UINT32_C(1) << 12)
-#define BK7258_GPIO_CFG_INT_CLEAR  (UINT32_C(1) << 13)
+static const gpio_map_t gpio_map_table[] = GPIO_DEV_MAP;
 
-/* gpio_hal.c's GPIO_RETURN_ON_INVALID_ID indexes gpio_map_table[id] with no
- * bound check.  Same acceptance rule (is_available), plus the bound the
- * original omits: the table is a fixed 56 entries and gpio_id_t is an enum
- * whose out-of-range values are only reachable from a caller bug.
+/* gpio_driver_base.c:60-86, the authority's argument checks. */
+
+#define GPIO_RETURN_ON_INVALID_ID(id) \
+  do \
+    { \
+      if ((id) >= SOC_GPIO_NUM) \
+        { \
+          return BK_ERR_GPIO_CHAN_ID; \
+        } \
+      if (!gpio_map_table[id].is_available) \
+        { \
+          GPIO_LOGW("id %d is not available\r\n", id); \
+          return BK_ERR_GPIO_CHAN_ID; \
+        } \
+    } \
+  while (0)
+
+#define GPIO_RETURN_ON_INVALID_INT_TYPE_MODE(mode) \
+  do \
+    { \
+      if ((mode) >= GPIO_INT_TYPE_MAX) \
+        { \
+          return BK_ERR_GPIO_INVALID_INT_TYPE; \
+        } \
+    } \
+  while (0)
+
+#define GPIO_RETURN_ON_INVALID_IO_MODE(mode) \
+  do \
+    { \
+      if ((mode) >= GPIO_IO_INVALID) \
+        { \
+          return BK_ERR_GPIO_INVALID_MODE; \
+        } \
+    } \
+  while (0)
+
+#define GPIO_RETURN_ON_INVALID_PULL_MODE(mode) \
+  do \
+    { \
+      if ((mode) >= GPIO_PULL_INVALID) \
+        { \
+          return BK_ERR_GPIO_INVALID_MODE; \
+        } \
+    } \
+  while (0)
+
+/* The deferred T12 wakeup functions further down still test validity with
+ * a pointer; same rule as GPIO_RETURN_ON_INVALID_ID.
  */
 
-static const bk_gpio_map_t *bk_gpio_map(gpio_id_t id)
+static const gpio_map_t *bk_gpio_map(gpio_id_t id)
 {
-  if ((unsigned)id >= BK7258_GPIO_MAX_PIN || !gpio_map_table[id].is_available)
+  if ((unsigned)id >= SOC_GPIO_NUM || !gpio_map_table[id].is_available)
     {
       return NULL;
     }
@@ -674,397 +777,432 @@ static const bk_gpio_map_t *bk_gpio_map(gpio_id_t id)
   return &gpio_map_table[id];
 }
 
-static inline uint32_t bk_gpio_cfg_get(gpio_id_t id)
-{
-  return getreg32(BK7258_GPIO_CFG((unsigned)id));
-}
-
-static inline void bk_gpio_cfg_put(gpio_id_t id, uint32_t v)
-{
-  putreg32(v, BK7258_GPIO_CFG((unsigned)id));
-}
-
-static void bk_gpio_cfg_rmw(gpio_id_t id, uint32_t set, uint32_t clr)
-{
-  irqstate_t flags;
-  uint32_t regval;
-
-  flags  = enter_critical_section();
-  regval = bk_gpio_cfg_get(id);
-  regval = (regval | set) & ~clr;
-  bk_gpio_cfg_put(id, regval);
-  leave_critical_section(flags);
-}
-
-/* gpio_ll_set_value writes the whole cfg word, not the output latch alone. */
-
-bk_err_t bk_gpio_set_value(gpio_id_t id, uint32_t v)
-{
-  if (bk_gpio_map(id) == NULL)
-    {
-      return BK_ERR_GPIO_CHAN_ID;
-    }
-
-  bk_gpio_cfg_put(id, v);
-  return BK_OK;
-}
-
-uint32_t bk_gpio_get_value(gpio_id_t id)
-{
-  if (bk_gpio_map(id) == NULL)
-    {
-      return 0;
-    }
-
-  return bk_gpio_cfg_get(id);
-}
-
-bk_err_t bk_gpio_enable_output(gpio_id_t id)
-{
-  if (bk_gpio_map(id) == NULL)
-    {
-      return BK_ERR_GPIO_CHAN_ID;
-    }
-
-  bk_gpio_cfg_rmw(id, 0, BK7258_GPIO_CFG_OUTPUT_EN);
-  return BK_OK;
-}
-
-bk_err_t bk_gpio_disable_output(gpio_id_t id)
-{
-  if (bk_gpio_map(id) == NULL)
-    {
-      return BK_ERR_GPIO_CHAN_ID;
-    }
-
-  bk_gpio_cfg_rmw(id, BK7258_GPIO_CFG_OUTPUT_EN, 0);
-  return BK_OK;
-}
-
-bk_err_t bk_gpio_enable_input(gpio_id_t id)
-{
-  if (bk_gpio_map(id) == NULL)
-    {
-      return BK_ERR_GPIO_CHAN_ID;
-    }
-
-  bk_gpio_cfg_rmw(id, BK7258_GPIO_CFG_INPUT_EN, 0);
-  return BK_OK;
-}
-
-bk_err_t bk_gpio_disable_input(gpio_id_t id)
-{
-  if (bk_gpio_map(id) == NULL)
-    {
-      return BK_ERR_GPIO_CHAN_ID;
-    }
-
-  bk_gpio_cfg_rmw(id, 0, BK7258_GPIO_CFG_INPUT_EN);
-  return BK_OK;
-}
-
-bk_err_t bk_gpio_enable_pull(gpio_id_t id)
-{
-  if (bk_gpio_map(id) == NULL)
-    {
-      return BK_ERR_GPIO_CHAN_ID;
-    }
-
-  bk_gpio_cfg_rmw(id, BK7258_GPIO_CFG_PULL_EN, 0);
-  return BK_OK;
-}
-
-bk_err_t bk_gpio_disable_pull(gpio_id_t id)
-{
-  if (bk_gpio_map(id) == NULL)
-    {
-      return BK_ERR_GPIO_CHAN_ID;
-    }
-
-  bk_gpio_cfg_rmw(id, 0, BK7258_GPIO_CFG_PULL_EN);
-  return BK_OK;
-}
-
-/* gpio_driver_base.c:250 does pull_enable(1) then pull_up_enable(1). */
-
-bk_err_t bk_gpio_pull_up(gpio_id_t id)
-{
-  if (bk_gpio_map(id) == NULL)
-    {
-      return BK_ERR_GPIO_CHAN_ID;
-    }
-
-  bk_gpio_cfg_rmw(id, BK7258_GPIO_CFG_PULL_EN | BK7258_GPIO_CFG_PULL_DIR, 0);
-  return BK_OK;
-}
-
-bk_err_t bk_gpio_pull_down(gpio_id_t id)
-{
-  if (bk_gpio_map(id) == NULL)
-    {
-      return BK_ERR_GPIO_CHAN_ID;
-    }
-
-  bk_gpio_cfg_rmw(id, BK7258_GPIO_CFG_PULL_EN, BK7258_GPIO_CFG_PULL_DIR);
-  return BK_OK;
-}
-
-/* gpio_hal_set_output_value refuses when the pin is not in output mode. */
-
-static inline bool bk_gpio_output_enabled(gpio_id_t id)
-{
-  return (bk_gpio_cfg_get(id) & BK7258_GPIO_CFG_OUTPUT_EN) == 0;
-}
-
-bk_err_t bk_gpio_set_output_high(gpio_id_t id)
-{
-  if (bk_gpio_map(id) == NULL)
-    {
-      return BK_ERR_GPIO_CHAN_ID;
-    }
-
-  if (!bk_gpio_output_enabled(id))
-    {
-      return BK_ERR_GPIO_NOT_OUTPUT_MODE;
-    }
-
-  bk_gpio_cfg_rmw(id, BK7258_GPIO_CFG_OUTPUT, 0);
-  return BK_OK;
-}
-
-bk_err_t bk_gpio_set_output_low(gpio_id_t id)
-{
-  if (bk_gpio_map(id) == NULL)
-    {
-      return BK_ERR_GPIO_CHAN_ID;
-    }
-
-  if (!bk_gpio_output_enabled(id))
-    {
-      return BK_ERR_GPIO_NOT_OUTPUT_MODE;
-    }
-
-  bk_gpio_cfg_rmw(id, 0, BK7258_GPIO_CFG_OUTPUT);
-  return BK_OK;
-}
-
-/* gpio_hal_get_output / get_input report the *enable* bits, not the levels. */
-
-bool bk_gpio_get_output(gpio_id_t id)
-{
-  return bk_gpio_map(id) != NULL && bk_gpio_output_enabled(id);
-}
-
-bool bk_gpio_get_input(gpio_id_t id)
-{
-  return bk_gpio_map(id) != NULL &&
-         (bk_gpio_cfg_get(id) & BK7258_GPIO_CFG_INPUT_EN) != 0;
-}
-
-bool bk_gpio_set_capacity(gpio_id_t id, uint32 capacity)
-{
-  if (bk_gpio_map(id) == NULL)
-    {
-      return false;
-    }
-
-  if (capacity > 3)
-    {
-      return false;
-    }
-
-  bk_gpio_cfg_rmw(id, capacity << 8, BK7258_GPIO_CFG_CAP_MASK);
-  return true;
-}
-
-/* gpio_ll_set_mode = set_io_mode + set_pull_mode + set_func_mode, in that
- * order, with the enum values packed straight into the cfg word: io_mode
- * goes to bits [3:2], pull_mode to bits [5:4], func_mode to bit [6].
+/* gpio_driver_base.c:194-354 and gpio_driver.c:65-120: the Armino face, one
+ * gpio_hal_* call per function, with the authority's checks and return
+ * values -- including the odd ones (bk_gpio_get_value returns the error
+ * code as a uint32_t, bk_gpio_set_capacity returns BK_OK as false).
  */
 
-bk_err_t bk_gpio_set_config(gpio_id_t id, const gpio_config_t *config)
+bk_err_t bk_gpio_set_value(gpio_id_t gpio_id, uint32_t v)
 {
-  irqstate_t flags;
-  uint32_t regval;
-  uint32_t io_mode;
-  uint32_t pull_mode;
+  GPIO_RETURN_ON_INVALID_ID(gpio_id);
 
-  if (bk_gpio_map(id) == NULL)
-    {
-      return BK_ERR_GPIO_CHAN_ID;
-    }
+  return gpio_hal_set_value(&s_gpio.hal, gpio_id, v);
+}
 
-  if (config == NULL)
-    {
-      return BK_ERR_NULL_PARAM;
-    }
+uint32_t bk_gpio_get_value(gpio_id_t gpio_id)
+{
+  GPIO_RETURN_ON_INVALID_ID(gpio_id);
 
-  switch (config->io_mode)
-    {
-      case GPIO_OUTPUT_ENABLE: io_mode = 0; break;
-      case GPIO_INPUT_ENABLE:  io_mode = 3; break;
-      case GPIO_IO_DISABLE:    io_mode = 2; break;
-      default:                 io_mode = 0; break;
-    }
+  return gpio_hal_get_value(&s_gpio.hal, gpio_id);
+}
 
-  switch (config->pull_mode)
-    {
-      case GPIO_PULL_DISABLE: pull_mode = 0; break;
-      case GPIO_PULL_DOWN_EN: pull_mode = 2; break;
-      case GPIO_PULL_UP_EN:   pull_mode = 3; break;
-      default:                pull_mode = 0; break;
-    }
+bk_err_t bk_gpio_enable_output(gpio_id_t gpio_id)
+{
+  GPIO_RETURN_ON_INVALID_ID(gpio_id);
 
-  flags  = enter_critical_section();
-  regval = bk_gpio_cfg_get(id);
-  regval &= ~(BK7258_GPIO_CFG_MODE_MASK | BK7258_GPIO_CFG_PULL_MASK |
-              BK7258_GPIO_CFG_SECOND_FUNC);
-  regval |= (io_mode << 2) | (pull_mode << 4);
-  if (config->func_mode == GPIO_SECOND_FUNC_ENABLE)
-    {
-      regval |= BK7258_GPIO_CFG_SECOND_FUNC;
-    }
+  return gpio_hal_output_enable(&s_gpio.hal, gpio_id, 1);
+}
 
-  bk_gpio_cfg_put(id, regval);
-  leave_critical_section(flags);
+bk_err_t bk_gpio_disable_output(gpio_id_t gpio_id)
+{
+  GPIO_RETURN_ON_INVALID_ID(gpio_id);
+
+  return gpio_hal_output_enable(&s_gpio.hal, gpio_id, 0);
+}
+
+bk_err_t bk_gpio_enable_input(gpio_id_t gpio_id)
+{
+  GPIO_RETURN_ON_INVALID_ID(gpio_id);
+
+  return gpio_hal_input_enable(&s_gpio.hal, gpio_id, 1);
+}
+
+bk_err_t bk_gpio_disable_input(gpio_id_t gpio_id)
+{
+  GPIO_RETURN_ON_INVALID_ID(gpio_id);
+
+  return gpio_hal_input_enable(&s_gpio.hal, gpio_id, 0);
+}
+
+bk_err_t bk_gpio_enable_pull(gpio_id_t gpio_id)
+{
+  GPIO_RETURN_ON_INVALID_ID(gpio_id);
+
+  return gpio_hal_pull_enable(&s_gpio.hal, gpio_id, 1);
+}
+
+bk_err_t bk_gpio_disable_pull(gpio_id_t gpio_id)
+{
+  GPIO_RETURN_ON_INVALID_ID(gpio_id);
+
+  return gpio_hal_pull_enable(&s_gpio.hal, gpio_id, 0);
+}
+
+bk_err_t bk_gpio_pull_up(gpio_id_t gpio_id)
+{
+  GPIO_RETURN_ON_INVALID_ID(gpio_id);
+
+  gpio_hal_pull_enable(&s_gpio.hal, gpio_id, 1);
+  return gpio_hal_pull_up_enable(&s_gpio.hal, gpio_id, 1);
+}
+
+bk_err_t bk_gpio_pull_down(gpio_id_t gpio_id)
+{
+  GPIO_RETURN_ON_INVALID_ID(gpio_id);
+
+  gpio_hal_pull_enable(&s_gpio.hal, gpio_id, 1);
+  return gpio_hal_pull_up_enable(&s_gpio.hal, gpio_id, 0);
+}
+
+bk_err_t bk_gpio_set_output_high(gpio_id_t gpio_id)
+{
+  GPIO_RETURN_ON_INVALID_ID(gpio_id);
+
+  return gpio_hal_set_output_value(&s_gpio.hal, gpio_id, 1);
+}
+
+bk_err_t bk_gpio_set_output_low(gpio_id_t gpio_id)
+{
+  GPIO_RETURN_ON_INVALID_ID(gpio_id);
+
+  return gpio_hal_set_output_value(&s_gpio.hal, gpio_id, 0);
+}
+
+bool bk_gpio_get_output(gpio_id_t gpio_id)
+{
+  GPIO_RETURN_ON_INVALID_ID(gpio_id);
+
+  return gpio_hal_get_output(&s_gpio.hal, gpio_id);
+}
+
+bool bk_gpio_get_input(gpio_id_t gpio_id)
+{
+  GPIO_RETURN_ON_INVALID_ID(gpio_id);
+
+  return gpio_hal_get_input(&s_gpio.hal, gpio_id);
+}
+
+bool bk_gpio_set_capacity(gpio_id_t gpio_id, uint32 capacity)
+{
+  GPIO_RETURN_ON_INVALID_ID(gpio_id);
+
+  return gpio_hal_set_capacity(&s_gpio.hal, gpio_id, capacity);
+}
+
+bk_err_t bk_gpio_set_config(gpio_id_t gpio_id, const gpio_config_t *config)
+{
+  GPIO_RETURN_ON_INVALID_ID(gpio_id);
+  GPIO_RETURN_ON_INVALID_IO_MODE(config->io_mode);
+  GPIO_RETURN_ON_INVALID_PULL_MODE(config->pull_mode);
+
+  return gpio_hal_set_config(&s_gpio.hal, gpio_id, config);
+}
+
+/* gpio_driver_base.c:47 -- one gpio_isr_t per pin, filled on register. */
+
+static gpio_isr_t s_gpio_isr[SOC_GPIO_NUM];
+
+bk_err_t bk_gpio_register_isr(gpio_id_t gpio_id, gpio_isr_t isr)
+{
+  GPIO_RETURN_ON_INVALID_ID(gpio_id);
+  s_gpio_isr[gpio_id] = isr;
+
   return BK_OK;
 }
 
-/* gpio_driver_base.c:317 keeps one gpio_isr_t per pin in s_gpio_isr[] and
- * gpio_isr() dispatches to it.  Same shape here; the table is filled on
- * register and cleared on a NULL unregister, matching the original.
+bk_err_t bk_gpio_enable_interrupt(gpio_id_t gpio_id)
+{
+  GPIO_RETURN_ON_INVALID_ID(gpio_id);
+
+  /* Before enabling the interrupt, wait for the chip to settle. */
+
+  for (volatile int i = 0; i < 1000; i++)
+    {
+    }
+
+  return gpio_hal_enable_interrupt(&s_gpio.hal, gpio_id);
+}
+
+bk_err_t bk_gpio_disable_interrupt(gpio_id_t gpio_id)
+{
+  GPIO_RETURN_ON_INVALID_ID(gpio_id);
+
+  /* Only the pin's own enable: the CPU-side group IRQ is shared by every
+   * GPIO and stays as it is.
+   */
+
+  gpio_hal_disable_interrupt(&s_gpio.hal, gpio_id);
+  return BK_OK;
+}
+
+bk_err_t bk_gpio_clear_interrupt(gpio_id_t gpio_id)
+{
+  GPIO_RETURN_ON_INVALID_ID(gpio_id);
+
+  gpio_hal_clear_chan_interrupt_status(&s_gpio.hal, gpio_id);
+  return BK_OK;
+}
+
+bk_err_t bk_gpio_set_interrupt_type(gpio_id_t gpio_id, gpio_int_type_t type)
+{
+  GPIO_RETURN_ON_INVALID_ID(gpio_id);
+  GPIO_RETURN_ON_INVALID_INT_TYPE_MODE(type);
+
+  return gpio_hal_set_int_type(&s_gpio.hal, gpio_id, type);
+}
+
+/* gpio_driver.c:41-63, CONFIG_GPIO_DEFAULT_SET_SUPPORT=1: a pin may only be
+ * muxed if the board's GPIO_DEFAULT_DEV_CONFIG (usr_gpio_cfg.h) lists it.
  */
 
-static gpio_isr_t s_gpio_isr[BK7258_GPIO_MAX_PIN];
+static const gpio_default_map_t s_default_map[] = GPIO_DEFAULT_DEV_CONFIG;
 
-bk_err_t bk_gpio_register_isr(gpio_id_t id, gpio_isr_t isr)
+static const gpio_default_map_t *get_gpio_config(gpio_id_t gpio_id)
 {
-  if (bk_gpio_map(id) == NULL)
+  for (int i = 0; i < sizeof(s_default_map) / sizeof(gpio_default_map_t);
+       i++)
     {
-      return BK_ERR_GPIO_CHAN_ID;
-    }
-
-  s_gpio_isr[id] = isr;
-  return BK_OK;
-}
-
-bk_err_t bk_gpio_enable_interrupt(gpio_id_t id)
-{
-  if (bk_gpio_map(id) == NULL)
-    {
-      return BK_ERR_GPIO_CHAN_ID;
-    }
-
-  if ((bk_gpio_cfg_get(id) & BK7258_GPIO_CFG_INPUT_EN) == 0)
-    {
-      return BK_ERR_GPIO_NOT_INPUT_MODE;
-    }
-
-  bk_gpio_cfg_rmw(id, BK7258_GPIO_CFG_INT_EN, 0);
-  return BK_OK;
-}
-
-bk_err_t bk_gpio_disable_interrupt(gpio_id_t id)
-{
-  if (bk_gpio_map(id) == NULL)
-    {
-      return BK_ERR_GPIO_CHAN_ID;
-    }
-
-  bk_gpio_cfg_rmw(id, 0, BK7258_GPIO_CFG_INT_EN);
-  return BK_OK;
-}
-
-bk_err_t bk_gpio_clear_interrupt(gpio_id_t id)
-{
-  if (bk_gpio_map(id) == NULL)
-    {
-      return BK_ERR_GPIO_CHAN_ID;
-    }
-
-  bk_gpio_cfg_rmw(id, BK7258_GPIO_CFG_INT_CLEAR, 0);
-  return BK_OK;
-}
-
-
-/* gpio_dev_map / gpio_dev_unmap (gpio_driver.c:65/:94) are the peripheral
- * mux face.  Their callers are adc_driver, sdmadc_driver, flash_bypass,
- * touch_driver, uart_driver, low_pwr_misc, bk_phy_adapter, bk_wifi_adapter
- * and the tool layer -- so the double-owner on the UART pins cannot close
- * without them.  gpio_hal_func_map/unmap/devs_map are internal to
- * gpio_driver.c + gpio_driver_base.c and disappear with those two files.
- * (bk_wifi_adapter.c has its own static gpio_dev_map_wrapper; not an export.)
- */
-
-static bool bk_gpio_second_func(gpio_id_t id)
-{
-  return (bk_gpio_cfg_get(id) & BK7258_GPIO_CFG_SECOND_FUNC) != 0;
-}
-
-bk_err_t gpio_dev_map(gpio_id_t id, gpio_dev_t dev)
-{
-  const bk_gpio_map_t *map = bk_gpio_map(id);
-  int peri;
-
-  if (map == NULL)
-    {
-      return BK_ERR_GPIO_CHAN_ID;
-    }
-
-  if (bk_gpio_second_func(id))
-    {
-      return BK_ERR_GPIO_INTERNAL_USED;
-    }
-
-  if (dev == GPIO_DEV_NONE)
-    {
-      return BK_ERR_GPIOS_MAP_NONE;
-    }
-
-  for (peri = 0; peri < GPIO_PERI_FUNC_NUM; peri++)
-    {
-      if (map->dev[peri] == dev)
+      if (s_default_map[i].gpio_id == gpio_id)
         {
-          bk7258_gpio_periph((unsigned)id, (unsigned)peri);
-          return BK_OK;
+          return &s_default_map[i];
         }
     }
 
-  return BK_ERR_GPIOS_MAP_NONE;
+  return NULL;
 }
 
-bk_err_t gpio_dev_unmap(gpio_id_t id)
+bk_err_t gpio_dev_map(gpio_id_t gpio_id, gpio_dev_t dev)
 {
-  if (bk_gpio_map(id) == NULL)
+  if (get_gpio_config(gpio_id) == NULL)
     {
-      return BK_ERR_GPIO_CHAN_ID;
+      return BK_ERR_GPIO_INVALID_OPERATE;
     }
 
-  /* gpio_hal_func_unmap warns when the pin is still in second-func mode but
-   * continues; only the second-function bit is cleared.
+  /* Restore a configuration that is not a secondary function to its
+   * initial state, then select the peripheral.
    */
 
-  bk_gpio_cfg_rmw(id, 0, BK7258_GPIO_CFG_SECOND_FUNC);
+  gpio_hal_output_enable(&s_gpio.hal, gpio_id, 0);
+  gpio_hal_input_enable(&s_gpio.hal, gpio_id, 0);
+  gpio_hal_pull_enable(&s_gpio.hal, gpio_id, 0);
+  gpio_hal_disable_interrupt(&s_gpio.hal, gpio_id);
+  gpio_hal_func_map(&s_gpio.hal, gpio_id, dev);
+
   return BK_OK;
 }
 
-/* The remaining exports of middleware/driver/gpio/gpio_driver_base.c and
- * middleware/driver/bk7258/gpio_driver.c.  The linker named exactly these
- * six once both files left the build; every other symbol of theirs had no
- * caller left (gpio_i2c1_sel, gpio_sdio_sel, gpio_spi_sel, gpio_jtag_sel,
- * gpio_get_interrupt_status, gpio_enter/exit_low_power,
- * gpio_enable_interrupt_mult_for_wake, bk_gpio_set_interrupt_type,
- * bk_gpio_retention_set/clr, gpio_check_*_match and the s_gpio* data are
- * all unreferenced from the units we still compile).
- *
- * The bodies below are the Armino ones with the register access folded
- * onto this file's BK7258_GPIO_CFG ops.  The retention table and the ana
- * wakeup slots are copied, not re-derived -- they encode the board's pin
- * choices (GPIO_RETENTION_MAP, GPIO_STATIC_WAKEUP_SOURCE_MAP) and the PMU
- * bitmap protocol, and hand-rewriting either would be inventing behaviour.
+bk_err_t gpio_dev_unmap(gpio_id_t gpio_id)
+{
+  if (get_gpio_config(gpio_id) == NULL)
+    {
+      return BK_ERR_GPIO_INVALID_OPERATE;
+    }
+
+  gpio_hal_output_enable(&s_gpio.hal, gpio_id, 0);
+  gpio_hal_input_enable(&s_gpio.hal, gpio_id, 0);
+  gpio_hal_pull_enable(&s_gpio.hal, gpio_id, 0);
+  gpio_hal_disable_interrupt(&s_gpio.hal, gpio_id);
+  gpio_hal_func_unmap(&s_gpio.hal, gpio_id);
+
+  return BK_OK;
+}
+
+/* gpio_driver.c:123-197: select a whole peripheral's pin group from the
+ * SoC's map tables (gpio_map.h).  No caller in this image today; they are
+ * the driver's exported contract.
  */
 
-#define BK7258_GPIO_CFG_INT_TYPE_SHIFT 10
+#define GPIO_RETURN_ON_INVALID_PERIAL_MODE(mode, mode_max) \
+  do \
+    { \
+      if ((mode) >= (mode_max)) \
+        { \
+          return BK_ERR_GPIO_SET_INVALID_FUNC_MODE; \
+        } \
+    } \
+  while (0)
+
+bk_err_t gpio_i2c1_sel(gpio_i2c1_map_mode_t mode)
+{
+  GPIO_RETURN_ON_INVALID_PERIAL_MODE(mode, GPIO_I2C1_MAP_MODE_MAX);
+
+  GPIO_MAP_TABLE(GPIO_I2C1_USED_GPIO_NUM, GPIO_I2C1_MAP_MODE_MAX,
+                 i2c1_gpio_map) = GPIO_I2C1_MAP_TABLE;
+
+  gpio_hal_devs_map(&s_gpio.hal, i2c1_gpio_map[mode].gpio_bits,
+                    i2c1_gpio_map[mode].devs, GPIO_I2C1_USED_GPIO_NUM);
+
+  return BK_OK;
+}
+
+bk_err_t gpio_i2s_sel(gpio_i2s_map_mode_t mode)
+{
+  GPIO_RETURN_ON_INVALID_PERIAL_MODE(mode, GPIO_I2S_MAP_MODE_MAX);
+
+  GPIO_MAP_TABLE(GPIO_I2S_USED_GPIO_NUM, GPIO_I2S_MAP_MODE_MAX,
+                 i2s_gpio_map) = GPIO_I2S_MAP_TABLE;
+
+  gpio_hal_devs_map(&s_gpio.hal, i2s_gpio_map[mode].gpio_bits,
+                    i2s_gpio_map[mode].devs, GPIO_I2S_USED_GPIO_NUM);
+
+  return BK_OK;
+}
+
+bk_err_t gpio_spi_sel(gpio_spi1_map_mode_t mode)
+{
+  GPIO_RETURN_ON_INVALID_PERIAL_MODE(mode, GPIO_SPI_MAP_MODE_MAX);
+
+  GPIO_MAP_TABLE(GPIO_SPI0_USED_GPIO_NUM, GPIO_SPI_MAP_MODE_MAX,
+                 spi_gpio_map) = GPIO_SPI0_MAP_TABLE;
+
+  gpio_hal_devs_map(&s_gpio.hal, spi_gpio_map[mode].gpio_bits,
+                    spi_gpio_map[mode].devs, GPIO_SPI0_USED_GPIO_NUM);
+
+  return BK_OK;
+}
+
+bk_err_t gpio_sdio_sel(gpio_sdio_map_mode_t mode)
+{
+  GPIO_RETURN_ON_INVALID_PERIAL_MODE(mode, GPIO_SDIO_MAP_MODE_MAX);
+
+  GPIO_MAP_TABLE(GPIO_SDIO_USED_GPIO_NUM, GPIO_SDIO_MAP_MODE_MAX,
+                 sdio_gpio_map) = GPIO_SDIO_MAP_TABLE;
+
+  gpio_hal_devs_map(&s_gpio.hal, sdio_gpio_map[mode].gpio_bits,
+                    sdio_gpio_map[mode].devs, GPIO_SDIO_USED_GPIO_NUM);
+
+  return BK_OK;
+}
+
+bk_err_t gpio_sdio_one_line_sel(gpio_sdio_map_mode_t mode)
+{
+  GPIO_RETURN_ON_INVALID_PERIAL_MODE(mode, GPIO_SDIO_MAP_MODE_MAX);
+
+  GPIO_MAP_TABLE(GPIO_SDIO_ONE_LINE_USED_GPIO_NUM, GPIO_SDIO_MAP_MODE_MAX,
+                 sdio_gpio_map) = GPIO_SDIO_ONE_LINE_MAP_TABLE;
+
+  gpio_hal_devs_map(&s_gpio.hal, sdio_gpio_map[mode].gpio_bits,
+                    sdio_gpio_map[mode].devs,
+                    GPIO_SDIO_ONE_LINE_USED_GPIO_NUM);
+
+  return BK_OK;
+}
+
+bk_err_t gpio_jtag_sel(gpio_jtag_map_group_t group_id)
+{
+  if (group_id == GPIO_JTAG_MAP_GROUP0)
+    {
+      gpio_hal_func_unmap(&s_gpio.hal, GPIO_20);
+      gpio_hal_func_unmap(&s_gpio.hal, GPIO_21);
+      gpio_hal_func_map(&s_gpio.hal, GPIO_20, GPIO_DEV_JTAG_TCK);
+      gpio_hal_func_map(&s_gpio.hal, GPIO_21, GPIO_DEV_JTAG_TMS);
+    }
+  else if (group_id == GPIO_JTAG_MAP_GROUP1)
+    {
+      gpio_hal_func_unmap(&s_gpio.hal, GPIO_0);
+      gpio_hal_func_unmap(&s_gpio.hal, GPIO_1);
+      gpio_hal_func_map(&s_gpio.hal, GPIO_0, GPIO_DEV_JTAG_TCK);
+      gpio_hal_func_map(&s_gpio.hal, GPIO_1, GPIO_DEV_JTAG_TMS);
+    }
+  else
+    {
+      GPIO_LOGD("Unsupported group id(%d).\r\n", group_id);
+      return BK_FAIL;
+    }
+
+  return BK_OK;
+}
+
+/* gpio_driver.c:362-411: check a pin against the board's default table. */
+
+bk_err_t gpio_check_dev_match(gpio_id_t gpio_id, gpio_dev_t dev)
+{
+  const gpio_default_map_t *config = get_gpio_config(gpio_id);
+  bool func_mode_en = true;
+
+  if (config == NULL)
+    {
+      GPIO_LOGW("GPIO%d not found in GPIO_DEFAULT_DEV_CONFIG table\r\n",
+                gpio_id);
+      return BK_ERR_GPIO_INVALID_OPERATE;
+    }
+
+  if (config->second_func_en != GPIO_SECOND_FUNC_ENABLE)
+    {
+      func_mode_en = false;
+      GPIO_LOGW("GPIO%d not enable second func\r\n", gpio_id);
+    }
+
+  if (config->second_func_dev != dev)
+    {
+      func_mode_en = false;
+      GPIO_LOGW("GPIO%d dev mismatch, expect 0x%x, but current is 0x%x\r\n",
+                gpio_id, dev, config->second_func_dev);
+    }
+
+  if (!func_mode_en)
+    {
+      GPIO_LOGW("gpio id=%d func_mode is not match\r\n", gpio_id);
+      return BK_ERR_GPIO_CONFIG_MISMATCH;
+    }
+
+  return BK_OK;
+}
+
+bk_err_t gpio_check_capacity_match(gpio_id_t gpio_id, uint8_t expect_capacity)
+{
+  const gpio_default_map_t *config = get_gpio_config(gpio_id);
+
+  if (config == NULL)
+    {
+      GPIO_LOGW("GPIO%d not found in GPIO_DEFAULT_DEV_CONFIG table\r\n",
+                gpio_id);
+      return BK_ERR_GPIO_INVALID_OPERATE;
+    }
+
+  if (config->driver_capacity != expect_capacity)
+    {
+      GPIO_LOGW("GPIO%d driver capacity mismatch, expect %d, but current is "
+                "%d\r\n", gpio_id, expect_capacity, config->driver_capacity);
+      return BK_ERR_GPIO_CONFIG_MISMATCH;
+    }
+
+  return BK_OK;
+}
+
+/* gpio_driver_base.c:479 */
+
+void gpio_get_interrupt_status(uint32_t *h_status, uint32_t *l_status)
+{
+  gpio_hal_t *hal = &s_gpio.hal;
+  gpio_interrupt_status_t gpio_status;
+
+  gpio_hal_get_interrupt_status(hal, &gpio_status);
+  if (h_status)
+    {
+      *h_status = gpio_status.gpio_32_64_int_status;
+    }
+
+  if (l_status)
+    {
+      *l_status = gpio_status.gpio_0_31_int_status;
+    }
+}
+
+/* Wakeup, low-power keep-status and retention: the part of the two files
+ * that belongs to PM.  What is here is what the image links today.  The
+ * other 13 exports of this group -- gpio_enter/exit_low_power,
+ * gpio_enable_interrupt_mult_for_wake, bk_gpio_retention_set/clr,
+ * gpio_retention_map_set/clr, the four s_gpio_bak_* / s_gpio_is_* tables
+ * and the gpio_ipc channel -- are deferred to T12 (PM) and T16 (cross-core);
+ * see the exception table in docs/bk7258-nativization-contract.md.  Nothing
+ * in the image references them.
+ *
+ * The retention table and the ana wakeup slots are copied, not re-derived
+ * -- they encode the board's pin choices (GPIO_RETENTION_MAP,
+ * GPIO_STATIC_WAKEUP_SOURCE_MAP) and the PMU bitmap protocol.
+ */
 
 /* ---- gpio_driver.c:41-46, the deep-sleep retention table ---- */
 
@@ -1100,23 +1238,6 @@ static struct
   gpio_int_type_t int_type;
 } s_wkup_cfg[GPIO_ANA_WAKEUP_MAX];
 static uint32_t s_wkup_cnt;
-
-bk_err_t bk_gpio_set_interrupt_type(gpio_id_t id, gpio_int_type_t type)
-{
-  if (bk_gpio_map(id) == NULL)
-    {
-      return BK_ERR_GPIO_CHAN_ID;
-    }
-
-  if (type >= GPIO_INT_TYPE_MAX)
-    {
-      return BK_ERR_GPIO_SET_INVALID_FUNC_MODE;
-    }
-
-  bk_gpio_cfg_rmw(id, ((uint32_t)type << BK7258_GPIO_CFG_INT_TYPE_SHIFT),
-                  (UINT32_C(3) << BK7258_GPIO_CFG_INT_TYPE_SHIFT));
-  return BK_OK;
-}
 
 gpio_id_t bk_gpio_get_wakeup_gpio_id(void)
 {
@@ -1279,7 +1400,7 @@ void gpio_retention_sync(bool force_flag)
         {
           /* soc_debug.h:24-25 -- write the whole cfg word. */
 
-          putreg32((bitmap & BIT(i)) ? 2 : 0, BK7258_GPIO_CFG((unsigned)id));
+          gpio_hal_set_value(&s_gpio.hal, id, (bitmap & BIT(i)) ? 2 : 0);
         }
 
       if (force_flag)
@@ -1297,6 +1418,11 @@ bk_err_t bk_gpio_driver_init(void)
 {
   uint32_t i;
 
+  /* gpio_driver_base.c:144.  This also points bk7258_gpio_hal.c's mux
+   * accessor at the SYS block; gpio_hal_func_map() depends on it.
+   */
+
+  gpio_hal_init(&s_gpio.hal);
   bk7258_gpio_irq_initialize();
 
   for (i = 0; i < CONFIG_GPIO_DYNAMIC_WAKEUP_SOURCE_MAX_CNT; i++)
@@ -1318,7 +1444,8 @@ bk_err_t bk_gpio_driver_deinit(void)
  * The same pins, seen through NuttX's gpio character device (CONFIG_DEV_GPIO).
  * This is the fifth invariant again: the Armino gpio API in this file stays the
  * compatibility surface, /dev/gpioN is the standard one, and the ops bodies are
- * bk7258_gpio_read() / bk7258_gpio_write() -- there is no second register path.
+ * bk_gpio_set_output_high/low() and bk_gpio_get_value() -- there is no second
+ * register path.
  *
  * Only pins the board registers are exposed, and the board owns the pin
  * politics: bk7258_gpio_pin_register() takes the pin, the kind (in/out) and the
