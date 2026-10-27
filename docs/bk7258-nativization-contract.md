@@ -1629,6 +1629,17 @@ AP 互斥自动随每次擦写生效，MTD 不需要另加。
 | 打包 | `decode pass` |
 | 板上（镜像 `7ac10cfb…`） | `bk7258_drvtest mtd` → `blocksize=4096 erasesize=4096 neraseblocks=2048 model=bk7258-spi-nor`，随后 `first 32 bytes identical on both faces`：MTD 面与 `bk_flash_read` 同区间读出完全相同 |
 
-已知未验（T14 验收要求，未完成）：**easyflash 写入后重启仍在**。当前 easyflash 仍走 Armino 面
-（`ef_port.c` 调 `bk_flash_partition_get_info`/`read_bytes`/`write_bytes`/`erase_sector`/
-`get/set_protect_type`），本批没有改它的调用路径。T14 尚不能勾。
+板上持久化（镜像 `bf68d649…`，`bk7258_drvtest env set/get`，走 `bk_set_env_enhance`/
+`bk_get_env_enhance`，即 `ef_port.c` 那条 Armino 面）：
+
+1. `env set probe 1234` → `-> 0`
+2. `env get probe` → `"1234" (5 bytes)`
+3. `reboot`；开机日志 `cpu0:flash:I(105):/dev/mtd0 registered (8192 KiB, 4096 B sectors)`、
+   `ENV start address is 0x007FA000, size is 8192 bytes`、`EasyFlash V4.1.0 is initialize success`
+4. 重启后 `env get probe` → **仍为 `"1234" (5 bytes)`**
+
+所以擦、写、读经我们的寄存器序列落到了 `easyflash` 分区（0x7fa000），重启后仍在。
+easyflash 仍走 Armino 面、没改它的调用路径——两份实现共享的是下面那三个原语。
+
+T14 剩余未复测：本镜像的**连接 3/3**（S2.6 要求阶段二每一步都测 3/3）；`ping` 已在 PSRAM
+那批确认过。

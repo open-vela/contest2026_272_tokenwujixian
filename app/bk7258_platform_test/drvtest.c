@@ -34,6 +34,14 @@
 
 #include <arch/chip/bk7258_flash.h>
 
+/* easyflash environment (components/easy_flash/bk_ef.h).  The app is built
+ * outside the chip's baseline include roots, so the two entry points are
+ * declared here rather than pulling that header in.
+ */
+
+int bk_set_env_enhance(const char *key, const void *value, int value_len);
+int bk_get_env_enhance(const char *key, void *value, int value_len);
+
 #include "bk7258_probe.h"
 #include "bk7258_reset.h"
 
@@ -46,6 +54,8 @@ static void usage(void)
          "       bk7258_drvtest wdg\n"
          "       bk7258_drvtest gpio\n"
          "       bk7258_drvtest mtd\n"
+         "       bk7258_drvtest env set <key> <value>\n"
+         "       bk7258_drvtest env get <key>\n"
          "       bk7258_drvtest wdt peek|stop|feed|sensor|reset\n"
          "       bk7258_drvtest wdt start <ms>\n"
          "       bk7258_drvtest wdt reason <n>\n");
@@ -179,6 +189,64 @@ static int mtd_command(void)
   return 0;
 }
 
+/* easyflash environment: the write/erase path ef_port.c uses, so a value
+ * that survives a reboot is evidence that the Armino flash face still works
+ * end to end after the block moved behind mtd_dev_s.
+ */
+
+#define BK7258_DRVTEST_ENV_MAX 64
+
+static int env_command(int argc, char *argv[])
+{
+  char value[BK7258_DRVTEST_ENV_MAX];
+  int ret;
+  int len;
+
+  if (argc < 3)
+    {
+      usage();
+      return 1;
+    }
+
+  if (strcmp(argv[2], "set") == 0)
+    {
+      if (argc < 5)
+        {
+          usage();
+          return 1;
+        }
+
+      len = strlen(argv[4]) + 1;
+      if (len > (int)sizeof(value))
+        {
+          printf("env: value too long (max %u)\n", (unsigned)sizeof(value) - 1);
+          return 1;
+        }
+
+      memcpy(value, argv[4], len);
+      ret = (int)bk_set_env_enhance(argv[3], value, len);
+      printf("env: set %s=%s -> %d\n", argv[3], argv[4], ret);
+      return ret == 0 ? 0 : 1;
+    }
+
+  if (strcmp(argv[2], "get") == 0)
+    {
+      memset(value, 0, sizeof(value));
+      ret = bk_get_env_enhance(argv[3], value, sizeof(value));
+      if (ret <= 0)
+        {
+          printf("env: get %s -> %d (not found)\n", argv[3], ret);
+          return 1;
+        }
+
+      printf("env: get %s -> \"%s\" (%d bytes)\n", argv[3], value, ret);
+      return 0;
+    }
+
+  usage();
+  return 1;
+}
+
 int main(int argc, char *argv[])
 {
   if (argc < 2)
@@ -221,6 +289,11 @@ int main(int argc, char *argv[])
     {
       bk7258_gpio_probe();
       return 0;
+    }
+
+  if (strcmp(argv[1], "env") == 0)
+    {
+      return env_command(argc, argv);
     }
 
   if (strcmp(argv[1], "mtd") == 0)
