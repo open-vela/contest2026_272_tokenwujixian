@@ -1587,3 +1587,48 @@ CP 侧 `FATAL: Reset by remote core: ap reason: 3` → `Rptun driver reset remot
   不是回归；用 ≤4915 KiB 即可。
 
 `ping`：用户在同一镜像上确认正常（未留日志）。T14 的另一半是 flash 族 7 个单元挂 `mtd_dev_s`，仍未做。
+
+---
+
+## 批次 15：flash 挂 `mtd_dev_s`（T14 的另一半）
+
+flash 族 7 个单元的源码早在批次 14 之前就已换成我们的（`bk7258_flash_driver.c` 等），但它们只有
+Armino 面、没有 NuttX 标准面，按第 5 条不算完成。本批补上标准面，并把两条访问路径收到同一份原语上。
+
+### 一个下半部
+
+`chips/bk7258/bk7258_flash_driver.c` 末尾新增 `mtd_dev_s`，注册为 `/dev/mtd0`：
+
+| op | 方法体 |
+| --- | --- |
+| `erase` | 按 4 KiB 扇区循环 `flash_erase_no_lock(addr, FLASH_OP_CMD_SE)`，整段持一次 `flash_lock` |
+| `bread` / `bwrite` | 按扇区块，`flash_read_common` / `flash_write_no_lock` |
+| `read` | 字节粒度，`flash_read_common` |
+| `ioctl` | `MTDIOC_GEOMETRY`（4096/4096/2048，model `bk7258-spi-nor`）、`MTDIOC_BULKERASE`、`BIOC_XIPBASE` |
+| `isbad` / `markbad` | NOR 无坏块表：恒 0 / `-ENOSYS` |
+
+Armino 面的 `bk_flash_read_bytes`/`write_bytes`/`erase_sector/32k/block` 仍调同样三个原语，
+所以两条路只有一份寄存器实现。**`flash_lock()` 内已经含 `mb_flash_op_prepare/finish`**，
+AP 互斥自动随每次擦写生效，MTD 不需要另加。
+
+### 两个必须记住的事实
+
+1. **这个 NuttX 没有 MTD 字符设备。** `register_mtddriver()` 只建 `INODE_IS_MTD` 节点，供
+   `find_mtddriver()` / littlefs 这类挂载源使用；`open("/dev/mtd0")` 返回 `ENXIO`。第一版自检就是
+   这样失败的（errno 6）。要给用户态读写，得自己写一层字符设备（mainline 的 `mtdchar.c`），
+   本批没做，因为现在没有消费者。
+2. **`MTDIOC_XIPBASE` 已被移除**，头文件里写明用 `BIOC_XIPBASE` 替代；我们用的是后者。
+
+### 验收
+
+| 项 | 结果 |
+| --- | --- |
+| 开框架开销 | `CONFIG_MTD=y` 使 CP 镜像 +208 B（框架），加下半部与自检后 CP 共 1 030 452 B |
+| CP flash 余量 | 分区 1 462 272 B，镜像 1 030 452 B，**剩 421.7 KiB**（用掉 70.5%） |
+| `nm -u` | CP / AP 均 0 |
+| 打包 | `decode pass` |
+| 板上（镜像 `7ac10cfb…`） | `bk7258_drvtest mtd` → `blocksize=4096 erasesize=4096 neraseblocks=2048 model=bk7258-spi-nor`，随后 `first 32 bytes identical on both faces`：MTD 面与 `bk_flash_read` 同区间读出完全相同 |
+
+已知未验（T14 验收要求，未完成）：**easyflash 写入后重启仍在**。当前 easyflash 仍走 Armino 面
+（`ef_port.c` 调 `bk_flash_partition_get_info`/`read_bytes`/`write_bytes`/`erase_sector`/
+`get/set_protect_type`），本批没有改它的调用路径。T14 尚不能勾。
