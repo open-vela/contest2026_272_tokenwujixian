@@ -67,6 +67,17 @@
 #include "flash_shared_lock.h"
 #endif
 
+/* NuttX side: the MTD face at the end of this file. */
+
+#include <errno.h>
+#include <stdio.h>
+
+#include <nuttx/fs/fs.h>
+#include <nuttx/fs/ioctl.h>
+#include <nuttx/mtd/mtd.h>
+
+#include "include/bk7258_memorymap.h"
+
 #if !CONFIG_FLASH_CP_AP_DIRECT_ACCESS
 #ifdef CONFIG_FREERTOS_SMP
 #include "spinlock.h"
@@ -609,6 +620,281 @@ uint8_t bk_flash_get_coutinuous_read_mode(void)
   return s_flash.flash_cfg->coutinuous_read_mode_bits_val;
 }
 
+/****************************************************************************
+ * NuttX MTD face
+ *
+ * The flash block's standard face: one mtd_dev_s over the whole device,
+ * registered as /dev/mtd0.  The three ops below are the same primitives the
+ * Armino bk_flash_* calls use -- flash_erase_no_lock(), flash_write_no_lock()
+ * and flash_read_common() -- so both faces end in one program, and both take
+ * flash_lock(), which is what brackets a flash operation against the AP
+ * (mb_flash_op_prepare/finish inside the lock).
+ *
+ * Erase granularity is the 4 KiB sector (FLASH_OP_CMD_SE); the 32 KiB and
+ * 64 KiB erases stay on the Armino face, which is where the callers that
+ * want them live.
+ ****************************************************************************/
+
+#define BK7258_FLASH_MTD_DEVPATH "/dev/mtd0"
+
+/* Defined further down, beside the Armino face that also uses them. */
+
+static bk_err_t flash_erase_no_lock(uint32_t address, int cmd);
+static bk_err_t flash_write_no_lock(uint32_t address,
+                                    const uint8_t *user_buf, uint32_t size);
+static void flash_read_common(uint8_t *buffer, uint32_t address,
+                             uint32_t len);
+static void flash_lock(void);
+static void flash_unlock(void);
+
+static int bk7258_flash_mtd_erase(struct mtd_dev_s *dev, off_t startblock,
+                                  size_t nblocks)
+{
+  uint32_t address;
+  size_t   i;
+  int      ret = OK;
+
+  UNUSED(dev);
+
+  if (!s_flash_is_init || s_flash.flash_cfg == NULL)
+    {
+      return -ENODEV;
+    }
+
+  if (nblocks == 0)
+    {
+      return OK;
+    }
+
+  if ((startblock + (off_t)nblocks) * FLASH_SECTOR_SIZE >
+      s_flash.flash_cfg->flash_size)
+    {
+      return -EINVAL;
+    }
+
+  /* One lock for the whole range: the AP is held off once instead of per
+   * sector.
+   */
+
+  flash_lock();
+  for (i = 0; i < nblocks; i++)
+    {
+      address = (uint32_t)(startblock + (off_t)i) * FLASH_SECTOR_SIZE;
+      ret     = (int)flash_erase_no_lock(address, FLASH_OP_CMD_SE);
+      if (ret != BK_OK)
+        {
+          break;
+        }
+    }
+
+  flash_unlock();
+  return ret == BK_OK ? OK : -EIO;
+}
+
+static ssize_t bk7258_flash_mtd_bread(struct mtd_dev_s *dev,
+                                      off_t startblock, size_t nblocks,
+                                      uint8_t *buffer)
+{
+  uint32_t address;
+
+  UNUSED(dev);
+
+  if (!s_flash_is_init || s_flash.flash_cfg == NULL)
+    {
+      return -ENODEV;
+    }
+
+  if ((startblock + (off_t)nblocks) * FLASH_SECTOR_SIZE >
+      s_flash.flash_cfg->flash_size)
+    {
+      return -EINVAL;
+    }
+
+  address = (uint32_t)startblock * FLASH_SECTOR_SIZE;
+  if (nblocks != 0)
+    {
+      flash_read_common(buffer, address, (uint32_t)nblocks * FLASH_SECTOR_SIZE);
+    }
+
+  return (ssize_t)nblocks;
+}
+
+static ssize_t bk7258_flash_mtd_bwrite(struct mtd_dev_s *dev,
+                                       off_t startblock, size_t nblocks,
+                                       const uint8_t *buffer)
+{
+  uint32_t address;
+  int      ret;
+
+  UNUSED(dev);
+
+  if (!s_flash_is_init || s_flash.flash_cfg == NULL)
+    {
+      return -ENODEV;
+    }
+
+  if (nblocks == 0)
+    {
+      return 0;
+    }
+
+  if ((startblock + (off_t)nblocks) * FLASH_SECTOR_SIZE >
+      s_flash.flash_cfg->flash_size)
+    {
+      return -EINVAL;
+    }
+
+  address = (uint32_t)startblock * FLASH_SECTOR_SIZE;
+
+  flash_lock();
+  ret = (int)flash_write_no_lock(address, (const uint8_t *)buffer,
+                                 (uint32_t)nblocks * FLASH_SECTOR_SIZE);
+  flash_unlock();
+
+  return ret == BK_OK ? (ssize_t)nblocks : -EIO;
+}
+
+/* Byte-granular read: the same flash_read_common() the Armino face uses, so
+ * callers that only need a few bytes do not have to go through blocks.
+ */
+
+static ssize_t bk7258_flash_mtd_read(struct mtd_dev_s *dev, off_t offset,
+                                     size_t nbytes, uint8_t *buffer)
+{
+  UNUSED(dev);
+
+  if (!s_flash_is_init || s_flash.flash_cfg == NULL)
+    {
+      return -ENODEV;
+    }
+
+  if ((uint64_t)offset + nbytes > s_flash.flash_cfg->flash_size)
+    {
+      return -EINVAL;
+    }
+
+  if (nbytes != 0)
+    {
+      flash_read_common(buffer, (uint32_t)offset, (uint32_t)nbytes);
+    }
+
+  return (ssize_t)nbytes;
+}
+
+static int bk7258_flash_mtd_ioctl(struct mtd_dev_s *dev, int cmd,
+                                  unsigned long arg)
+{
+  struct mtd_geometry_s *geo;
+
+  UNUSED(dev);
+
+  switch (cmd)
+    {
+      case MTDIOC_GEOMETRY:
+        {
+          geo = (struct mtd_geometry_s *)arg;
+          if (geo == NULL)
+            {
+              return -EINVAL;
+            }
+
+          geo->blocksize    = FLASH_SECTOR_SIZE;
+          geo->erasesize    = FLASH_SECTOR_SIZE;
+          geo->neraseblocks =
+            (s_flash.flash_cfg == NULL ? 0 :
+             s_flash.flash_cfg->flash_size / FLASH_SECTOR_SIZE);
+          snprintf(geo->model, sizeof(geo->model), "bk7258-spi-nor");
+          return OK;
+        }
+
+      case MTDIOC_BULKERASE:
+        {
+          uint32_t address;
+          int      ret = OK;
+
+          if (!s_flash_is_init || s_flash.flash_cfg == NULL)
+            {
+              return -ENODEV;
+            }
+
+          flash_lock();
+          for (address = 0; address < s_flash.flash_cfg->flash_size;
+               address += FLASH_SECTOR_SIZE)
+            {
+              ret = (int)flash_erase_no_lock(address, FLASH_OP_CMD_SE);
+              if (ret != BK_OK)
+                {
+                  break;
+                }
+            }
+
+          flash_unlock();
+          return ret == BK_OK ? OK : -EIO;
+        }
+
+      case BIOC_XIPBASE:
+        {
+          if (arg == 0)
+            {
+              return -EINVAL;
+            }
+
+          *(unsigned long *)arg = (unsigned long)BK7258_FLASH_BASE;
+          return OK;
+        }
+
+      default:
+        return -ENOTTY;
+    }
+}
+
+static int bk7258_flash_mtd_isbad(struct mtd_dev_s *dev, off_t block)
+{
+  UNUSED(dev);
+  UNUSED(block);
+
+  /* NOR: no bad-block table. */
+
+  return 0;
+}
+
+static int bk7258_flash_mtd_markbad(struct mtd_dev_s *dev, off_t block)
+{
+  UNUSED(dev);
+  UNUSED(block);
+
+  return -ENOSYS;
+}
+
+static struct mtd_dev_s g_bk7258_flash_mtd =
+{
+  .erase   = bk7258_flash_mtd_erase,
+  .bread   = bk7258_flash_mtd_bread,
+  .bwrite  = bk7258_flash_mtd_bwrite,
+  .read    = bk7258_flash_mtd_read,
+  .ioctl   = bk7258_flash_mtd_ioctl,
+  .isbad   = bk7258_flash_mtd_isbad,
+  .markbad = bk7258_flash_mtd_markbad,
+  .name    = "bk7258-flash",
+};
+
+int bk7258_flash_register_mtd(void)
+{
+  int ret = register_mtddriver(BK7258_FLASH_MTD_DEVPATH, &g_bk7258_flash_mtd,
+                               0666, NULL);
+  if (ret < 0)
+    {
+      FLASH_LOGE("register %s failed: %d\r\n", BK7258_FLASH_MTD_DEVPATH, ret);
+      return ret;
+    }
+
+  FLASH_LOGI("%s registered (%lu KiB, %lu B sectors)\r\n",
+             BK7258_FLASH_MTD_DEVPATH,
+             (unsigned long)(s_flash.flash_cfg->flash_size / 1024),
+             (unsigned long)FLASH_SECTOR_SIZE);
+  return OK;
+}
+
 bk_err_t bk_flash_driver_init(void)
 {
   if (s_flash_is_init) {
@@ -705,6 +991,18 @@ bk_err_t bk_flash_driver_init(void)
 
 #if CONFIG_FLASH_CP_AP_DIRECT_ACCESS
   bk_flash_shared_set_flash_init_done();
+#endif
+
+#ifdef CONFIG_MTD
+  /* The standard face.  A failure here leaves the Armino face usable, so it
+   * is reported and not propagated.
+   */
+
+  if (bk7258_flash_register_mtd() < 0)
+    {
+      FLASH_LOGW("no %s node; Armino flash face still usable\r\n",
+                 BK7258_FLASH_MTD_DEVPATH);
+    }
 #endif
 
   return BK_OK;
