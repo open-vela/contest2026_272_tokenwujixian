@@ -1586,4 +1586,4 @@ CP 侧 `FATAL: Reset by remote core: ap reason: 3` → `Rptun driver reset remot
 - 说明：测试默认 8192 KiB 大于单核分片 5 MiB，会 `malloc failed`——这是默认值与分区不匹配，
   不是回归；用 ≤4915 KiB 即可。
 
-已知未验：`ping`（本次没跑）。T14 的另一半是 flash 族 7 个单元挂 `mtd_dev_s`，仍未做。
+`ping`：用户在同一镜像上确认正常（未留日志）。T14 的另一半是 flash 族 7 个单元挂 `mtd_dev_s`，仍未做。
