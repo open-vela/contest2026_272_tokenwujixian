@@ -13,6 +13,7 @@
 #include <strings.h>
 
 #include <nuttx/arch.h>
+#include <nuttx/atomic.h>
 #include <nuttx/compiler.h>
 #include <nuttx/irq.h>
 #include <nuttx/sched_note.h>
@@ -20,6 +21,7 @@
 #include "init/init.h"
 
 #include "arm_internal.h"
+#include "bk7258_internal.h"
 #include "nvic.h"
 #include "bk7258_internal.h"
 #include "ram_vectors.h"
@@ -29,6 +31,7 @@
 #include "include/bk7258_mailbox.h"
 #include "include/bk7258_memorymap.h"
 #include "include/bk7258_smp.h"
+#include "include/bk7258_timer.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -69,6 +72,22 @@
 
 #define BK7258_CPU2_HANDSHAKE_LOOPS       20000000
 
+/* Cross-core exclusive-monitor probe.  See the big comment in the probe
+ * section below; these bounds and the mark codes are diagnostics only. */
+
+#define BK7258_SMP_PROBE_ITERS            UINT32_C(4096)
+#define BK7258_SMP_PROBE_PEER_WAIT_LOOPS  UINT32_C(50000000)
+
+/* CPU1 scheduler-gate spin bound (v5).  bk7258_cpu2_boot() holds CPU2 out of
+ * the shared scheduler until CPU0 finished constructing the early-board
+ * threads; the bound only prevents the secondary core from spinning forever
+ * when the primary fails abnormally.  CPU0 raises the flag unconditionally
+ * at the end of bk7258_ap_initialize(), so on the healthy path this wait is
+ * microseconds-to-milliseconds; the budget is deliberately a multiple of the
+ * CPU2 handshake budget so a slow audio init cannot exhaust it. */
+
+#define BK7258_SMP_GATE_LOOPS              (4 * BK7258_CPU2_HANDSHAKE_LOOPS)
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -96,6 +115,144 @@ const uint32_t g_bk7258_cpu_intstack_top[CONFIG_SMP_NCPUS] =
 
 uint8_t g_bk7258_cpu2_boot_stack[BK7258_CPU2_BOOT_STACK_SIZE]
   __attribute__((section(".noinit"), aligned(8)));
+
+/* ------------------------------------------------------------------------
+ * Cross-core exclusive-monitor probe (bring-up diagnostics)
+ *
+ * The runtime scheduler lock on this platform is an LDREX/STREX compare-
+ * exchange over shared SRAM (nuttx/include/nuttx/spinlock.h rspin_lock ->
+ * atomic_cmpxchg_acquire).  That is only safe if the two AP cores' exclusive
+ * accesses are arbitrated by a global monitor on the SRAM port; a part where
+ * STREX always "succeeds" lets both cores believe they own the lock -- the
+ * exact silent kill a0be647 recorded and the F1-F9 image still reproduces at
+ * the first shared-scheduler contention (~1 ms after CPU2 READY).  Armino's
+ * proven dual-core FreeRTOS AP runs per-core lists with mailbox handoffs, so
+ * the silicon fabric monitor status is still unverified.
+ *
+ * This probe runs once per boot inside the CPU2 release window:
+ *
+ *   probe_reset():  CPU1, in the release critical section (fresh state).
+ *   probe_cpu2():   CPU2, right after the SWAP handshake flag (waits for go).
+ *   probe_run():    CPU1, right after up_irq_restore() -- sets go, runs the
+ *                   same loop, waits for CPU2's done, evaluates.
+ *
+ * Both cores execute BK7258_SMP_PROBE_ITERS atomic_fetch_add() calls on the
+ * same shared word, gated so the loops overlap by construction.  With a
+ * working global monitor the final value is exactly 2 * ITERS; every lost
+ * update means the monitor does not arbitrate cross-core exclusives, which
+ * poisons the scheduler spinlock.
+ *
+ * The outcome is encoded into SWAP word 40 (bk7258_ap_dbg_mark), which the
+ * CP monitor prints verbatim on change:
+ *
+ *   0x0f01xxxxxxxx  PASS -- xxxx = lost updates (0 on a healthy part)
+ *   0x0f02xxxxxxxx  FAIL -- xxxx = lost updates
+ *   0x0f03          FAIL + failsafe applied (CPU2 parked)
+ *
+ * On FAIL the AP continues as a single-core system: CPU2 is parked before it
+ * can reach the idle trampoline, so it can never contend for the shared
+ * scheduler lock, and CPU0 boots to scheduler-running exactly as the
+ * a0be647-era single-core state did.  This keeps every probe flash usable
+ * and gives a clean baseline for comparing SMP behavior.
+ *
+ * Diagnostics only: probe_reset()/probe_run()/probe_cpu2() hooks are removed
+ * once SMP is resolved, leaving cpu2_boot() and up_cpu_start() unchanged.
+ * ------------------------------------------------------------------------ */
+
+static atomic_t g_smp_probe_go;
+static atomic_t g_smp_probe_fadd;
+static atomic_t g_smp_probe_c2done;
+
+static void bk7258_smp_probe_reset(void)
+{
+  atomic_set(&g_smp_probe_go, 0);
+  atomic_set(&g_smp_probe_fadd, 0);
+  atomic_set(&g_smp_probe_c2done, 0);
+  __asm__ volatile ("dsb" : : : "memory");
+}
+
+static void bk7258_smp_probe_cpu2(void)
+{
+  uint32_t i;
+
+  /* Gate on CPU1's go flag so CPU1's loop and this loop overlap.  The wait
+   * is bounded; CPU1 always sets go unconditionally right after the release,
+   * so this only spins for the few microseconds of the out: restore. */
+
+  for (i = 0; i < BK7258_SMP_PROBE_PEER_WAIT_LOOPS; i++)
+    {
+      if (atomic_read(&g_smp_probe_go) != 0)
+        {
+          break;
+        }
+    }
+
+  for (i = 0; i < BK7258_SMP_PROBE_ITERS; i++)
+    {
+      (void)atomic_add(&g_smp_probe_fadd, 1);
+    }
+
+  atomic_set(&g_smp_probe_c2done, 1);
+  __asm__ volatile ("dsb" : : : "memory");
+  bk7258_ap_dbg_mark(BK7258_AP_DBG_MARK_SMP_PROBE_C2DONE);
+}
+
+static void bk7258_smp_park_cpu2(void)
+{
+  uint32_t control;
+
+  /* Power down and halt CPU2 and drop its reset-release, so it cannot run
+   * again this session.  Same authority as the release in up_cpu_start(). */
+
+  control = getreg32(BK7258_SYS_CPU2_CTRL);
+  control &= ~(BK7258_SYS_CPU2_RESET_RELEASE |
+               BK7258_SYS_CPU2_RXEVT_SEL |
+               BK7258_SYS_CPU2_OFFSET_MASK);
+  control |= BK7258_SYS_CPU2_POWER_DOWN | BK7258_SYS_CPU2_HALT;
+  putreg32(control, BK7258_SYS_CPU2_CTRL);
+  __asm__ volatile ("dsb\n\tisb" : : : "memory");
+}
+
+static void bk7258_smp_probe_run(void)
+{
+  uint32_t done;
+  uint32_t i;
+  uint32_t loss;
+
+  atomic_set(&g_smp_probe_go, 1);
+  __asm__ volatile ("dsb" : : : "memory");
+
+  for (i = 0; i < BK7258_SMP_PROBE_ITERS; i++)
+    {
+      (void)atomic_add(&g_smp_probe_fadd, 1);
+    }
+
+  for (i = 0; i < BK7258_SMP_PROBE_PEER_WAIT_LOOPS; i++)
+    {
+      done = atomic_read(&g_smp_probe_c2done);
+      if (done != 0)
+        {
+          break;
+        }
+    }
+
+  loss = (2 * BK7258_SMP_PROBE_ITERS) - atomic_read(&g_smp_probe_fadd);
+
+  if (loss == 0)
+    {
+      bk7258_ap_dbg_mark(BK7258_AP_DBG_MARK_SMP_PROBE_PASS);
+      return;
+    }
+
+  bk7258_ap_dbg_mark(BK7258_AP_DBG_MARK_SMP_PROBE_FAIL |
+                     ((loss & UINT32_C(0xffff)) << 16));
+
+  /* Never let a failed probe steal the whole board: park CPU2 and let the
+   * AP continue single-core. */
+
+  bk7258_smp_park_cpu2();
+  bk7258_ap_dbg_mark(BK7258_AP_DBG_MARK_SMP_PROBE_FAILSAFE);
+}
 
 /****************************************************************************
  * Private Function Prototypes
@@ -190,19 +347,71 @@ static void bk7258_cpu2_boot(void)
 
   up_irqinitialize();
 
-  /* up_irqinitialize() ends by enabling interrupts.  Do not let any pending
-   * NVIC line (Mailbox doorbell, or a stale shared interrupt) fire on this
-   * core before the scheduler owns it: re-mask everything and let the
-   * scheduler re-enable interrupts in nx_idle_trampoline() -> sched_unlock().
+  /* up_irqinitialize() ends by enabling interrupts, and they must STAY
+   * enabled through nx_idle_trampoline().  NuttX's ARMv8-M critical
+   * sections save/restore BASEPRI only (arch/arm/include/arm_m/irq.h:
+   * up_irq_save()/up_irq_restore() never touch PRIMASK), and
+   * nx_idle_trampoline() -> sched_unlock() never calls up_irq_enable().
+   * A PRIMASK set here (cpsid i) could therefore never be cleared again:
+   * the Mailbox IPI would stay pended in the NVIC forever, an SVC-based
+   * context switch (priority 0x60) would escalate to HardFault, and this
+   * core's own SysTick would be dead -- the exact PRIMASK trap that
+   * d009584 warned about.  Stale pending lines are handled below instead:
+   * the Mailbox channel is drained and its NVIC pending bit cleared
+   * before up_enable_irq() arms it.
    */
-
-  __asm__ volatile ("cpsid i" : : : "memory");
 
   /* Release the boot handshake held by up_cpu_start(): the SWAP flag word is
    * what CPU1 polls instead of a cross-core spinlock, so bring-up does not
    * depend on exclusive-monitor semantics. */
 
   bk7258_ap_c2flag_set();
+
+  /* Cross-core exclusive-monitor probe (diagnostics; removed after SMP is
+   * resolved).  Runs before the mailbox/timer path so a parked CPU2 on the
+   * failed-monitor fallback can never arm the tick or reach the trampoline. */
+
+  bk7258_smp_probe_cpu2();
+
+  /* CPU1 scheduler gate (v5): hold CPU2 out of the shared scheduler until
+   * CPU0 finished constructing the early-board threads (audio sync init
+   * plus amp-init/ap-health kthread creation inside bk7258_ap_initialize()).
+   * nx_idle_trampoline()'s own while (!OSINIT_IDLELOOP()) cannot cover this
+   * window: the primary raises OSINIT_IDLELOOP right after nx_bringup()
+   * spawns AppBringUp, i.e. before that thread has even run
+   * board_late_initialize().  With neither the Mailbox IPI nor SysTick
+   * armed, this core has no path into nxsched_process_delivered() or
+   * nxsched_process_timer(); the gate therefore serializes CPU2's first
+   * shared-scheduler contact until CPU0's early heap objects are fully
+   * constructed -- the exact window the v4j sched-trace proved both cores
+   * were climbing concurrently a few milliseconds after the release.
+   * Bounded spin: on timeout we degrade to the pre-fix behavior instead of
+   * hanging the secondary core.  Runs after probe_cpu2() on purpose: CPU0's
+   * probe_run() waits for the c2done latch, so gating the probe itself
+   * would trip the failsafe and park this core. */
+
+  {
+    uint32_t gate_count;
+
+    bk7258_ap_dbg_mark(BK7258_AP_DBG_MARK_CPU2_GATE_WAIT);
+
+    for (gate_count = 0; gate_count < BK7258_SMP_GATE_LOOPS; gate_count++)
+      {
+        if (bk7258_ap_sched_gate_test())
+          {
+            break;
+          }
+      }
+
+    if (gate_count < BK7258_SMP_GATE_LOOPS)
+      {
+        bk7258_ap_dbg_mark(BK7258_AP_DBG_MARK_CPU2_GATE_OK);
+      }
+    else
+      {
+        bk7258_ap_dbg_mark(BK7258_AP_DBG_MARK_CPU2_GATE_TIMEOUT);
+      }
+  }
 
 #ifdef CONFIG_SCHED_INSTRUMENTATION
   /* Notify that this CPU has started */
@@ -226,6 +435,17 @@ static void bk7258_cpu2_boot(void)
   up_enable_irq(BK7258_IRQ_MAILBOX);
   bk7258_ap_dbg_mark(BK7258_AP_DBG_MARK_CPU2_IRQ_ARMED);
 #endif
+
+  /* Arm this core's system tick before entering the idle trampoline.  The
+   * SysTick registers are per-core and the systick_interrupt handler was
+   * attached by the primary core's up_timer_initialize(); every tick runs
+   * nxsched_process_timer(), whose paths are SMP-safe.  The per-CPU idle
+   * TCB and scheduler lists already exist here (idle_task_initialize()
+   * runs long before up_cpu_start()), and nx_idle_trampoline() spins on
+   * OSINIT_IDLELOOP() with interrupts enabled until CPU0 enters its idle
+   * loop, so early ticks land in a fully initialized scheduler. */
+
+  bk7258_cpu2_timer_initialize();
 
   /* Then transfer control to the IDLE task */
 
@@ -325,6 +545,11 @@ int up_cpu_start(int cpu)
 
   flags = up_irq_save();
 
+  /* Fresh probe state before CPU2 can touch it (diagnostics; removed after
+   * SMP is resolved). */
+
+  bk7258_smp_probe_reset();
+
   /* Follow the CPU1 lifecycle order from bk7258_ap_control.c: power up and
    * unhalt CPU2 with reset asserted, program the boot vector, then release
    * reset.  The boot vector is the in-image _vectors_core1 table. */
@@ -387,6 +612,12 @@ int up_cpu_start(int cpu)
 
   bk7258_ap_c2flag_clear();
 
+  /* Clear the CPU1 scheduler gate the same way: a stale GATE word from an
+   * earlier CPU2 life would let this boot's CPU2 skip the v5 serializer and
+   * re-open the early-double-schedule race the gate exists to close. */
+
+  bk7258_ap_sched_gate_clear();
+
   putreg32(control | BK7258_SYS_CPU2_RESET_RELEASE,
            BK7258_SYS_CPU2_CTRL);
   __asm__ volatile ("dsb\n\tisb" : : : "memory");
@@ -399,6 +630,13 @@ out:
     {
       return ret;
     }
+
+  /* Cross-core exclusive-monitor probe (diagnostics; removed after SMP is
+   * resolved).  Gates on the CPU2 loop, evaluates, and parks CPU2 on a
+   * failed monitor so the AP still boots single-core instead of deadlocking
+   * at the first shared-scheduler contention. */
+
+  bk7258_smp_probe_run();
 
   /* Handshake on the dedicated SWAP flag word instead of a cross-core
    * spinlock: CPU1 cleared it before the release and CPU2 sets it once its

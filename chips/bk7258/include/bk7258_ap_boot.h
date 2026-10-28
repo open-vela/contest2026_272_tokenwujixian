@@ -97,6 +97,25 @@ bool bk7258_ap_c2flag_test(void);
 
 #define BK7258_AP_SWAP_DBG_WORD         UINT32_C(40)
 
+/* CPU1 scheduler gate (v5): CPU0 keeps CPU2 out of the shared scheduler
+ * until the early-board threads (audio sync init + amp-init/ap-health
+ * kthread creation, bk7258_ap_initialize()) are fully constructed.
+ * bk7258_cpu2_boot() spins here BEFORE arming the Mailbox IPI and SysTick,
+ * so CPU2 cannot be woken by an IPI nor tick into nxsched_process_timer()
+ * while CPU0 is still creating the kernel/board heap objects both cores
+ * will climb concurrently.  CPU0 raises the gate with
+ * bk7258_ap_sched_gate_set() at the end of bk7258_ap_initialize().
+ *
+ * SWAP word map: word 56 is free between the UART panic token (word 50)
+ * and the AP panic record (SWAP offset 0x100, word 64+).  The bit pattern
+ * spells "GATE". */
+
+#define BK7258_AP_SWAP_GATE_WORD  UINT32_C(56)
+#define BK7258_AP_SWAP_GATE_MAGIC UINT32_C(0x47415445) /* "GATE" */
+void bk7258_ap_sched_gate_clear(void);
+void bk7258_ap_sched_gate_set(void);
+bool bk7258_ap_sched_gate_test(void);
+
 #define BK7258_AP_DBG_MARK_RESET_DONE       0x0101u
 #define BK7258_AP_DBG_MARK_BEFORE_NX        0x0102u
 #define BK7258_AP_DBG_MARK_BOARD_EARLY      0x0103u
@@ -105,9 +124,51 @@ bool bk7258_ap_c2flag_test(void);
 #define BK7258_AP_DBG_MARK_C2START_RELEASED 0x0202u
 #define BK7258_AP_DBG_MARK_C2START_HANDSHAKE_OK 0x0203u
 #define BK7258_AP_DBG_MARK_CPU2_ENTRY       0x0300u
+#define BK7258_AP_DBG_MARK_CPU2_GATE_WAIT   0x0304u
+#define BK7258_AP_DBG_MARK_CPU2_GATE_OK     0x0305u
+#define BK7258_AP_DBG_MARK_CPU2_GATE_TIMEOUT 0x0306u
 #define BK7258_AP_DBG_MARK_CPU2_DISCARDED   0x0301u
 #define BK7258_AP_DBG_MARK_CPU2_IRQ_ARMED   0x0302u
 #define BK7258_AP_DBG_MARK_CPU2_READY       0x0303u
+
+/* v5c bringup probes (AP side, word 40).  0x0320..0x0327 sit in the unused
+ * gap between the CPU2 boot marks (0x0300-0x0306) and the SMP probe marks
+ * (0x0f01-0x0f10).  The CP monitor prints every word-40 change.  The flush
+ * mark discriminates the v5c gate-flush path: after CPU0 opens the gate it
+ * polls word 40 until CPU2_READY (Mailbox armed), re-sends the SMP sched
+ * kick that the gate window swallowed, and marks 0x0321 (or 0x0320 on a
+ * bounded-flush timeout).  Then 0x0322..0x0327 follow the amp-init kthread:
+ * entry, rptun ok/fail, mb_ipc ok/fail, and after the scheduler-running
+ * record write. */
+
+#define BK7258_AP_DBG_MARK_AP_FLUSH_TIMEOUT 0x0320u
+#define BK7258_AP_DBG_MARK_AP_FLUSH_DONE    0x0321u
+#define BK7258_AP_DBG_MARK_AMP_ENTRY        0x0322u
+#define BK7258_AP_DBG_MARK_AMP_RPTUN_OK     0x0323u
+#define BK7258_AP_DBG_MARK_AMP_RPTUN_FAIL   0x0324u
+#define BK7258_AP_DBG_MARK_AMP_MBIPC_OK     0x0325u
+#define BK7258_AP_DBG_MARK_AMP_MBIPC_FAIL   0x0326u
+#define BK7258_AP_DBG_MARK_AMP_STAGE_MARK   0x0327u
+
+/* v5d mb_ipc_init internal probes (first-call-only; see mb_ipc.c).
+ * 0x032a = entered; 0x032b = route table open/ctrl done; 0x032c = about
+ * to return OK.  mb_ipc.c references these values directly. */
+#define BK7258_AP_DBG_MARK_AMP_MBIPC_INIT_ENTER 0x032au
+#define BK7258_AP_DBG_MARK_AMP_MBIPC_ROUTES_OK  0x032bu
+#define BK7258_AP_DBG_MARK_AMP_MBIPC_SOCK_READY 0x032cu
+
+/* Cross-core exclusive-monitor probe marks (bring-up diagnostics).
+ * CPU2 writes C2DONE after its half of the probe; CPU1 later overwrites
+ * word 40 with PASS or FAIL (upper 16 bits = atomic fetch_add lost-update
+ * count, 0 on a healthy part), then FAILSAFE once the single-core fallback
+ * has parked CPU2.  The CP monitor prints every change, so a single cold
+ * boot answers whether the SRAM global exclusive monitor arbitrates the
+ * two AP cores the runtime scheduler CAS needs. */
+
+#define BK7258_AP_DBG_MARK_SMP_PROBE_C2DONE  0x0f10u
+#define BK7258_AP_DBG_MARK_SMP_PROBE_PASS    0x0f01u
+#define BK7258_AP_DBG_MARK_SMP_PROBE_FAIL    0x0f02u
+#define BK7258_AP_DBG_MARK_SMP_PROBE_FAILSAFE 0x0f03u
 
 void bk7258_ap_dbg_mark(uint32_t mark);
 uint32_t bk7258_ap_dbg_read(void);
