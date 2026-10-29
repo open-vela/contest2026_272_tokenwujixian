@@ -151,9 +151,29 @@ static void bk7258_mbox_drain(bool dispatch)
           g_bk7258_mbox_ipi_callback != NULL)
         {
           /* AP SMP IPI. The RPTUN doorbell and the AP-internal SMP IPI share
-           * one Mailbox IRQ, so the ISR demuxes by message type. */
+           * one Mailbox IRQ, so the ISR demuxes by message type.
+           *
+           * Consume the pending latch under the send lock and BEFORE the
+           * callback scans the SMP queues:
+           *
+           * 1. Every read-modify-write of the shared latch then happens
+           *    under g_bk7258_mbox_lock, so a cross-core clear can no
+           *    longer tear against the sender's set (spin_lock_irqsave
+           *    only stops local interrupts, it cannot stop the other
+           *    core's RMW -- only the lock can).
+           * 2. The lock handoff gives the scan a happens-before edge on
+           *    entries whose kick was coalesced away while this one was in
+           *    flight, so the scan is guaranteed to find them.
+           * 3. Any kick that arrives after the clear observes a zero bit
+           *    and sends a fresh FIFO entry instead of being merged into a
+           *    scan that has already passed its enqueue point: a coalesced
+           *    (suppressed) kick can therefore never be lost. */
+
+          irqstate_t flags = spin_lock_irqsave(&g_bk7258_mbox_lock);
 
           g_bk7258_mbox_smp_pending &= ~(UINT32_C(1) << channel);
+          spin_unlock_irqrestore(&g_bk7258_mbox_lock, flags);
+
           g_bk7258_mbox_ipi_callback(src, data0, data1,
                                      g_bk7258_mbox_ipi_callback_arg);
         }
@@ -309,6 +329,30 @@ int bk7258_mbox_init(bool global_owner)
 
       channel = bk7258_mbox_local_cpu();
     }
+#ifdef CONFIG_BK7258_COMPONENT_AP
+  else
+    {
+      unsigned int ch;
+
+      /* The AP instance is not the Mailbox v2 global owner: the CP (Armino)
+       * normally programs the global CTRL and every channel CFG/CTRL before
+       * the AP boots.  Re-program the two AP-local channels (ch1 = CPU1,
+       * ch2 = CPU2 IPI) here anyway, with the identical static values: this
+       * is a no-op when the CP already configured them, and it makes the
+       * AP-internal SMP IPI path work even if the CP firmware left ch2 in
+       * its reset state.  The global CTRL (reset release / channel
+       * protection) stays CP-owned and is deliberately not touched. */
+
+      for (ch = 1; ch < BK7258_MBOX_CHANNELS; ch++)
+        {
+          putreg32(g_bk7258_mbox_fifo[ch].start,
+                   BK7258_MBOX_CH_CFG(ch));
+          putreg32(BK7258_MBOX_CH_ENABLE |
+                   BK7258_MBOX_CH_LENGTH(g_bk7258_mbox_fifo[ch].length),
+                   BK7258_MBOX_CH_CTRL(ch));
+        }
+    }
+#endif
 
   /* The AP component owns both physical CPU1 and CPU2.  Enable the FIFO
    * channel IRQ for every core the local instance can receive on, so the
@@ -412,10 +456,13 @@ int bk7258_mbox_ipi(int dst_cpu)
     }
 
   /* Keep at most one outstanding SMP kick in each direction.  The receiver
-   * clears the shared latch before scanning the SMP queues, so a coalesced
-   * kick can never be lost.  A full FIFO is transient: the target core's ISR
-   * drains its channel without taking the send lock, so retry briefly rather
-   * than drop the wakeup. */
+   * consumes the shared latch under this same lock before scanning the SMP
+   * queues, so a coalesced kick can never be lost: a kick issued while the
+   * latch is still set relies on the in-flight entry's scan, which is
+   * ordered after the coalescing sender's enqueue by the lock handoff; a
+   * kick issued after the clear sends a fresh FIFO entry.  A full FIFO is
+   * transient: the target core's ISR drains its channel without taking the
+   * send lock, so retry briefly rather than drop the wakeup. */
 
   flags = spin_lock_irqsave(&g_bk7258_mbox_lock);
   if ((g_bk7258_mbox_smp_pending & (UINT32_C(1) << dst_cpu)) != 0)

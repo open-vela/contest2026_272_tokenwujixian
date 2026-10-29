@@ -21,6 +21,7 @@
 #include <nuttx/sched.h>
 #include <nuttx/semaphore.h>
 #include <nuttx/serial/uart_rpmsg.h>
+#include <nuttx/sched.h>
 #include <nuttx/signal.h>
 #include <nuttx/syslog/syslog.h>
 
@@ -30,7 +31,9 @@ int bk7258_buttons_input_initialize(void);
 int bk7258_status_led_initialize(void);
 #endif
 
+#include <arch/irq.h>
 #include <arch/chip/bk7258_ap_boot.h>
+#include <arch/chip/bk7258_irq.h>
 #include <arch/chip/bk7258_mb_ipc.h>
 #include <arch/chip/bk7258_memorymap.h>
 #include <arch/chip/bk7258_timer.h>
@@ -681,9 +684,19 @@ static int bk7258_ap_amp_initialize(int argc, char *argv[])
   (void)argc;
   (void)argv;
 
+  /* v5c probe: entry mark.  With the pin removed, a terminal word-40 value
+   * of 0x0327 proves the full v4j-style natural dispatch: amp-init ran on
+   * the secondary core and completed rptun + mb_ipc + scheduler-running.
+   * Terminal 0x0324 = rptun failed, 0x0326 = mb_ipc failed fast (branch),
+   * 0x0323 = rptun ok but mb_ipc never returned (hung). */
+
+  bk7258_ap_dbg_mark(BK7258_AP_DBG_MARK_AMP_ENTRY);
+
   ret = bk7258_rptun_initialize();
   if (ret < 0)
     {
+      bk7258_ap_dbg_mark(BK7258_AP_DBG_MARK_AMP_RPTUN_FAIL);
+
       /* Keep the heartbeat task alive so the SWAP record still proves AP
        * liveness even when AMP initialization fails.
        */
@@ -691,12 +704,17 @@ static int bk7258_ap_amp_initialize(int argc, char *argv[])
       return ret;
     }
 
+  bk7258_ap_dbg_mark(BK7258_AP_DBG_MARK_AMP_RPTUN_OK);
+
 #ifdef CONFIG_BK7258_MB_IPC_RPMSG
   ret = bk7258_mb_ipc_initialize();
   if (ret != 0)
     {
+      bk7258_ap_dbg_mark(BK7258_AP_DBG_MARK_AMP_MBIPC_FAIL);
       return ret;
     }
+
+  bk7258_ap_dbg_mark(BK7258_AP_DBG_MARK_AMP_MBIPC_OK);
 #endif
 
   /* No rpmsg netdev registration here: the NET_RPMSG_DRV client/server
@@ -714,6 +732,11 @@ static int bk7258_ap_amp_initialize(int argc, char *argv[])
    * still coming up. */
 
   bk7258_ap_record_mark_scheduler();
+
+  /* v5c probe: scheduler-running record written.  Terminal 0x0327 closes
+   * the amp-init success chain proved by this image's own writes. */
+
+  bk7258_ap_dbg_mark(BK7258_AP_DBG_MARK_AMP_STAGE_MARK);
 
   return 0;
 }
@@ -745,6 +768,20 @@ static int bk7258_ap_health_thread(int argc, char *argv[])
 
   return 0;
 }
+
+/* v5c: no pinning.  The amp-init/ap-health kthreads are dispatched by the
+ * SMP scheduler like every other task; the gate flush (below) re-delivers
+ * the kick the gate window swallowed, so they strand briefly on CPU1 and
+ * then run there the way v4j ran them -- the healthy baseline for RPTUN +
+ * mb_ipc + heartbeat.
+ */
+
+/* v5c gate-flush poll budget.  CPU2 writes its READY mark (Mailbox + SysTick
+ * armed) within microseconds-to-milliseconds of the gate opening; the bound
+ * only prevents CPU0 from spinning forever if CPU2 dies.  Sized a quarter of
+ * the CPU2 gate-wait budget so a normal boot exits in a handful of polls. */
+
+#define BK7258_AP_FLUSH_LOOPS   UINT32_C(5000000)
 
 static void bk7258_ap_initialize(void)
 {
@@ -870,5 +907,54 @@ static void bk7258_ap_initialize(void)
                              ((uint32_t)-ret & UINT32_C(0xff)));
       bk7258_ap_heartbeat_led_write(false);
     }
+
+  /* CPU1 scheduler gate (v5): every early-board heap object this initializer
+   * just built (audio device state, the amp-init/ap-health kthread TCBs)
+   * is now fully constructed under single-core scheduling.  Opening the
+   * gate lets CPU2, which has been spinning in bk7258_cpu2_boot() with its
+   * Mailbox IPI and SysTick still disarmed, arm both and join the shared
+   * scheduler.  The v4j sched-trace showed both cores climbing these exact
+   * objects (0x280358d8 first-switch / amp-init 0x28036490 / ap-health
+   * 0x28038580) concurrently a few milliseconds after the release; from
+   * here on CPU2's first scheduling decisions happen strictly after CPU0
+   * finished constructing its threads. */
+
+  bk7258_ap_sched_gate_set();
+
+  /* v5c gate flush: CPU2 wrote READY (word 40 == 0x0303) only after arming
+   * its Mailbox IPI and SysTick.  The amp-init/ap-health kthreads created
+   * above were dispatched to CPU2 while it was still spinning in the gate,
+   * so their kick landed in the unarmed Mailbox and was lost -- they sit in
+   * g_delivertasks[1] until an SMP kick runs nxsched_process_delivered().
+   * Re-send the kick now that CPU2 can receive it, restoring the natural
+   * dispatch (CPU2 executes the AMP threads) without the v5b pin hack.
+   * Bounded spin: on timeout we degrade to the pre-fix behavior rather than
+   * hang the *primary* core; the monitor still gets a discriminating
+   * flush-timeout mark. */
+
+  {
+    uint32_t flush_count;
+
+    for (flush_count = 0; flush_count < BK7258_AP_FLUSH_LOOPS; flush_count++)
+      {
+        if (bk7258_ap_dbg_read() == BK7258_AP_DBG_MARK_CPU2_READY)
+          {
+            break;
+          }
+      }
+
+    (void)up_send_smp_sched(1);
+
+    if (flush_count < BK7258_AP_FLUSH_LOOPS)
+      {
+        bk7258_ap_dbg_mark(BK7258_AP_DBG_MARK_AP_FLUSH_DONE);
+      }
+    else
+      {
+        syslog(LOG_WARNING,
+               "BK7258: gate flush timed out (CPU2 READY never seen)\n");
+        bk7258_ap_dbg_mark(BK7258_AP_DBG_MARK_AP_FLUSH_TIMEOUT);
+      }
+  }
 }
 #endif

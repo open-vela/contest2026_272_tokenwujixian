@@ -263,8 +263,10 @@ static const struct keymap_s *keymap_lookup(uint32_t keys,
  * this adapter knows about the application.
  ****************************************************************************/
 
+#ifdef CONFIG_AI_AGENT_REMOTE_CTRL
 static remote_decide_fn s_decide;
 static void *s_decide_ctx;
+#endif
 
 static void action_cancel(void)
 {
@@ -310,6 +312,7 @@ static void action_deny(void)
 #endif
 }
 
+#ifdef CONFIG_AI_AGENT_REMOTE_CTRL
 static int keymap_attach(remote_decide_fn decide, void *ctx)
 {
   s_decide = decide;
@@ -327,6 +330,7 @@ static const struct remote_input_ops_s g_keymap_ops =
 {
   "keymap", keymap_attach, keymap_detach
 };
+#endif
 
 /****************************************************************************
  * Gesture engine

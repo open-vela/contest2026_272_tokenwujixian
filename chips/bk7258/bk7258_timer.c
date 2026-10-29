@@ -266,12 +266,11 @@ void up_timer_initialize(void)
 {
   uint32_t regval;
   uint32_t reload;
+  bool coreclk;
+  uint32_t freq;
 
   /* Polling-only early-boot marker: SysTick is not enabled yet. */
   BK7258_BOOT_MARK('E');
-
-  /* CP and AP use separate 32 kHz SysTick selectors for physical CPU0 and
-   * physical CPU1. Do not touch the other domain's selector. */
 
   /* The Bootloader handoff does not define the SysTick state. Stop any
    * inherited counter and clear its pending exception before selecting the
@@ -280,18 +279,31 @@ void up_timer_initialize(void)
   putreg32(0, NVIC_SYSTICK_CTRL);
   putreg32(NVIC_INTCTRL_PENDSTCLR, NVIC_INTCTRL);
 
-  regval = getreg32(BK7258_SYS_POWER_WAKEUP);
 #ifdef CONFIG_BK7258_COMPONENT_AP
-  regval |= BK7258_SYS_CPU1_SYSTICK_32K;
+  /* AP cores run the system tick from the processor clock.  The board
+   * bring-up on 2026-10-12 showed the effective tick supply at roughly
+   * one tenth of the configured rate when CPU1 used its external 32 kHz
+   * selector, so the AP no longer touches BK7258_SYS_POWER_WAKEUP at all:
+   * that also removes an AP-side RMW on a CP-owned shared register. */
+
+  freq = CONFIG_BK7258_AP_CPU_CLOCK_HZ;
+  coreclk = true;
 #else
+  /* CP and AP use separate 32 kHz SysTick selectors for physical CPU0 and
+   * physical CPU1. Do not touch the other domain's selector. */
+
+  regval = getreg32(BK7258_SYS_POWER_WAKEUP);
   regval |= BK7258_SYS_CPU0_SYSTICK_32K;
-#endif
   putreg32(regval, BK7258_SYS_POWER_WAKEUP);
+
+  freq = CONFIG_BK7258_SYSTICK_CLOCK_HZ;
+  coreclk = false;
+#endif
 
   /* Seed the first interval before enabling SysTick so startup does not
    * depend on reset or Bootloader-retained reload/current values. */
 
-  reload = CONFIG_BK7258_SYSTICK_CLOCK_HZ / CLK_TCK - 1;
+  reload = freq / CLK_TCK - 1;
   putreg32(reload, NVIC_SYSTICK_RELOAD);
   putreg32(0, NVIC_SYSTICK_CURRENT);
 
@@ -301,8 +313,7 @@ void up_timer_initialize(void)
 
   up_prioritize_irq(NVIC_IRQ_SYSTICK, NVIC_SYSH_PRIORITY_DEFAULT);
 
-  up_timer_set_lowerhalf(
-    systick_initialize(false, CONFIG_BK7258_SYSTICK_CLOCK_HZ, -1));
+  up_timer_set_lowerhalf(systick_initialize(coreclk, freq, -1));
 
   BK7258_BOOT_MARK('F');
 }
@@ -932,3 +943,76 @@ void bk_timer_delay_us(uint32_t us)
 }
 
 #endif /* !CONFIG_BK7258_COMPONENT_AP */
+
+#ifdef CONFIG_SMP
+/****************************************************************************
+ * Name: bk7258_cpu2_timer_initialize
+ *
+ * Description:
+ *   Start the per-core system tick on the AP SMP secondary core (physical
+ *   CPU2, logical CPU1).
+ *
+ *   The AP system tick runs from the processor clock (CLKSOURCE = 1) on
+ *   every AP core, matching the primary core's up_timer_initialize().
+ *   The interrupt handler is the shared arm_systick.c systick_interrupt
+ *   attached by the primary core: the irq_attach() table is common to
+ *   every AP core and the handler only touches the running core's SysTick
+ *   registers, so no separate lower-half instance is needed (and none can
+ *   be added: up_timer_set_lowerhalf() is a system-wide singleton).  The
+ *   reload must use the same CONFIG_BK7258_AP_CPU_CLOCK_HZ as the primary
+ *   core: the shared lower half derives interval arithmetic from its
+ *   freq, and a mismatched reload would corrupt every sub-tick time
+ *   reading taken on this core.
+ *
+ *   Every tick calls nxsched_process_timer(), whose paths are SMP-safe:
+ *   clock_timer() is seqlock-protected, wd_timer() runs inside a critical
+ *   section on the global watchdog list, and the round-robin timeslice
+ *   bookkeeping is per-CPU.
+ *
+ * Input Parameters:
+ *   None.
+ *
+ * Returned Value:
+ *   None.
+ *
+ * Assumptions:
+ *   Runs on physical CPU2 after up_irqinitialize(); the per-CPU idle TCB
+ *   and scheduler lists for this core already exist (idle_task_initialize()
+ *   runs long before up_cpu_start()).
+ *
+ ****************************************************************************/
+
+void bk7258_cpu2_timer_initialize(void)
+{
+  uint32_t reload;
+
+  /* The Bootloader handoff does not define the SysTick state. Stop any
+   * inherited counter and clear its pending exception before reprogramming
+   * the timer. */
+
+  putreg32(0, NVIC_SYSTICK_CTRL);
+  putreg32(NVIC_INTCTRL_PENDSTCLR, NVIC_INTCTRL);
+
+  /* Core-clock mode: reload = fcpu / CLK_TCK - 1, with the same frequency
+   * (and therefore the same reload) as the primary core's tick, since the
+   * shared lower half assumes one consistent interval on every core. */
+
+  reload = CONFIG_BK7258_AP_CPU_CLOCK_HZ / CLK_TCK - 1;
+  putreg32(reload, NVIC_SYSTICK_RELOAD);
+  putreg32(0, NVIC_SYSTICK_CURRENT);
+
+  /* SysTick must not retain the reset priority of zero; match the primary
+   * core's up_timer_initialize() setup (BASEPRI critical sections use
+   * 0x80). */
+
+  up_prioritize_irq(NVIC_IRQ_SYSTICK, NVIC_SYSH_PRIORITY_DEFAULT);
+
+  /* Start the counter: ENABLE | TICKINT | CLKSOURCE (= processor clock).
+   * The exception dispatches through the shared vector table to the
+   * systick_interrupt handler attached on the primary core. */
+
+  putreg32(NVIC_SYSTICK_CTRL_ENABLE | NVIC_SYSTICK_CTRL_TICKINT |
+           NVIC_SYSTICK_CTRL_CLKSOURCE,
+           NVIC_SYSTICK_CTRL);
+}
+#endif /* CONFIG_SMP */
