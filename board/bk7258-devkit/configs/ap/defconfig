@@ -295,6 +295,10 @@ CONFIG_EXAMPLES_LVGLDEMO_PRIORITY=90
 CONFIG_LV_USE_DEMO_BENCHMARK=y
 CONFIG_LV_USE_DEMO_STRESS=y
 CONFIG_LV_USE_DEMO_WIDGETS=y
+CONFIG_ARCH_SETJMP_H=y
+CONFIG_LIB_FREETYPE=y
+CONFIG_LV_USE_FREETYPE=y
+CONFIG_UIKIT=y
 # Local LVGL UI channel.  ai_agent compiles its own full MiSans 16 CJK font
 # (src/ui/lv_font_misans_16_cjk.c) under this symbol, so no LVGL patch is
 # needed.  Replaces the contest branch's AI_AGENT_UI_RPMSG to a CP renderer.
