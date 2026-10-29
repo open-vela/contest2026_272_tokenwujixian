@@ -303,6 +303,7 @@ static const struct keymap_s *keymap_lookup(uint32_t keys,
  * ai_agent, never here.
  ****************************************************************************/
 
+#ifdef CONFIG_AI_AGENT_REMOTE_CTRL
 static remote_decide_fn s_decide;
 static remote_pending_fn s_pending;
 static remote_scroll_fn s_scroll;
@@ -312,6 +313,7 @@ static remote_dismiss_fn s_dismiss;
 static remote_wake_fn s_wake;
 static remote_action_fn s_back;
 static void *s_ctx;
+#endif
 
 /* Cancel stays a diagnostic on purpose: abandoning a permission request is
  * not a decision, so it must never be reported as one. */
@@ -322,6 +324,7 @@ static void action_cancel(void)
 
 static void action_back(void)
 {
+#ifdef CONFIG_AI_AGENT_REMOTE_CTRL
   if (s_back != NULL)
     {
       s_back(s_ctx);
@@ -330,10 +333,12 @@ static void action_back(void)
     {
       printf("[key] back (no input adapter)\n");
     }
+#endif
 }
 
 static void action_once(void)
 {
+#ifdef CONFIG_AI_AGENT_REMOTE_CTRL
   if (s_decide != NULL)
     {
       s_decide(REMOTE_DECISION_ONCE, s_ctx);
@@ -342,10 +347,12 @@ static void action_once(void)
     {
       printf("[key] once (no input adapter)\n");
     }
+#endif
 }
 
 static void action_deny(void)
 {
+#ifdef CONFIG_AI_AGENT_REMOTE_CTRL
   if (s_decide != NULL)
     {
       s_decide(REMOTE_DECISION_DENY, s_ctx);
@@ -354,10 +361,12 @@ static void action_deny(void)
     {
       printf("[key] deny (no input adapter)\n");
     }
+#endif
 }
 
 static void action_scroll_up(void)
 {
+#ifdef CONFIG_AI_AGENT_REMOTE_CTRL
   if (s_scroll != NULL)
     {
       s_scroll(0, s_ctx);
@@ -366,10 +375,11 @@ static void action_scroll_up(void)
     {
       printf("[key] scroll up (no input adapter)\n");
     }
+#endif
 }
-
 static void action_scroll_down(void)
 {
+#ifdef CONFIG_AI_AGENT_REMOTE_CTRL
   if (s_scroll != NULL)
     {
       s_scroll(1, s_ctx);
@@ -378,10 +388,11 @@ static void action_scroll_down(void)
     {
       printf("[key] scroll down (no input adapter)\n");
     }
+#endif
 }
-
 static void action_model(void)
 {
+#ifdef CONFIG_AI_AGENT_REMOTE_CTRL
   if (s_model_next != NULL)
     {
       s_model_next(s_ctx);
@@ -390,10 +401,12 @@ static void action_model(void)
     {
       printf("[key] model-next (no input adapter)\n");
     }
+#endif
 }
 
 static void action_session(void)
 {
+#ifdef CONFIG_AI_AGENT_REMOTE_CTRL
   if (s_session_new != NULL)
     {
       s_session_new(s_ctx);
@@ -402,8 +415,10 @@ static void action_session(void)
     {
       printf("[key] new-session (no input adapter)\n");
     }
+#endif
 }
 
+#ifdef CONFIG_AI_AGENT_REMOTE_CTRL
 static int keymap_attach(remote_decide_fn decide,
                          remote_pending_fn pending,
                          remote_scroll_fn scroll,
@@ -443,6 +458,7 @@ static const struct remote_input_ops_s g_keymap_ops =
 {
   "keymap", keymap_attach, keymap_detach
 };
+#endif
 
 /****************************************************************************
  * Gesture engine
@@ -468,6 +484,7 @@ static void gesture_fire(uint32_t keys, enum gesture_e g)
   const char *which = "-";
   const struct keymap_s *m;
 
+#ifdef CONFIG_AI_AGENT_REMOTE_CTRL
   if (s_dismiss != NULL && s_dismiss(s_ctx))
     {
       printf("[key] notice: keys=%lx gesture=%d -> dismissed (swallowed)\n",
@@ -485,6 +502,7 @@ static void gesture_fire(uint32_t keys, enum gesture_e g)
              (unsigned long)keys, g);
       return;
     }
+#endif
 
   m = keymap_lookup(keys, g, &which);
 
