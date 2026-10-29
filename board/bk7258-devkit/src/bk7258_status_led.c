@@ -31,6 +31,7 @@
  * the board layer must not reach into an application package's internals.
  */
 
+#ifdef CONFIG_AI_AGENT_REMOTE_CTRL
 struct remote_observer_ops_s
 {
   const char *name;
@@ -40,6 +41,7 @@ struct remote_observer_ops_s
 };
 
 int remote_ctrl_register_observer(const struct remote_observer_ops_s *ops);
+#endif
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -118,6 +120,7 @@ static void led_phase_enter(enum led_phase_e p)
  * robust when the bridge adds new lines.
  */
 
+#ifdef CONFIG_AI_AGENT_REMOTE_CTRL
 static void led_on_state(const char *text, void *ctx)
 {
   (void)ctx;
@@ -170,6 +173,7 @@ static const struct remote_observer_ops_s g_led_observer =
 {
   "led", led_on_state, led_on_reply, NULL
 };
+#endif
 
 /* Driven from the single board-services thread, not one of its own: a
  * 50 ms blink loop does not deserve a 2 KB stack and a TCB.  tick_ms is
@@ -227,6 +231,8 @@ int bk7258_status_led_initialize(void)
 {
   bk7258_gpio_config_output(LED_RED_PIN, false);
   bk7258_gpio_config_output(LED_GREEN_PIN, false);
+#ifdef CONFIG_AI_AGENT_REMOTE_CTRL
   remote_ctrl_register_observer(&g_led_observer);
+#endif
   return 0;
 }
