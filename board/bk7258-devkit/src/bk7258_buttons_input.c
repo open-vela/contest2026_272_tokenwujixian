@@ -55,6 +55,7 @@ typedef void (*remote_decide_fn)(enum remote_decision_e decision, void *ctx);
 typedef int  (*remote_pending_fn)(void *ctx);
 typedef void (*remote_scroll_fn)(int dir, void *ctx);
 typedef void (*remote_action_fn)(void *ctx);
+typedef int  (*remote_dismiss_fn)(void *ctx);
 typedef int  (*remote_wake_fn)(void *ctx);
 
 struct remote_input_ops_s
@@ -65,6 +66,7 @@ struct remote_input_ops_s
                 remote_scroll_fn scroll,
                 remote_action_fn model_next,
                 remote_action_fn session_new,
+                remote_dismiss_fn dismiss,
                 remote_wake_fn wake,
                 void *ctx);
   void (*detach)(void);
@@ -296,6 +298,7 @@ static remote_pending_fn s_pending;
 static remote_scroll_fn s_scroll;
 static remote_action_fn s_model_next;
 static remote_action_fn s_session_new;
+static remote_dismiss_fn s_dismiss;
 static remote_wake_fn s_wake;
 static void *s_ctx;
 
@@ -381,6 +384,7 @@ static int keymap_attach(remote_decide_fn decide,
                          remote_scroll_fn scroll,
                          remote_action_fn model_next,
                          remote_action_fn session_new,
+                         remote_dismiss_fn dismiss,
                          remote_wake_fn wake,
                          void *ctx)
 {
@@ -389,6 +393,7 @@ static int keymap_attach(remote_decide_fn decide,
   s_scroll = scroll;
   s_model_next = model_next;
   s_session_new = session_new;
+  s_dismiss = dismiss;
   s_wake = wake;
   s_ctx = ctx;
   return 0;
@@ -401,6 +406,7 @@ static void keymap_detach(void)
   s_scroll = NULL;
   s_model_next = NULL;
   s_session_new = NULL;
+  s_dismiss = NULL;
   s_wake = NULL;
   s_ctx = NULL;
 }
@@ -433,6 +439,13 @@ static void gesture_fire(uint32_t keys, enum gesture_e g)
 {
   const char *which = "-";
   const struct keymap_s *m;
+
+  if (s_dismiss != NULL && s_dismiss(s_ctx))
+    {
+      printf("[key] notice: keys=%lx gesture=%d -> dismissed (swallowed)\n",
+             (unsigned long)keys, g);
+      return;
+    }
 
   /* While the standby clock is up, a key press only unlocks the screen and is
    * swallowed: the same S2 that wakes the device must not also answer a pending

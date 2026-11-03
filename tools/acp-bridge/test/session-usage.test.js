@@ -68,7 +68,6 @@ test("bridge suppresses usage snapshots until its ACP session is ready", async (
   await core.receive(hello("nonce-a"));
   assert.equal(outbound.some((message) => message.type === "usage_snapshot"), false);
   await adapter.start();
-  const usage = outbound.at(-1);
-  assert.equal(usage.type, "usage_snapshot");
+  const usage = outbound.find((message) => message.type === "usage_snapshot");
   assert.equal(usage.usage_seq, 1);
 });

@@ -1,21 +1,24 @@
 ---
 name: bk7258-ui-ontarget-test
-description: "Use when 需要在 BK7258 真机(串口 /dev/ttyUSB0)驱动并判定 ai_agent UI(AP 侧):按最新流程回归宠物/聊天/审批/按键/语音界面、逐条核对预期日志与预期界面、驱动 ai_agent/set_pet/set_page/show_chat/ask 命令,或排查 flush 率异常、串口无回显/TX 掉线、wapi 联网失败、set_llm 模型未配置、在线 ask 后整机静默等显示/联网/模型/控制台写卡死问题。"
+description: "Use when 需要在 BK7258 真机(串口 /dev/ttyUSB0)驱动并判定 ai_agent UI(AP 侧):按最新流程回归宠物/聊天/审批/按键/语音界面、逐条核对预期日志与预期界面、驱动 ai_agent/set_pet/set_page/show_chat/ask 命令,或排查 flush 率异常、串口无回显/TX 掉线、wapi 联网失败、set_llm 模型未配置、在线 ask 后整机静默等显示/联网/模型/控制台写卡死问题。先读 verification-record.md 分清已验/未验,不重复验证。"
 ---
 
 # BK7258 真机 UI 测试
 
-本 skill 固化「稳定不变的驱动脚手架 + 判定 + 排障」;「具体流程长什么样」由两份持续更新的文档承担。每次测试前先读文档最新版,再回来用本 skill 执行。
+本 skill 固化「稳定不变的驱动脚手架 + 判定 + 排障」;「具体流程长什么样、判据、已验状态」由 `yzhang/` 下几份持续更新的文档承担。每次测试前先读文档最新版,再回来用本 skill 执行。
 
 ## 单一事实源(先读,持续更新)
 
 | 文档 | 管什么 | 怎么读 |
 |---|---|---|
-| `../../../../yzhang/testLoop/ui-screen-transition-order.md` | 界面切换顺序、每条支线(A–F)的触发→预期日志→预期界面、驱动命令速查 | 文档 >100 行:先 `grep -n '^#'` 看目录;判据看「交互支线测试指令」,命令看「驱动命令速查」 |
-| `../../../../yzhang/testLoop/wifi-and-llm-config-flow.md` | `wapi` 联网 + `set_llm` 配模型的步骤/判据/坑;BUG-20261021-01 定位与最终结论 | 配网/配模型读 §0–§2;控制台写卡死读 §4 |
-| `../../../../yzhang/cmd.sh` | 烧录/串口/wapi/set_llm/ask 的实际命令(含密码/密钥) | 抄命令或取凭据时读;只原文引用,**密钥不写进本 skill** |
+| `../../../../yzhang/testLoop/main_loop.md` | **成功路径 10 段 + §0 判据(唯一「过」的口径)** | 先读 §0;顺序看「## 顺序」;人工按键协作看 §2 |
+| `../../../../yzhang/testLoop/func-test.sh` | 可执行的测试脚本(依赖闸门 + 判据 + 备注) | 跑测试以它为准;判据与 main_loop §0 一致 |
+| `../../../../yzhang/testLoop/ui-flow-and-test.md` | 状态流转 + 界面切换顺序 + 每条支线(A–F)触发→预期日志→预期界面 + 驱动命令速查 | >600 行:先 `grep -n '^#'` 看目录;主线 §7、支线 §9、命令 §10 |
+| `../../../../yzhang/testLoop/wifi-and-llm-config-flow.md` | `wapi` 联网 + `set_llm` 配模型的步骤/判据/坑;BUG-20261021-01 定位与结论 | 配网/配模型读 §0–§2;控制台写卡死读 §4 |
+| `../../../../yzhang/verification-record.md` | **已验证 / 未通过 / 未验证 / 阻塞 的记录** | 开测前先读:只验「未验证」项,已验证的不重复验 |
+| `../../../../yzhang/cmd_scripts.sh` | 烧录/串口/wapi/set_llm/ask 的实际命令(**含密码/密钥**) | 抄命令或取凭据时读;**密钥只在本地填,别写进本 skill 或其它文档** |
 
-以文档为准,不凭记忆;发现文档与真机不符时先改文档再测。
+以文档为准,不凭记忆;发现文档与真机不符时先改文档再测。**密钥/密码一律留占位符,真值由使用者填进 `cmd_scripts.sh`(SSID 密码、api_key、volc_key、MCP token、MQTT 密码),不得把真值写进本 skill。**
 
 ## 硬性约定(不随流程变,违反必踩坑)
 
@@ -26,13 +29,13 @@ description: "Use when 需要在 BK7258 真机(串口 /dev/ttyUSB0)驱动并判�
 
 ## 最小链路(烧录 → 串口 → 联网 → 配模型 → 启动)
 
-每条命令后附**标志性节点**,串口出现它才说明该步成功;密码/密钥照抄 `cmd.sh`。
+每条命令后附**标志性节点**,串口出现它才说明该步成功;`<…>` 占位符真值填进 `cmd_scripts.sh`。
 
 | # | 步骤 | 命令(提示符) | 标志性节点 |
 |---|---|---|---|
 | 0 | 烧录 | `full_flow.sh --image <all-app.bin> --worktree <repo> --flash --device /dev/ttyUSB0` | `connect success` → `Gotten Bus...` → `Writing Flash OK`,烧完停在 `nsh-ap>` |
 | 1 | 开串口 | `sudo minicom -o -D /dev/ttyUSB0 -b 115200` | `nsh-ap>` |
-| 2 | 联网 | `wapi connect "<SSID>" <pw>`(`nsh-ap>`) | `BK STA got ip4` / `wlan0 ip` |
+| 2 | 联网 | `wapi connect "<SSID>" <密码>`(`nsh-ap>`) | `BK STA got ip4` / `wlan0 ip` |
 | 3 | 启动 | `ai_agent`(`nsh-ap>`) | `vela>` + `[pet_view] pet screen shown` |
 | 4 | 配模型 | `set_dns 10.237.25.8` → `set_llm http://model.mify.ai.srv deepseek/deepseek-flash <api_key>` → `config_show`(`vela>`) | `[llm] LLM config updated atomically: ...` |
 | 5 | 验证 | `ask 你好`(`vela>`) | `[llm] OpenAI API with tools (...)` |
@@ -52,8 +55,8 @@ description: "Use when 需要在 BK7258 真机(串口 /dev/ttyUSB0)驱动并判�
 
 ## 判定与脱敏
 
-- **判定**:每条步骤同时核「预期日志 + 预期界面」(判据在 flow doc)。日志级硬判据:无 `flush rc!=0`、无 `assert`/`UsageFault`/`Panic by remote core`、无 `LLM unavailable`(除非故意测出错支线)。
-- **自动化**(可选):pyserial 直接开 `/dev/ttyUSB0`(别经 minicom);先写 `\r\n` 再等提示符;`set_llm` 整行从 `cmd.sh` 原样下发,避免脚本再存一份 key。
+- **判定**:每条步骤同时核「预期日志 + 预期界面」(判据在 flow doc / main_loop §0)。日志级硬判据:无 `flush rc!=0`、无 `assert`/`UsageFault`/`Panic by remote core`、无 `LLM unavailable`(除非故意测出错支线)。
+- **自动化**(可选):pyserial 直接开 `/dev/ttyUSB0`(别经 minicom);先写 `\r\n` 再等提示符;`set_llm` 整行从 `cmd_scripts.sh` 原样下发,避免脚本再存一份 key。
 - **脱敏**:落到文件/日志的密钥先打码再存/提交(见 `contest-log-redact`,必须 `--verify` 输出 `CLEAN` 且退出码 0)。
 
 ## 排障速查(架构级,不随流程变)
@@ -69,7 +72,7 @@ description: "Use when 需要在 BK7258 真机(串口 /dev/ttyUSB0)驱动并判�
 
 ## 保持不过时
 
-1. 流程/判据变了 → 先改两份 flow doc(它们是事实源)。
+1. 流程/判据/已验状态变了 → 先改对应文档(它们是事实源),本 skill 只加引用不抄内容。
 2. 架构约定没变 → 本 skill 不动。
 3. 只有「脚手架」变了(串口节点、烧录方式、脱敏、排障表)→ 改本 skill 对应节。
-4. 别把最新测试状态 / 镜像 SHA 写进本 skill(那是 flow doc「现状待定」的职责)。
+4. 别把最新测试状态 / 镜像 SHA / 密钥写进本 skill(那是 flow doc 与 `cmd_scripts.sh` 的职责)。

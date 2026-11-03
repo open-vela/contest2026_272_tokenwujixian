@@ -200,6 +200,7 @@ CONFIG_AI_AGENT_AUDIO_NUTTX_DIRECT=y
 # ~14.4 KB BSS; 64 doubles that and leaves headroom past a third
 # server.
 CONFIG_AI_AGENT_MCP_MAX_TOOLS=64
+CONFIG_AI_AGENT_NOTIFY_SERVICE=y
 # CONFIG_AI_AGENT_WS_SERVER is not set
 # CONFIG_AI_AGENT_TOOLS_WEARABLE is not set
 # CONFIG_AI_AGENT_TOOLS_MEDIA is not set
@@ -293,9 +294,6 @@ CONFIG_LV_USE_DEMO_WIDGETS=y
 # needed.  Replaces the contest branch's AI_AGENT_UI_RPMSG to a CP renderer.
 CONFIG_AI_AGENT_LVGL_UI=y
 CONFIG_AI_AGENT_PET_STATUS=y
-# ai_agent f297082 rotates the idle screen between the pet and particle
-# pages; with PET_STATUS alone lvgl_ui_channel.c does not compile.
-CONFIG_AI_AGENT_PARTICLE_FLOW=y
 CONFIG_AI_AGENT_STANDBY_UI=y
 # Push-to-talk on KEY1 (GPIO13) through ai_agent's ptt_button.c, which also
 # drives the UI (recording/processing states, the user bubble).  Its stack
