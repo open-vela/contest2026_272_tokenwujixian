@@ -194,13 +194,6 @@ int board_lcd_initialize(void)
     }
 
 #if defined(CONFIG_BK7258_LCD_JD9853_QSPI)
-  /* Transport acceptance, visual because the board cannot read the panel back:
-   * command effects first (display off/on, inversion) and then whole fields,
-   * finishing on the eight colour bars.
-   */
-
-  jd9853_bringup_test(g_lcd_dev);
-  jd9853_pattern_test(g_lcd_dev);
 #endif
 
   /* Tie the board backlight to the panel power state */
