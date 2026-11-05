@@ -533,6 +533,47 @@ void bk7258_gpio_periph(unsigned int pin, unsigned int func)
   leave_critical_section(flags);
 }
 
+void bk7258_gpio_pull_up(unsigned int pin)
+{
+  irqstate_t flags;
+  uint32_t regval;
+
+  if (!bk7258_gpio_valid(pin))
+    {
+      return;
+    }
+
+  flags  = enter_critical_section();
+  regval = bk7258_gpio_cfg_read(pin);
+  regval &= ~BK7258_GPIO_CFG_PULL_MASK;
+  regval |= BK7258_GPIO_CFG_PULL_UP;
+  bk7258_gpio_cfg_write(pin, regval);
+  leave_critical_section(flags);
+}
+
+void bk7258_gpio_drive(unsigned int pin, unsigned int capacity)
+{
+  irqstate_t flags;
+  uint32_t regval;
+
+  if (!bk7258_gpio_valid(pin))
+    {
+      return;
+    }
+
+  if (capacity > 3)
+    {
+      capacity = 3;
+    }
+
+  flags  = enter_critical_section();
+  regval = bk7258_gpio_cfg_read(pin);
+  regval &= ~BK7258_GPIO_CFG_CAPACITY_MASK;
+  regval |= (capacity << 8) & BK7258_GPIO_CFG_CAPACITY_MASK;
+  bk7258_gpio_cfg_write(pin, regval);
+  leave_critical_section(flags);
+}
+
 int bk7258_gpio_irq_initialize(void)
 {
 #ifndef CONFIG_BK7258_COMPONENT_AP

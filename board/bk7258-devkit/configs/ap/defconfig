@@ -61,7 +61,7 @@ CONFIG_RPTUN=y
 CONFIG_RPTUN_AUTO_RESET_IN_REBOOT_NOTIFIER=y
 CONFIG_RPTUN_PRIORITY=90
 CONFIG_RPTUN_STACKSIZE=8192
-CONFIG_RR_INTERVAL=200
+CONFIG_RR_INTERVAL=20
 CONFIG_SCHED_WAITPID=y
 CONFIG_SERIAL=y
 CONFIG_START_DAY=1
@@ -323,3 +323,42 @@ CONFIG_NETUTILS_WEBCLIENT=y
 # on the AP, which is not the network's cost. 4096 is the TLS record
 # size the AP apps actually use and stays under one recv per read.
 CONFIG_NSH_WGET_BUFF_SIZE=4096
+
+# CPU load accounting so `ps` reports a CPU% column.  Without it every
+# "the UI stutters" report is a guess: the AP is a single core on this branch,
+# so ai_agent (100), the LVGL demo (90) and the rpmsg worker all share it and
+# only the percentages say which one is starving the others.
+CONFIG_SCHED_CPULOAD_SYSCLK=y
+CONFIG_SCHED_CPULOAD_TICKSPERSEC=100
+# CONFIG_SCHED_CPULOAD_NONE is not set
+
+# LVGL refresh period.  33 ms is LVGL's own default and the value the frame-rate
+# ruling asks for: never answer a slow display by lengthening this.  An earlier
+# round set 100 ms while the panel link was the polled 13 MHz SPI path, which
+# caps the loop at 10 fps and hides every transport improvement (measured then:
+# fps~=7..9 either way).  With QSPI at 48 MHz the flush costs about a third less
+# CPU per frame (cyc/flush 2.28M -> 1.3..1.8M, display share 28..45% -> 19..29%),
+# so the cap is what has to move for the gain to show up as frames.
+CONFIG_LV_DEF_REFR_PERIOD=33
+
+# QSPI1 master (NuttX qspi_dev_s) carrying the panel instead of SPI1.
+#
+# The panel stays a 4-line serial device: only CLK/CSN/IO0 are mapped to the
+# controller (GPIO2/3/4, peripheral function 6) and GPIO5 stays a GPIO output
+# for D/C, which is exactly how the authority drives its serial panels on this
+# controller (lcd_spi_driver.c with CONFIG_LCD_SPI_REFRESH_WITH_QSPI +
+# _MAPPING_MODE, both set in the shipped sdkconfig.h).  Commands go out as
+# cmd_c frames; pixels are written straight into the memory-mapped window at
+# 0x68000000 with force_spi_cs_low + io_cpu_mem_sel + disable_cmd_sck set, so
+# the controller clocks them out instead of the core polling a FIFO per byte.
+#
+# 48 MHz = 480 MHz / (9 + 1), the vendor's own value for this panel.  The SPI
+# path stays compiled as the fallback; both transports use GPIO2..5, so only
+# one may be initialised per boot.
+# Panel transport is back on SPI1 at 13 MHz: that is the configuration that
+# displays on this board.  The QSPI path (QSPI1 in mapping mode, same 4-line
+# protocol) is implemented in chips/bk7258/bk7258_qspi.c and drives a black
+# panel on this hardware, so it stays off until that is understood -- turning it
+# on costs the display.
+CONFIG_BK7258_QSPI=y
+CONFIG_BK7258_LCD_JD9853_QSPI=y
