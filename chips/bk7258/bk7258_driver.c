@@ -79,6 +79,7 @@
 #include "dd_pub.h"
 #include "interrupt_base.h"
 #include "sys_driver.h"
+#include "include/bk7258_clock.h"
 
 #if CONFIG_AON_PMU
 #include "aon_pmu_driver.h"
@@ -198,7 +199,9 @@ void power_clk_rf_init(void)
   /* 4. cpu0 and matrix clock: 26m/26m, 120m/120m and 240m/120m are the three
    *    configurations the authority records; it ships with none of them
    *    applied (the sys_drv_core_bus_clock_ctrl calls are commented out) and
-   *    leaves the CPU frequency vote to PM.
+   *    leaves the CPU frequency vote to PM.  This whole block is behind
+   *    CONFIG_POWER_CLOCK_RF, which is off here, so the 480 MHz vote lives in
+   *    bk7258_armino_early_initialize() next to pm_hardware_init() instead.
    */
 
   /* 5. Rosc calibration: enable the temperature detect used for VIO, hand
