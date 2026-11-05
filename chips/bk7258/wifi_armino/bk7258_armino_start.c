@@ -25,6 +25,7 @@
 
 #include "arm_internal.h"
 #include "bk7258_memorymap.h"
+#include "include/bk7258_clock.h"
 
 #define BK7258_ARMINO_ENTRY_PRIORITY  85
 #define BK7258_ARMINO_ENTRY_STACKSIZE 8192
@@ -112,6 +113,16 @@ void bk7258_armino_early_initialize(void)
   pm_hardware_init();
   bk_pm_cp1_auto_power_down_state_set(0);  /* PM_CP1_AUTO_CTRL_DISABLE */
   bk_pm_mem_auto_power_down_state_set(0);  /* PM_MEM_AUTO_CTRL_DISABLE */
+
+  /* Shared CPU/bus clock, Armino's highest step: CPU0 240 MHz, CPU1/CPU2
+   * 480 MHz, BUS 240 MHz (PM_CPU_FRQ_480M).  Voted here because pm is up and
+   * because physical CPU1 is released later, from the rptun thread -- the AP
+   * must boot at its final frequency, not have it change under its feet.
+   * The call logs the divider readback, so the step is provable from the
+   * console without a scope.
+   */
+
+  (void)bk7258_clock_cpu_boost();
 
   /* pm_hardware_init() has switched AHBP off, PSRAM included; PSRAM init
    * powers it back on before the region joins the heap, the same order as

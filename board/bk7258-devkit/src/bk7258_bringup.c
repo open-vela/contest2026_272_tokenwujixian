@@ -36,6 +36,7 @@ int bk7258_status_led_initialize(void);
 #include <arch/chip/bk7258_memorymap.h>
 #include <arch/chip/bk7258_reset.h>
 #include <arch/chip/bk7258_rtc.h>
+#include <arch/chip/bk7258_clock.h>
 #include <arch/chip/bk7258_timer.h>
 #include <arch/chip/bk7258_wifi.h>
 #include <arch/board/board.h>
@@ -809,6 +810,19 @@ static void bk7258_ap_initialize(void)
    */
 
   syslog(LOG_INFO, "BK7258: bk7258_ap_initialize called\n");
+
+#ifdef CONFIG_BK7258_COMPONENT_AP
+  /* What this core actually runs at, measured from its own DWT cycle counter
+   * against the 32 kHz-sourced tick.  The CP only proves CPU0's clock; the AP
+   * cores are a separate claim (Armino's 480M step gives CPU1/CPU2 480 MHz to
+   * CPU0's 240 MHz), so measure it here instead of assuming. */
+
+  syslog(LOG_INFO, "[AP] measured core clock: %lu Hz (cpu%u)\n",
+         (unsigned long)bk7258_clock_measure_hz(),
+         (unsigned)up_cpu_index());
+
+
+#endif
 
 #ifdef CONFIG_BK7258_PSRAM
   /* The .psram_bss section (flash_ap.ld) is NOLOAD: startup zeroes only
