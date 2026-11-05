@@ -131,7 +131,7 @@ CONFIG_RPTUN_STACKSIZE=4096
 CONFIG_SERIAL=y
 CONFIG_OTHER_SERIAL_CONSOLE=y
 CONFIG_PREALLOC_TIMERS=4
-CONFIG_RR_INTERVAL=200
+CONFIG_RR_INTERVAL=20
 CONFIG_SCHED_WAITPID=y
 CONFIG_START_YEAR=2026
 CONFIG_STANDARD_SERIAL=y
@@ -279,3 +279,14 @@ CONFIG_LVX_USE_DEMO_CONTEST2026_272_DRVTEST=y
 # Memory Technology Device framework: the flash block's standard face
 # (mtd_dev_s) and its /dev/mtd0 node are in bk7258_flash_driver.c.
 CONFIG_MTD=y
+
+# Console baud, raised from the 115200 default.
+# Measured on the board: printing a `ps` table (~2 KB) over RPMsg -> CP -> UART0
+# at 115200 kept nsh_main at ~47% of the single AP core, so the shell felt
+# dead while the UI animated.  The console is a link-bandwidth problem, not CPU.
+# 1 MHz divides the 26 MHz XTAL exactly: 26000000/1000000 - 1 = 25, so the
+# programmed rate is exactly 1,000,000 (no rounding error, unlike 921600 whose
+# nearest divisor gives 928571, +0.76%).  UART_MAX_BAUD_RATE here is
+# UART_CLOCK/5 = 5.2 MHz, so 1 MHz is well inside the driver's own limit.
+# The host terminal must be switched to the same rate.
+CONFIG_BK7258_UART0_BAUD=1000000
