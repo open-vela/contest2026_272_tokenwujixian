@@ -26,6 +26,7 @@
 #include "arm_internal.h"
 #include "bk7258_memorymap.h"
 #include "include/bk7258_clock.h"
+#include "include/bk7258_dvfs.h"
 
 #define BK7258_ARMINO_ENTRY_PRIORITY  85
 #define BK7258_ARMINO_ENTRY_STACKSIZE 8192
@@ -123,6 +124,17 @@ void bk7258_armino_early_initialize(void)
    */
 
   (void)bk7258_clock_cpu_boost();
+
+  /* Then apply the shared operating point ourselves, because the SDK's own
+   * 480M row does not exist: sys_hal_switch_cpu_bus_freq() stops at 320M and
+   * lets the 480M request fall through "default", which is why the vote alone
+   * left the AP at half of CPU0.  This runs after the vote so the register
+   * state is ours, and before CPU1 is released so CPU1 boots at its final
+   * clock.
+   */
+
+  (void)bk7258_dvfs_set_opp(BK7258_OPP_480M);
+  bk7258_dvfs_report();
 
   /* pm_hardware_init() has switched AHBP off, PSRAM included; PSRAM init
    * powers it back on before the region joins the heap, the same order as

@@ -63,6 +63,7 @@ else()
        bk7258_start.c
        bk7258_sysctrl.c
        bk7258_clock.c
+       bk7258_dvfs.c
        bk7258_lowputc.c
        bk7258_uart.c
        bk7258_wdt.c
