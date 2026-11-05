@@ -102,7 +102,37 @@ int bk7258_clock_cpu_boost(void)
    * raise that sys_hal_switch_cpu_bus_freq() performs per level.
    */
 
+  /* Vote twice, the way both peer repositories do it: the DEFAULT slot carries
+   * the global ask, and PM_DEV_ID_CPU1 is the slot the AP-side monitor reads
+   * back (VelaSight fails and rolls back when that slot is not 480M).  PM keeps
+   * one vote per module and switches on the maximum, so this is bookkeeping
+   * plus the same switch decision.
+   */
+
+  ret = bk_pm_module_vote_cpu_freq(PM_DEV_ID_CPU1, PM_CPU_FRQ_480M);
   ret = bk_pm_module_vote_cpu_freq(PM_DEV_ID_DEFAULT, PM_CPU_FRQ_480M);
+
+  /* CPU1's divider, before CPU1 is released.
+   *
+   * This baseline exposes exactly one bit for it (cpu1_speed, SYS reg0x05
+   * bit4), so CPU1 can only run at the core clock or at half of it.  It powers
+   * up at half -- measured CPU0 236 MHz against CPU1 119 MHz -- which is the
+   * "CPU0 240 / CPU1 120" state that appears in no operating point of the
+   * peer repositories' table (their 240M step is 240/240, their 480M step is
+   * 240/480).  Setting the bit to the value CPU0 uses asks for the 240/240
+   * point, the best this baseline can express.
+   *
+   * Written here, from the CP and before the release, because that is who owns
+   * the register: bits[8:31] of the same word carry CPU1's entry offset
+   * (0x021600 for this image), and writing it from the AP side halved the core
+   * to 60 MHz and did not recover.
+   */
+
+  if (sys_hal_cpu_clk_div_get(1) != sys_hal_cpu_clk_div_get(0))
+    {
+      sys_hal_cpu_clk_div_set(1, sys_hal_cpu_clk_div_get(0));
+    }
+
   hz_after = bk7258_clock_measure_hz();
 
   {
@@ -130,11 +160,13 @@ int bk7258_clock_cpu_boost(void)
 
     syslog(LOG_INFO,
            "[BK7258] per-core clock: cpu0_op=%08lx cpu1_op=%08lx "
-           "div0=%lu div1=%lu\n",
+           "div0=%lu div1=%lu cpu1_vote=%d max=%d\n",
            (unsigned long)getreg32(UINT32_C(0x44010010)),
            (unsigned long)getreg32(UINT32_C(0x44010014)),
            (unsigned long)sys_hal_cpu_clk_div_get(0),
-           (unsigned long)sys_hal_cpu_clk_div_get(1));
+           (unsigned long)sys_hal_cpu_clk_div_get(1),
+           (int)bk_pm_module_current_cpu_freq_get(PM_DEV_ID_CPU1),
+           (int)bk_pm_current_max_cpu_freq_get());
   }
 
   return ret == BK_OK ? OK : -EIO;
