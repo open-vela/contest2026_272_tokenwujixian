@@ -35,7 +35,12 @@
 #include <debug.h>
 
 #include <nuttx/arch.h>
+#include <nuttx/clock.h>
 #include <nuttx/spi/spi.h>
+#include <syslog.h>
+
+#include <arch/chip/bk7258_clock.h>
+#include <arch/chip/bk7258_qspi.h>
 #include <nuttx/lcd/lcd.h>
 
 #include "jd9853.h"
@@ -193,7 +198,8 @@ struct jd9853_dev_s
  * single-threaded), so a shared buffer is safe.
  */
 
-static uint8_t g_jd9853_swap[JD9853_SWAP_BUFSIZE];
+static uint8_t g_jd9853_swap[JD9853_SWAP_BUFSIZE]
+  __attribute__((aligned(4)));
 
 /****************************************************************************
  * Private Function Protototypes
@@ -231,6 +237,67 @@ static void jd9853_wrswap(FAR struct spi_dev_s *spi,
 static int jd9853_putrun(FAR struct lcd_dev_s *dev,
                          fb_coord_t row, fb_coord_t col,
                          FAR const uint8_t *buffer, size_t npixels);
+
+/* Panel-link accounting.
+ *
+ * The flush path is a per-byte polled SPI transfer (bk7258_spi_hw.c), so a
+ * frame's cost is CPU time, not just wire time: 240x296 at 16 bpp is 142 KB,
+ * which is 87 ms on a 13 MHz SPI clock.  These counters turn "the UI is
+ * janky" into numbers: how much of the CPU the display owns, and what frame
+ * rate the link can actually sustain.
+ */
+
+#define JD9853_ACCT_INTERVAL   32
+
+static uint32_t g_flush_calls;
+static uint32_t g_flush_bytes;
+static uint64_t g_flush_cycles;
+static clock_t  g_flush_window_start;
+
+static void jd9853_account(size_t bytes, uint32_t cycles)
+{
+  clock_t elapsed;
+  uint32_t hz;
+  uint64_t window_cycles;
+  uint32_t fps;
+
+  g_flush_calls++;
+  g_flush_bytes += (uint32_t)bytes;
+  g_flush_cycles += cycles;
+
+  if ((g_flush_calls % JD9853_ACCT_INTERVAL) != 0)
+    {
+      return;
+    }
+
+  elapsed = clock_systime_ticks() - g_flush_window_start;
+  hz = bk7258_clock_measure_hz();
+
+  if (elapsed <= 0 || hz == 0)
+    {
+      return;
+    }
+
+  /* Cycles the core had available during this window vs cycles spent inside
+   * the flush: the ratio is the share of one core the display owns. */
+
+  window_cycles = (uint64_t)hz * (uint64_t)elapsed * USEC_PER_TICK /
+                  USEC_PER_SEC;
+  fps = (uint32_t)((uint64_t)g_flush_calls * USEC_PER_SEC /
+                   ((uint64_t)elapsed * USEC_PER_TICK));
+
+  syslog(LOG_INFO,
+         "[lcd] flushes=%lu fps~=%lu cyc/flush=%lu display=%lu%% of core\n",
+         (unsigned long)g_flush_calls, (unsigned long)fps,
+         (unsigned long)(g_flush_cycles / g_flush_calls),
+         window_cycles ? (unsigned long)(g_flush_cycles * 100 /
+                                         window_cycles) : 0ul);
+  g_flush_calls = 0;
+  g_flush_bytes = 0;
+  g_flush_cycles = 0;
+  g_flush_window_start = clock_systime_ticks();
+}
+
 static int jd9853_putarea(FAR struct lcd_dev_s *dev,
                           fb_coord_t row_start, fb_coord_t row_end,
                           fb_coord_t col_start, fb_coord_t col_end,
@@ -275,8 +342,38 @@ static struct jd9853_dev_s g_lcddev;
  *
  ****************************************************************************/
 
+/* Transport switch.
+ *
+ * The panel's own command set and tuning values below are specific to this
+ * module (T201BM-C12-03, 240x296) and stay as they are whichever transport is
+ * used.  Only the four primitives -- select, deselect, command, payload --
+ * change.  QSPI keeps the D/C line as a plain GPIO exactly like SPI does; what
+ * it changes is where the bytes go (command channel vs memory-mapped window)
+ * and how fast they leave (48 MHz instead of 13 MHz).
+ */
+
+#ifdef CONFIG_BK7258_LCD_JD9853_QSPI
+static inline void jd9853_bus_begin(FAR struct jd9853_dev_s *dev)
+{
+  (void)dev;
+}
+
+static inline void jd9853_bus_end(FAR struct jd9853_dev_s *dev)
+{
+  (void)dev;
+}
+#endif
+
 static void jd9853_select(FAR struct spi_dev_s *spi, int bits)
 {
+#ifdef CONFIG_BK7258_LCD_JD9853_QSPI
+  /* No bus lock, no chip select and no D/C: the QSPI frame carries all three.
+   * dev->spi is NULL in this mode, so reaching the SPI path here faults.
+   */
+
+  (void)spi;
+  (void)bits;
+#else
   /* Select JD9853 chip (locking the SPI bus in case there are multiple
    * devices competing for the SPI bus
    */
@@ -291,6 +388,7 @@ static void jd9853_select(FAR struct spi_dev_s *spi, int bits)
   SPI_SETMODE(spi, CONFIG_LCD_JD9853_SPIMODE);
   SPI_SETBITS(spi, bits);
   SPI_SETFREQUENCY(spi, CONFIG_LCD_JD9853_FREQUENCY);
+#endif
 }
 
 /****************************************************************************
@@ -303,10 +401,14 @@ static void jd9853_select(FAR struct spi_dev_s *spi, int bits)
 
 static void jd9853_deselect(FAR struct spi_dev_s *spi)
 {
+#ifdef CONFIG_BK7258_LCD_JD9853_QSPI
+  (void)spi;
+#else
   /* De-select JD9853 chip and relinquish the SPI bus. */
 
   SPI_SELECT(spi, SPIDEV_DISPLAY(0), false);
   SPI_LOCK(spi, false);
+#endif
 }
 
 /****************************************************************************
@@ -319,11 +421,16 @@ static void jd9853_deselect(FAR struct spi_dev_s *spi)
 
 static inline void jd9853_sendcmd(FAR struct jd9853_dev_s *dev, uint8_t cmd)
 {
+#ifdef CONFIG_BK7258_LCD_JD9853_QSPI
+  bk7258_qspi_write_cmd(cmd);
+  return;
+#else
   jd9853_select(dev->spi, 8);
   SPI_CMDDATA(dev->spi, SPIDEV_DISPLAY(0), true);
   SPI_SEND(dev->spi, cmd);
   SPI_CMDDATA(dev->spi, SPIDEV_DISPLAY(0), false);
   jd9853_deselect(dev->spi);
+#endif
 }
 
 /****************************************************************************
@@ -337,12 +444,17 @@ static inline void jd9853_sendcmd(FAR struct jd9853_dev_s *dev, uint8_t cmd)
 static void jd9853_cmddata(FAR struct jd9853_dev_s *dev, uint8_t cmd,
                                       const uint8_t *data, int len)
 {
+#ifdef CONFIG_BK7258_LCD_JD9853_QSPI
+  bk7258_qspi_write_cmd_data(cmd, data, (size_t)len);
+  return;
+#else
   jd9853_select(dev->spi, 8);
   SPI_CMDDATA(dev->spi, SPIDEV_DISPLAY(0), true);
   SPI_SEND(dev->spi, cmd);
   SPI_CMDDATA(dev->spi, SPIDEV_DISPLAY(0), false);
   SPI_SNDBLOCK(dev->spi, data, len);
   jd9853_deselect(dev->spi);
+#endif
 }
 
 /****************************************************************************
@@ -532,25 +644,26 @@ static void jd9853_setcursor(FAR struct jd9853_dev_s *dev,
                            uint16_t x0, uint16_t y0,
                            uint16_t x1, uint16_t y1)
 {
-  /* Set page address */
+  /* Page then column window, each as one command plus its four address
+   * bytes.  Going through jd9853_cmddata() keeps this identical for both
+   * transports: SPI sends command then payload, QSPI packs both into one
+   * command sequence.
+   */
 
-  jd9853_sendcmd(dev, JD9853_PASET);
-  jd9853_select(dev->spi, 8);
-  SPI_SEND(dev->spi, (y0 + JD9853_YOFFSET) >> 8);
-  SPI_SEND(dev->spi, (y0 + JD9853_YOFFSET) & 0xff);
-  SPI_SEND(dev->spi, (y1 + JD9853_YOFFSET) >> 8);
-  SPI_SEND(dev->spi, (y1 + JD9853_YOFFSET) & 0xff);
-  jd9853_deselect(dev->spi);
+  uint8_t page[4];
+  uint8_t col[4];
 
-  /* Set column address */
+  page[0] = (y0 + JD9853_YOFFSET) >> 8;
+  page[1] = (y0 + JD9853_YOFFSET) & 0xff;
+  page[2] = (y1 + JD9853_YOFFSET) >> 8;
+  page[3] = (y1 + JD9853_YOFFSET) & 0xff;
+  jd9853_cmddata(dev, JD9853_PASET, page, 4);
 
-  jd9853_sendcmd(dev, JD9853_CASET);
-  jd9853_select(dev->spi, 8);
-  SPI_SEND(dev->spi, (x0 + JD9853_XOFFSET) >> 8);
-  SPI_SEND(dev->spi, (x0 + JD9853_XOFFSET) & 0xff);
-  SPI_SEND(dev->spi, (x1 + JD9853_XOFFSET) >> 8);
-  SPI_SEND(dev->spi, (x1 + JD9853_XOFFSET) & 0xff);
-  jd9853_deselect(dev->spi);
+  col[0] = (x0 + JD9853_XOFFSET) >> 8;
+  col[1] = (x0 + JD9853_XOFFSET) & 0xff;
+  col[2] = (x1 + JD9853_XOFFSET) >> 8;
+  col[3] = (x1 + JD9853_XOFFSET) & 0xff;
+  jd9853_cmddata(dev, JD9853_CASET, col, 4);
 }
 
 /****************************************************************************
@@ -632,6 +745,50 @@ static void jd9853_wrram(FAR struct jd9853_dev_s *dev,
 
   jd9853_sendcmd(dev, JD9853_RAMWR);
 
+#ifdef CONFIG_BK7258_LCD_JD9853_QSPI
+  /* Same byte order the panel expects: RGB565 is little-endian in memory and
+   * most-significant byte first on the wire (datasheet 7.1.8.2.1 puts R14
+   * first).  The swap happens here rather than in jd9853_wrswap(), which sends
+   * through an SPI device this mode does not have.
+   *
+   * The scratch buffer is JD9853_SWAP_BUFSIZE and `size` is not bounded by it:
+   * a full-width band from the LVGL port arrives as one block of
+   * rows * row_size, which is 19200 bytes with CONFIG_LV_NUTTX_LCD_BUFFER_SIZE
+   * = 40.  So swap and send in chunks, exactly as jd9853_wrswap() does for the
+   * SPI path.  Without the chunking the swap ran off the end of the buffer and
+   * corrupted the heap, which is what "the UI is garbled but the test pattern
+   * is fine" looked like.
+   */
+
+  bk7258_qspi_pixels_begin();
+
+  for (i = 0; i < count; i++)
+    {
+      FAR const uint8_t *src = buff + (i * (size + skip));
+      size_t remain = size;
+
+      while (remain > 0)
+        {
+          size_t chunk = remain > JD9853_SWAP_BUFSIZE ?
+                         JD9853_SWAP_BUFSIZE : remain;
+          size_t off;
+
+          for (off = 0; off + 1 < chunk; off += 2)
+            {
+              g_jd9853_swap[off]     = src[off + 1];
+              g_jd9853_swap[off + 1] = src[off];
+            }
+
+          bk7258_qspi_pixels_write(g_jd9853_swap, chunk);
+
+          src    += chunk;
+          remain -= chunk;
+        }
+    }
+
+  bk7258_qspi_pixels_end();
+  return;
+#else
   jd9853_select(dev->spi, 8);
 
   /* RGB565 pixels are stored little-endian in memory (low byte first) but
@@ -646,6 +803,7 @@ static void jd9853_wrram(FAR struct jd9853_dev_s *dev,
     }
 
   jd9853_deselect(dev->spi);
+#endif
 }
 
 /****************************************************************************
@@ -668,9 +826,14 @@ static void jd9853_rdram(FAR struct jd9853_dev_s *dev,
    * pairs are swapped back to native little-endian after the receive.
    */
 
+#ifdef CONFIG_BK7258_LCD_JD9853_QSPI
+  /* No return line, and the QSPI transport has no read direction at all. */
+  memset(buff, 0, size * 2);
+#else
   jd9853_select(dev->spi, 8);
   SPI_RECVBLOCK(dev->spi, buff, size * 2);
   jd9853_deselect(dev->spi);
+#endif
 
   for (size_t i = 0; i + 1 < size * 2; i += 2)
     {
@@ -698,26 +861,71 @@ static void jd9853_fill(FAR struct jd9853_dev_s *dev, uint16_t color)
   jd9853_setcursor(dev, 0, 0, JD9853_XRES - 1, JD9853_YRES - 1);
 
   jd9853_sendcmd(dev, JD9853_RAMWR);
+#ifndef CONFIG_BK7258_LCD_JD9853_QSPI
   jd9853_select(dev->spi, 8);
+#endif
 
-  /* RGB565 pixels are transmitted most-significant byte first.  Build one
-   * byte-swapped row in the scratch buffer and stream it once per row.
+  /* RGB565 pixels are transmitted most-significant byte first: the 4-line
+   * serial timing diagram (datasheet 7.1.8.2.1) puts R14, i.e. the high byte,
+   * on the wire first.  The scratch buffer therefore holds the high byte at
+   * the even index, which is what jd9853_wrswap() does for real content.
    */
 
   DEBUGASSERT(JD9853_XRES * 2 <= JD9853_SWAP_BUFSIZE);
 
   for (i = 0; i < JD9853_XRES; i++)
     {
-      g_jd9853_swap[2 * i]     = color & 0xff;
-      g_jd9853_swap[2 * i + 1] = color >> 8;
+      g_jd9853_swap[2 * i]     = color >> 8;
+      g_jd9853_swap[2 * i + 1] = color & 0xff;
     }
 
+#ifdef CONFIG_BK7258_LCD_JD9853_QSPI
+  /* One burst for the whole frame: chip select stays low so the panel sees a
+   * continuous pixel stream instead of 296 separate ones.
+   */
+
+  {
+    uint32_t fill_cycles = bk7258_clock_cycles();
+    uint32_t fill_hz;
+    uint32_t rate_kbs;
+    uint32_t bytes = (uint32_t)JD9853_XRES * JD9853_YRES * 2;
+    uint32_t spent;
+
+    bk7258_qspi_pixels_begin();
+
+    for (i = 0; i < JD9853_YRES; i++)
+      {
+        if (bk7258_qspi_pixels_write(g_jd9853_swap, JD9853_XRES * 2) != OK)
+          {
+            break;
+          }
+      }
+
+    bk7258_qspi_pixels_end();
+
+    spent = bk7258_clock_cycles() - fill_cycles;
+    fill_hz = bk7258_clock_measure_hz();
+    rate_kbs = (uint32_t)(((uint64_t)bytes * fill_hz) /
+                          ((uint64_t)(spent ? spent : 1) * 1000));
+
+    /* One known quantity (a full 240x296 RGB565 frame) against the core clock,
+     * so the number says how fast the bytes actually left the core.  48 MHz on
+     * one data line is 6000 KB/s; 13 MHz is 1625 KB/s.
+     */
+
+    syslog(LOG_INFO,
+           "[lcd] fill: %lu bytes in %lu cyc @%lu Hz -> %lu KB/s\n",
+           (unsigned long)bytes, (unsigned long)spent,
+           (unsigned long)fill_hz, (unsigned long)rate_kbs);
+  }
+#else
   for (i = 0; i < JD9853_YRES; i++)
     {
       SPI_SNDBLOCK(dev->spi, g_jd9853_swap, JD9853_XRES * 2);
     }
 
   jd9853_deselect(dev->spi);
+#endif
 }
 
 /****************************************************************************
@@ -766,6 +974,13 @@ static int jd9853_putarea(FAR struct lcd_dev_s *dev,
 
   DEBUGASSERT(buffer && ((uintptr_t)buffer & 1) == 0);
 
+  if (g_flush_window_start == 0)
+    {
+      g_flush_window_start = clock_systime_ticks();
+    }
+
+  uint32_t acct_cycles = bk7258_clock_cycles();
+
   jd9853_setcursor(priv, col_start, row_start, col_end, row_end);
 
   /* If the stride is the same of the row, a single SPI transfer is enough.
@@ -787,6 +1002,8 @@ static int jd9853_putarea(FAR struct lcd_dev_s *dev,
       ginfo("Falling-back to row by row mode\n");
       jd9853_wrram(priv, buffer, row_size, stride - row_size, rows);
     }
+
+  jd9853_account(rows * row_size, bk7258_clock_cycles() - acct_cycles);
 
   return OK;
 }
@@ -964,6 +1181,115 @@ static int jd9853_setcontrast(FAR struct lcd_dev_s *dev,
  *
  ****************************************************************************/
 
+void jd9853_fill_test(FAR struct lcd_dev_s *dev, uint16_t color)
+{
+  jd9853_fill((FAR struct jd9853_dev_s *)dev, color);
+}
+
+/* Bring-up split test: command a visible effect first, then a pixel field, one
+ * step at a time.  Both halves of the transport report success from the
+ * controller side, so the only way to tell them apart is to make each produce
+ * something the eye can distinguish:
+ *
+ *   DISOFF / DISON     blank   <-> whatever the panel shows  = commands land
+ *   INVERSION ON / OFF stripes <-> inverted stripes          = commands land
+ *   white / black      full field                            = pixels land
+ */
+
+void jd9853_bringup_test(FAR struct lcd_dev_s *dev)
+{
+  FAR struct jd9853_dev_s *priv = (FAR struct jd9853_dev_s *)dev;
+
+  syslog(LOG_INFO, "[lcd] test: display off\n");
+  jd9853_sendcmd(priv, JD9853_DISOFF);
+  up_mdelay(600);
+
+  syslog(LOG_INFO, "[lcd] test: display on\n");
+  jd9853_sendcmd(priv, JD9853_DISON);
+  up_mdelay(600);
+
+  syslog(LOG_INFO, "[lcd] test: inversion on\n");
+  jd9853_sendcmd(priv, JD9853_INVERSION_ON);
+  up_mdelay(600);
+
+  syslog(LOG_INFO, "[lcd] test: inversion off\n");
+  jd9853_sendcmd(priv, JD9853_INVERSION_OFF);
+  up_mdelay(600);
+
+  syslog(LOG_INFO, "[lcd] test: fill white\n");
+  jd9853_fill(priv, 0xffff);
+  up_mdelay(800);
+
+  syslog(LOG_INFO, "[lcd] test: fill black\n");
+  jd9853_fill(priv, 0x0000);
+  up_mdelay(800);
+
+  syslog(LOG_INFO, "[lcd] test: fill white again\n");
+  jd9853_fill(priv, 0xffff);
+}
+
+/* Eight vertical colour bars, built pixel by pixel in the row scratch buffer.
+ * The geometry is known exactly (30 px each on a 240 px line), so a photograph
+ * of the panel separates three failure classes at once: bars in the right order
+ * with the right edges means the pixel stream is intact and anything wrong in
+ * the UI is above this layer; shifted or smeared edges mean the stream is still
+ * misaligned; correct bars with wrong colours mean the pixel format is wrong
+ * (RGB565 vs BGR/RGB666).
+ */
+
+void jd9853_pattern_test(FAR struct lcd_dev_s *dev)
+{
+  FAR struct jd9853_dev_s *priv = (FAR struct jd9853_dev_s *)dev;
+  static const uint16_t bars[8] =
+  {
+    0xF800,  /* red    */
+    0x07E0,  /* green  */
+    0x001F,  /* blue   */
+    0xFFFF,  /* white  */
+    0x0000,  /* black  */
+    0xFFE0,  /* yellow */
+    0x07FF,  /* cyan   */
+    0xF81F   /* magenta*/
+  };
+  int row;
+  int i;
+
+  DEBUGASSERT(JD9853_XRES * 2 <= JD9853_SWAP_BUFSIZE);
+
+  for (i = 0; i < JD9853_XRES; i++)
+    {
+      uint16_t color = bars[(i * 8) / JD9853_XRES];
+
+      /* High byte first, per datasheet 7.1.8.2.1. */
+
+      g_jd9853_swap[2 * i]     = color >> 8;
+      g_jd9853_swap[2 * i + 1] = color & 0xff;
+    }
+
+  jd9853_setcursor(priv, 0, 0, JD9853_XRES - 1, JD9853_YRES - 1);
+  jd9853_sendcmd(priv, JD9853_RAMWR);
+
+#ifdef CONFIG_BK7258_LCD_JD9853_QSPI
+  bk7258_qspi_pixels_begin();
+
+  for (row = 0; row < JD9853_YRES; row++)
+    {
+      bk7258_qspi_pixels_write(g_jd9853_swap, JD9853_XRES * 2);
+    }
+
+  bk7258_qspi_pixels_end();
+#else
+  jd9853_select(priv->spi, 8);
+
+  for (row = 0; row < JD9853_YRES; row++)
+    {
+      SPI_SNDBLOCK(priv->spi, g_jd9853_swap, JD9853_XRES * 2);
+    }
+
+  jd9853_deselect(priv->spi);
+#endif
+}
+
 FAR struct lcd_dev_s *jd9853_lcdinitialize(FAR struct spi_dev_s *spi)
 {
   FAR struct jd9853_dev_s *priv = &g_lcddev;
@@ -985,6 +1311,7 @@ FAR struct lcd_dev_s *jd9853_lcdinitialize(FAR struct spi_dev_s *spi)
   jd9853_sleep(priv, false);
   jd9853_bpp(priv, JD9853_BPP);
   jd9853_setorientation(priv);
+
   jd9853_fill(priv, 0x0000);
   jd9853_display(priv, true);
 

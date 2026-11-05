@@ -63,4 +63,19 @@
 
 FAR struct lcd_dev_s *jd9853_lcdinitialize(FAR struct spi_dev_s *spi);
 
+/* Fill the whole panel with one colour.  Bring-up only: the board cannot read
+ * the panel back, so a visible field is the only way to see whether the write
+ * path carried anything.
+ */
+
+void jd9853_fill_test(FAR struct lcd_dev_s *dev, uint16_t color);
+
+/* Bring-up split test: command effects first, then a pixel field. */
+
+void jd9853_bringup_test(FAR struct lcd_dev_s *dev);
+
+/* Eight known-geometry colour bars. */
+
+void jd9853_pattern_test(FAR struct lcd_dev_s *dev);
+
 #endif /* __BOARD_BK7258_DEVKIT_SRC_JD9853_H */
