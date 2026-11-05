@@ -112,26 +112,12 @@ int bk7258_clock_cpu_boost(void)
   ret = bk_pm_module_vote_cpu_freq(PM_DEV_ID_CPU1, PM_CPU_FRQ_480M);
   ret = bk_pm_module_vote_cpu_freq(PM_DEV_ID_DEFAULT, PM_CPU_FRQ_480M);
 
-  /* CPU1's divider, before CPU1 is released.
-   *
-   * This baseline exposes exactly one bit for it (cpu1_speed, SYS reg0x05
-   * bit4), so CPU1 can only run at the core clock or at half of it.  It powers
-   * up at half -- measured CPU0 236 MHz against CPU1 119 MHz -- which is the
-   * "CPU0 240 / CPU1 120" state that appears in no operating point of the
-   * peer repositories' table (their 240M step is 240/240, their 480M step is
-   * 240/480).  Setting the bit to the value CPU0 uses asks for the 240/240
-   * point, the best this baseline can express.
-   *
-   * Written here, from the CP and before the release, because that is who owns
-   * the register: bits[8:31] of the same word carry CPU1's entry offset
-   * (0x021600 for this image), and writing it from the AP side halved the core
-   * to 60 MHz and did not recover.
+  /* CPU1's divider is not set here: bk7258_dvfs_set_opp() owns the operating
+   * point and runs right after this call, from the same CP context and before
+   * CPU1 is released.  Keeping one writer avoids the two fighting over the
+   * word that also carries CPU1's entry offset.
    */
 
-  if (sys_hal_cpu_clk_div_get(1) != sys_hal_cpu_clk_div_get(0))
-    {
-      sys_hal_cpu_clk_div_set(1, sys_hal_cpu_clk_div_get(0));
-    }
 
   hz_after = bk7258_clock_measure_hz();
 
