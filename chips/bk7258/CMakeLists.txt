@@ -8,7 +8,8 @@ set(SRCS
     bk7258_ap_boot.c
     bk7258_gpio.c
     bk7258_trng.c
-    bk7258_ca.c)
+    bk7258_ca.c
+    bk7258_cycles.c)
 
 if(CONFIG_ARM_MPU)
   list(APPEND SRCS bk7258_mpuinit.c)
@@ -24,6 +25,10 @@ endif()
 
 if(CONFIG_BK7258_MAILBOX)
   list(APPEND SRCS bk7258_mailbox.c)
+endif()
+
+if(CONFIG_BK7258_QSPI)
+  list(APPEND SRCS bk7258_qspi.c)
 endif()
 
 if(CONFIG_BK7258_MB_IPC_RPMSG)

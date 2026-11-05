@@ -133,6 +133,28 @@ bool bk7258_gpio_read(unsigned int pin);
 void bk7258_gpio_write(unsigned int pin, bool value);
 
 /****************************************************************************
+ * Name: bk7258_gpio_pull_up
+ *
+ * Description:
+ *   Enable the internal pull-up on a pin.  Applies to a pad already routed to
+ *   a peripheral function as well: the pull bits live in the same config word
+ *   as the function select, which is what the authority's QSPI_SET_PIN() does.
+ *
+ ****************************************************************************/
+
+void bk7258_gpio_pull_up(unsigned int pin);
+
+/****************************************************************************
+ * Name: bk7258_gpio_drive
+ *
+ * Description:
+ *   Set the pad drive capacity, 0 (weakest) to 3 (strongest).
+ *
+ ****************************************************************************/
+
+void bk7258_gpio_drive(unsigned int pin, unsigned int capacity);
+
+/****************************************************************************
  * GPIO Interrupt Ownership
  *
  * ICU source 55 and the aggregate GPIO pending registers are owned

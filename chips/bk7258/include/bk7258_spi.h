@@ -52,9 +52,16 @@
 #define BK7258_SYS_SPI1_APLL   (UINT32_C(1) << 5)   /* clksel_spi1 = 1 */
 #define BK7258_SYS_SPI1_CLK_EN (UINT32_C(1) << 9)   /* spi1_cken in DEV_CLK_EN */
 
-/* SPI1 source clock (XTAL path) and the resulting maximum SPI baud rate.
- * baud = f_src / (2 * clk_rate), so with clk_rate = 1 the top rate on the
- * XTAL source is 13 MHz.
+/* SPI1 source clock and the resulting maximum SPI baud rate.
+ * baud = f_src / (2 * clk_rate), so with clk_rate = 1 the top rate is
+ * f_src / 2.
+ *
+ * f_src is the 26 MHz XTAL (clksel_spi1 = 0).  The authority's clock select
+ * also names an APLL source, but enabling it means programming and powering
+ * the audio PLL, and no shipped configuration does that for SPI -- so this
+ * link stays at 13 MHz, which costs ~87 ms per 240x296@16bpp frame and
+ * 28..45% of the AP core.  The QSPI transport (bk7258_qspi.c) is the way out:
+ * the same 4-line protocol at 48 MHz through a memory-mapped window.
  */
 
 #define BK7258_SPI1_SRC_CLK    UINT32_C(26000000)

@@ -142,6 +142,15 @@ static const struct spi_ops_s g_bk7258_spiops =
 
 static struct bk7258_spi_dev_s g_spidev;
 
+/* Source clock actually in use.  The authority's SPI select offers an APLL
+ * source, but no shipped configuration enables it and no vendor code enables
+ * the APLL for SPI, so this link stays on the 26 MHz XTAL: 13 MHz at
+ * clk_rate = 1.  The QSPI transport (bk7258_qspi.c) is the way past it.
+ */
+
+static uint32_t g_spi1_src_clk = 26000000U;
+
+
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
@@ -184,7 +193,7 @@ static uint32_t bk7258_spi_setfrequency(FAR struct spi_dev_s *dev,
 
   /* baud = f_src / (2 * clk_rate), round up to stay below the request */
 
-  clk_rate = (BK7258_SPI1_SRC_CLK + (2 * frequency) - 1) / (2 * frequency);
+  clk_rate = (g_spi1_src_clk + (2 * frequency) - 1) / (2 * frequency);
   if (clk_rate < 1)
     {
       clk_rate = 1;
@@ -197,7 +206,7 @@ static uint32_t bk7258_spi_setfrequency(FAR struct spi_dev_s *dev,
   priv->hw->ctrl.clk_rate = clk_rate;
 
   priv->frequency = frequency;
-  priv->actual    = BK7258_SPI1_SRC_CLK / (2 * clk_rate);
+  priv->actual    = g_spi1_src_clk / (2 * clk_rate);
 
   return priv->actual;
 }
@@ -374,7 +383,11 @@ FAR struct spi_dev_s *bk7258_spi_initialize(void)
   FAR bk7258_spi_hw_t *hw = (FAR bk7258_spi_hw_t *)BK7258_SPI1_BASE;
   uint32_t regval;
 
-  /* Enable the SPI1 clock gate and pin the source clock to XTAL 26M. */
+  /* Enable the SPI1 clock gate.  clksel_spi1 stays 0, i.e. the 26 MHz XTAL:
+   * switching it to the APLL is what the authority's spi_hal does for rates
+   * above XTAL, but that path also programs and powers the audio PLL, and it
+   * is not what any shipped configuration uses.
+   */
 
   regval  = getreg32(BK7258_SYS_DEV_CLK_EN);
   regval |= BK7258_SYS_SPI1_CLK_EN;
