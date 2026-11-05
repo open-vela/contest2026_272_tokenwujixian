@@ -884,40 +884,17 @@ static void jd9853_fill(FAR struct jd9853_dev_s *dev, uint16_t color)
    * continuous pixel stream instead of 296 separate ones.
    */
 
-  {
-    uint32_t fill_cycles = bk7258_clock_cycles();
-    uint32_t fill_hz;
-    uint32_t rate_kbs;
-    uint32_t bytes = (uint32_t)JD9853_XRES * JD9853_YRES * 2;
-    uint32_t spent;
+  bk7258_qspi_pixels_begin();
 
-    bk7258_qspi_pixels_begin();
+  for (i = 0; i < JD9853_YRES; i++)
+    {
+      if (bk7258_qspi_pixels_write(g_jd9853_swap, JD9853_XRES * 2) != OK)
+        {
+          break;
+        }
+    }
 
-    for (i = 0; i < JD9853_YRES; i++)
-      {
-        if (bk7258_qspi_pixels_write(g_jd9853_swap, JD9853_XRES * 2) != OK)
-          {
-            break;
-          }
-      }
-
-    bk7258_qspi_pixels_end();
-
-    spent = bk7258_clock_cycles() - fill_cycles;
-    fill_hz = bk7258_clock_measure_hz();
-    rate_kbs = (uint32_t)(((uint64_t)bytes * fill_hz) /
-                          ((uint64_t)(spent ? spent : 1) * 1000));
-
-    /* One known quantity (a full 240x296 RGB565 frame) against the core clock,
-     * so the number says how fast the bytes actually left the core.  48 MHz on
-     * one data line is 6000 KB/s; 13 MHz is 1625 KB/s.
-     */
-
-    syslog(LOG_INFO,
-           "[lcd] fill: %lu bytes in %lu cyc @%lu Hz -> %lu KB/s\n",
-           (unsigned long)bytes, (unsigned long)spent,
-           (unsigned long)fill_hz, (unsigned long)rate_kbs);
-  }
+  bk7258_qspi_pixels_end();
 #else
   for (i = 0; i < JD9853_YRES; i++)
     {
@@ -1166,129 +1143,8 @@ static int jd9853_setcontrast(FAR struct lcd_dev_s *dev,
  * Public Functions
  ****************************************************************************/
 
-/****************************************************************************
- * Name:  jd9853_initialize
- *
- * Description:
- *   Initialize the JD9853 video hardware.  The initial state of the
- *   LCD is fully initialized, display memory cleared, and the LCD ready
- *   to use, but with the power setting at 0 (full off == sleep mode).
- *
- * Returned Value:
- *
- *   On success, this function returns a reference to the LCD object for
- *   the specified LCD.  NULL is returned on any failure.
- *
- ****************************************************************************/
 
-void jd9853_fill_test(FAR struct lcd_dev_s *dev, uint16_t color)
-{
-  jd9853_fill((FAR struct jd9853_dev_s *)dev, color);
-}
 
-/* Bring-up split test: command a visible effect first, then a pixel field, one
- * step at a time.  Both halves of the transport report success from the
- * controller side, so the only way to tell them apart is to make each produce
- * something the eye can distinguish:
- *
- *   DISOFF / DISON     blank   <-> whatever the panel shows  = commands land
- *   INVERSION ON / OFF stripes <-> inverted stripes          = commands land
- *   white / black      full field                            = pixels land
- */
-
-void jd9853_bringup_test(FAR struct lcd_dev_s *dev)
-{
-  FAR struct jd9853_dev_s *priv = (FAR struct jd9853_dev_s *)dev;
-
-  syslog(LOG_INFO, "[lcd] test: display off\n");
-  jd9853_sendcmd(priv, JD9853_DISOFF);
-  up_mdelay(600);
-
-  syslog(LOG_INFO, "[lcd] test: display on\n");
-  jd9853_sendcmd(priv, JD9853_DISON);
-  up_mdelay(600);
-
-  syslog(LOG_INFO, "[lcd] test: inversion on\n");
-  jd9853_sendcmd(priv, JD9853_INVERSION_ON);
-  up_mdelay(600);
-
-  syslog(LOG_INFO, "[lcd] test: inversion off\n");
-  jd9853_sendcmd(priv, JD9853_INVERSION_OFF);
-  up_mdelay(600);
-
-  syslog(LOG_INFO, "[lcd] test: fill white\n");
-  jd9853_fill(priv, 0xffff);
-  up_mdelay(800);
-
-  syslog(LOG_INFO, "[lcd] test: fill black\n");
-  jd9853_fill(priv, 0x0000);
-  up_mdelay(800);
-
-  syslog(LOG_INFO, "[lcd] test: fill white again\n");
-  jd9853_fill(priv, 0xffff);
-}
-
-/* Eight vertical colour bars, built pixel by pixel in the row scratch buffer.
- * The geometry is known exactly (30 px each on a 240 px line), so a photograph
- * of the panel separates three failure classes at once: bars in the right order
- * with the right edges means the pixel stream is intact and anything wrong in
- * the UI is above this layer; shifted or smeared edges mean the stream is still
- * misaligned; correct bars with wrong colours mean the pixel format is wrong
- * (RGB565 vs BGR/RGB666).
- */
-
-void jd9853_pattern_test(FAR struct lcd_dev_s *dev)
-{
-  FAR struct jd9853_dev_s *priv = (FAR struct jd9853_dev_s *)dev;
-  static const uint16_t bars[8] =
-  {
-    0xF800,  /* red    */
-    0x07E0,  /* green  */
-    0x001F,  /* blue   */
-    0xFFFF,  /* white  */
-    0x0000,  /* black  */
-    0xFFE0,  /* yellow */
-    0x07FF,  /* cyan   */
-    0xF81F   /* magenta*/
-  };
-  int row;
-  int i;
-
-  DEBUGASSERT(JD9853_XRES * 2 <= JD9853_SWAP_BUFSIZE);
-
-  for (i = 0; i < JD9853_XRES; i++)
-    {
-      uint16_t color = bars[(i * 8) / JD9853_XRES];
-
-      /* High byte first, per datasheet 7.1.8.2.1. */
-
-      g_jd9853_swap[2 * i]     = color >> 8;
-      g_jd9853_swap[2 * i + 1] = color & 0xff;
-    }
-
-  jd9853_setcursor(priv, 0, 0, JD9853_XRES - 1, JD9853_YRES - 1);
-  jd9853_sendcmd(priv, JD9853_RAMWR);
-
-#ifdef CONFIG_BK7258_LCD_JD9853_QSPI
-  bk7258_qspi_pixels_begin();
-
-  for (row = 0; row < JD9853_YRES; row++)
-    {
-      bk7258_qspi_pixels_write(g_jd9853_swap, JD9853_XRES * 2);
-    }
-
-  bk7258_qspi_pixels_end();
-#else
-  jd9853_select(priv->spi, 8);
-
-  for (row = 0; row < JD9853_YRES; row++)
-    {
-      SPI_SNDBLOCK(priv->spi, g_jd9853_swap, JD9853_XRES * 2);
-    }
-
-  jd9853_deselect(priv->spi);
-#endif
-}
 
 FAR struct lcd_dev_s *jd9853_lcdinitialize(FAR struct spi_dev_s *spi)
 {
