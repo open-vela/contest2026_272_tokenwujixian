@@ -171,7 +171,7 @@ COVERAGE = (
     ("command start", "qspi_ll_cmd_c_start", "cmd_c_cfg2.cmd_start"),
     ("wait command done", "qspi_ll_wait_cmd_done", "status.cmd_start_done + status_clr"),
     ("payload out", "qspi_ll_io_write", "fifo_data[0..60]"),
-    ("pixel stream out", "qspi_ll_io_write", "fifo_data, 0x100 B per frame"),
+    ("pixel stream out", "qspi_ll_io_write", "fifo_data, <=248 B per frame"),
 )
 
 
