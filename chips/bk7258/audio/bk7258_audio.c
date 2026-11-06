@@ -1530,6 +1530,20 @@ static void capture_start_dma(FAR struct bk7258_capture_s *priv)
   priv->dma_apb    = apb;
 }
 
+static void capture_compact_mono(FAR struct ap_buffer_s *apb)
+{
+  FAR int16_t *samples = (FAR int16_t *)apb->samp;
+  uint32_t frames = (uint32_t)apb->nmaxbytes / 4u;
+  uint32_t i;
+
+  for (i = 0; i < frames; i++)
+    {
+      samples[i] = samples[2 * i];
+    }
+
+  apb->nbytes = (uint32_t)apb->nmaxbytes / 2u;
+}
+
 static void capture_dma_cb(int ch, uint32_t event, FAR void *arg)
 {
   FAR struct bk7258_capture_s *priv = arg;
@@ -1545,8 +1559,17 @@ static void capture_dma_cb(int ch, uint32_t event, FAR void *arg)
 
   if (apb != NULL && (event & BK7258_DMA_EVENT_BUS_ERROR) == 0)
     {
+#ifdef CONFIG_ARMV8M_DCACHE
+      up_invalidate_dcache((uintptr_t)apb->samp,
+                           (uintptr_t)apb->samp + apb->nmaxbytes);
+#endif
+      capture_compact_mono(apb);
+#ifdef CONFIG_ARMV8M_DCACHE
+      up_clean_dcache((uintptr_t)apb->samp,
+                      (uintptr_t)apb->samp + apb->nbytes);
+#endif
+
       dq_rem(&apb->dq_entry, &priv->pendq);
-      apb->nbytes = apb->nmaxbytes;
       if (priv->readmode)
         {
           apb->curbyte = 0;

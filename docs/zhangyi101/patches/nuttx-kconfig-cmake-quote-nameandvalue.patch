@@ -1,0 +1,28 @@
+diff --git a/cmake/nuttx_kconfig.cmake b/cmake/nuttx_kconfig.cmake
+index dedec049e3f..ca9119f6368 100644
+--- a/cmake/nuttx_kconfig.cmake
++++ b/cmake/nuttx_kconfig.cmake
+@@ -44,8 +44,8 @@ function(nuttx_export_kconfig_by_value kconfigfile config)
+   foreach(NameAndValue ${ConfigContents})
+     decode_brackets(NameAndValue)
+     encode_semicolon(NameAndValue)
+-    string(REGEX REPLACE "^[ ]+" "" NameAndValue ${NameAndValue})
+-    string(REGEX MATCH "^CONFIG[^=]+" Name ${NameAndValue})
++    string(REGEX REPLACE "^[ ]+" "" NameAndValue "${NameAndValue}")
++    string(REGEX MATCH "^CONFIG[^=]+" Name "${NameAndValue}")
+     if(Name STREQUAL ${config})
+       string(REPLACE "${Name}=" "" Value ${NameAndValue})
+       string(REPLACE "\"" "" Value ${Value})
+@@ -70,10 +70,10 @@ function(nuttx_export_kconfig kconfigfile)
+     decode_brackets(NameAndValue)
+     encode_semicolon(NameAndValue)
+     # Strip leading spaces
+-    string(REGEX REPLACE "^[ ]+" "" NameAndValue ${NameAndValue})
++    string(REGEX REPLACE "^[ ]+" "" NameAndValue "${NameAndValue}")
+ 
+     # Find variable name
+-    string(REGEX MATCH "^CONFIG[^=]+" Name ${NameAndValue})
++    string(REGEX MATCH "^CONFIG[^=]+" Name "${NameAndValue}")
+ 
+     if(Name)
+       # Find the value

@@ -477,34 +477,40 @@ static void jd9853_init(FAR struct jd9853_dev_s *dev)
 
   /* Power settings (reference sequence for the 2.01" TFT=201 panel) */
 
-  jd9853_cmddata(dev, JD9853_SET_DCDC, (const uint8_t *)"\x23", 1);
+  jd9853_cmddata(dev, JD9853_SET_DCDC, (const uint8_t *)"\x25", 1);
   jd9853_cmddata(dev, JD9853_GAMMA_SET_CMD, (const uint8_t *)
-                 "\x00\x47\x00\x6F", 4);
+                 "\x00\x21\x00\x49", 4);
   jd9853_cmddata(dev, JD9853_POWER_CTRL, (const uint8_t *)
-                 "\x1C\x1A\x55\x73\x63\xF0", 6);
+                 "\x4F\x9A\x55\x73\x63\xF0", 6);
 
   /* Timing configuration */
 
-  jd9853_cmddata(dev, JD9853_SETSTBA, (const uint8_t *)"\x44\x44", 2);
+  jd9853_cmddata(dev, JD9853_SETSTBA, (const uint8_t *)"\x44\xA4", 2);
   jd9853_cmddata(dev, JD9853_SETPANEL, (const uint8_t *)"\x12", 1);
   jd9853_cmddata(dev, JD9853_SETRGBCYC, (const uint8_t *)
-                 "\x7D\x07\x14\x06\xCF\x71\x72\x77", 8);
+                 "\x7D\x07\x14\x06\xC8\x71\x6C\x77", 8);
+  /* Vertical gate timing from the Beken JD9853a reference driver
+   * (bk_avdk_smp/.../lcd_qspi_jd9853a.c): bytes 5 and 9 are 0x0E/0x25, not
+   * the 0x0B/0x0B in the ESP-IDF 240x284 reference.  The 0x0B values put the
+   * gate scan out of step mid-panel, producing the two symmetric black lines
+   * at the vertical centre. */
+
   jd9853_cmddata(dev, JD9853_SETTCON, (const uint8_t *)
-                 "\x00\x00\xA0\x79\x0B\x0A\x16\x79\x0B\x0A\x16\x82", 12);
+                 "\x00\x00\xA0\x79\x0E\x0A\x16\x79\x25\x0A\x16\x82", 12);
 
   /* Gamma correction (reference G2.2 table for the 2.01" panel) */
 
   jd9853_cmddata(dev, JD9853_R_GAMMA_SET_CMD, (const uint8_t *)
-                 "\x3F\x32\x29\x29\x27\x2B\x27\x28\x28\x26\x25\x17\x12\x0d\
-                  \x04\x00\x3F\x32\x29\x29\x27\x2B\x27\x28\x28\x26\x25\x17\
-                  \x12\x0d\x04\x00", 32);
+                 "\x3F\x34\x2B\x20\x2A\x2C\x24\x24\x21\x22\x20\x15\x10\x0B\
+                  \x06\x00\x3F\x34\x2B\x20\x2A\x2C\x24\x24\x21\x22\x20\x15\
+                  \x10\x0B\x06\x00", 32);
 
   /* Power management */
 
   jd9853_cmddata(dev, JD9853_SETGD, (const uint8_t *)
                  "\x04\x06\x6B\x0F\x00", 5);
   jd9853_cmddata(dev, JD9853_RAM_CTRL, (const uint8_t *)"\x00\x30", 2);
-  jd9853_cmddata(dev, JD9853_SETOSCM, (const uint8_t *)"\x14", 1);
+  jd9853_cmddata(dev, JD9853_SETOSCM, (const uint8_t *)"\x10", 1);
 
   /* Page 1 settings */
 
@@ -514,7 +520,7 @@ static void jd9853_init(FAR struct jd9853_dev_s *dev)
   jd9853_cmddata(dev, JD9853_SETTCON_1, (const uint8_t *)
                  "\x14\x15\xC0", 3);
   jd9853_cmddata(dev, JD9853_SETTCON_2, (const uint8_t *)
-                 "\x06\x3A", 2);
+                 "\x06\x3A\xC7", 3);
   jd9853_cmddata(dev, JD9853_SETTCON_3, (const uint8_t *)"\x72\x12", 2);
   jd9853_cmddata(dev, JD9853_SETDISP_1, (const uint8_t *)"\x00", 1);
 
@@ -604,6 +610,17 @@ static void jd9853_display(FAR struct jd9853_dev_s *dev, bool on)
 static void jd9853_setorientation(FAR struct jd9853_dev_s *dev)
 {
   uint8_t reg = 0x00;
+
+#if defined(CONFIG_LCD_PORTRAIT)
+
+  /* 180-degree flip (MY | MX): the panel reads right-side-up when the board
+   * is inserted with its connector at the top.  MY+MX together are a full
+   * 180-degree rotation (text stays readable, just upside down), not a
+   * mirror. */
+
+  reg = JD9853_MADCTL_MY | JD9853_MADCTL_MX;
+
+#endif
 
 #if !defined(CONFIG_LCD_PORTRAIT) || defined(CONFIG_LCD_JD9853_BGR)
 

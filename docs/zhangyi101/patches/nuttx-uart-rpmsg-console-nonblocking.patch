@@ -1,0 +1,25 @@
+diff --git a/drivers/serial/uart_rpmsg.c b/drivers/serial/uart_rpmsg.c
+index a664a792c91..d942f74d80f 100644
+--- a/drivers/serial/uart_rpmsg.c
++++ b/drivers/serial/uart_rpmsg.c
+@@ -189,7 +189,19 @@ static void uart_rpmsg_dmasend(FAR struct uart_dev_s *dev)
+   size_t len = xfer->length + xfer->nlength;
+   uint32_t space;
+ 
+-  msg = rpmsg_get_tx_payload_buffer(&priv->ept, &space, true);
++  /* BUG-20261021-01: this console shares its AP->CP RPMSG TX pool (4 x 2048B)
++   * with the usrsock LLM traffic on the same RPTUN link.  A blocking get here
++   * (wait=true) is effectively unbounded: rpmsg_virtio_notify_wait() maps
++   * -ETIMEDOUT back to success, so the OpenAMP wait loop never decrements its
++   * tick count and never returns NULL.  During an ask the pool is exhausted,
++   * and every thread that prints -- the LVGL thread holding lvgl_ui_lock()
++   * inside lv_timer_handler(), the agent loop blocked behind that lock, and
++   * the watchdog blocked on its own write(1) -- wedges behind this call.
++   * Fetch non-blocking instead: under contention the DMA attempt is dropped
++   * (dmatx.length = 0 leaves the tail in place, so uart_xmitchars_dma() simply
++   * retries it later) and the caller never blocks.  A lossy console beats a
++   * dead AP. */
++  msg = rpmsg_get_tx_payload_buffer(&priv->ept, &space, false);
+   if (!msg)
+     {
+       dev->dmatx.length = 0;

@@ -20,11 +20,12 @@ const deviceId = deviceIdIndex >= 0 ? args[deviceIdIndex + 1] : process.env.DESK
 if (transportName === "loop" && (!socket || !socket.startsWith("/"))) throw new Error("provide an absolute --socket path when XDG_RUNTIME_DIR is unavailable");
 if (transportName === "mqtt" && (!brokerUrl || !topicPrefix || !deviceId)) throw new Error("MQTT requires --broker, --topic-prefix, and --device-id");
 if (transportName !== "loop" && transportName !== "mqtt") throw new Error("--transport must be loop or mqtt");
-const state = { nonce: nonce(), epoch: null, seq: 0, usageSeq: 0, prompt: null, status: "Offline", msg: "", usage: null };
+const state = { nonce: nonce(), epoch: null, seq: 0, usageSeq: 0, prompt: null, status: "Offline", msg: "", usage: null, backend: "unknown" };
 let lastSnapshotAt = 0;
 let usageQueryPending = false;
 const show = () => {
-  console.log(`${state.status}: ${state.msg || "no current activity"}`);
+  const backend = state.backend && state.backend !== "up" ? ` [coding agent ${state.backend}]` : "";
+  console.log(`${state.status}: ${state.msg || "no current activity"}${backend}`);
   if (state.prompt) console.log(`  ATTENTION ${state.prompt.tool}: ${state.prompt.hint || "(no summary)"} [once=${state.prompt.canOnce}, deny=${state.prompt.canDeny}]`);
 };
 const showUsage = () => {
@@ -49,6 +50,7 @@ await client.start({
       if (message.seq <= state.seq) return;
       if (state.seq && message.seq !== state.seq + 1) { state.status = "Offline"; state.prompt = null; state.epoch = null; client.send(hello(state.nonce)); return; }
       state.seq = message.seq; state.prompt = message.prompt; state.msg = message.msg;
+      if (typeof message.backend === "string") state.backend = message.backend;
       lastSnapshotAt = Date.now();
       state.status = message.prompt ? "Attention" : message.running > 0 ? "Busy" : "Idle"; show();
     } else if (message.type === "usage_snapshot") {
