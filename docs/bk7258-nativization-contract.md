@@ -3,7 +3,7 @@
 本文件是「把一个 Armino 基线单元换成我们自己的实现」这件事的**契约与验收记录**。
 每换一批，就在这里加一节：符号表 + 函数体要点 + 上板证据。
 
-## 四条不变式（用户定的口径）
+## 五条不变式（用户定的口径；第 5 条 2026-10-22 补）
 
 1. **符号不变**
    - 用 `arm-none-eabi-nm --defined-only -g <旧 .o>` 抓出基线单元的**全部**导出符号；
@@ -36,6 +36,57 @@
    - 不引入 `overrides/`、`_api`、`_shim` 这类只描述迁移动作的名字；
    - 判断标准一句：这个名字回答的是"它是什么"，还是"它怎么来的"？后者一律改掉。
 
+5. **标准 ops 在中间，原实现在里面**
+   - 对外的 Armino 形状符号是**兼容面**：其余模块（`pm`、`low_pwr`、`rosc_ppm`、`flash_notify`、
+     `saradc_notify`、`bk_wifi_adapter`…）一行不改就能继续调用，这是"分批迁移"能成立的前提；
+   - 外设要挂到 NuttX 的标准框架上：`uart_ops_s`、`rtc_ops_s`、`mtd_dev_s`、`dma_dev_s`、`adc_ops_s`、
+     `watchdog_ops_s`、`pm_register`…；
+   - **一个单元只有一份实现**，Armino 面和 `/dev/<node>` 共用它。判两件事，**不判调用方向**：
+     (1) **寄存器一份**——同一个寄存器不许两面各写一套；
+     (2) **状态不分叉**——lower-half 不留会和驱动状态量走散的副本，Armino 直接调 `bk_*` 之后，
+     `/dev` 面读到的仍然对（从驱动的状态量现读）。
+     ops 调 `bk_*`、或 `bk_*` 调 ops 都可以；上游 NuttX 的 `esp_wdt.c` / `esp_rtc.c` / `esp_timer.c`
+     就是 ops 方法体调厂商 HAL；
+   - **目标形态：状态归 lower-half**（用户 2026-10-23 口径）。上游是
+     `/dev/xxx → ops（lower-half 持有状态）→ *_hal / *_ll（无状态）`，厂商驱动层不编进来。我们保留
+     Armino 驱动层只为兼容调用方，所以做法是：驱动的状态量**搬进 lower-half 结构体**，`bk_*` 兼容面
+     读写同一个结构体，调用方一行不改。上面两条是合格线，这一条才算原生化完成。
+     样板：`bk7258_wdt.c` 的 `struct bk7258_wdg_s`（`lower` + 基线的 `s_wdt` / `s_wdt_driver_is_init` /
+     `s_wdt_period` + 最后一次重装计数器的 tick）；
+   - 判定方式：同一个语义必须两个面都跑通。RTC 的验收就是两组——设备口 `RTC_SET_TIME`/`RTC_RD_TIME`
+     往返，内核口 `clock_settime`/`clock_gettime` 并确认 `/dev/rtc0` 跟着变；
+   - **例外必须写明**：确实没有 NuttX 等价物的那一小块（例：AON RTC 的 µs 单调计数，框架只有秒级）
+     留在驱动内部，并在本文档"ops 语义完整性"一类的表里写清理由；
+   - **薄封装是合法的，判的是"基底"而不是"调用点长相"**（用户 2026-10-23 口径）：Armino 形状的
+     `GLOBAL_INT_DISABLE/RESTORE`、`os_malloc/os_memset`、`BK_LOGx` 只要**下面接的是 NuttX**，就应当保留，
+     不要去改调用点。实测证据：`rtos_disable_int()` → `up_irq_save()`（BASEPRI）；
+     `os_malloc` → `os_malloc_debug` → `malloc` → `--redefine-syms` → `__wrap_malloc` → `kmm_zalloc`；
+     `BK_LOGx` → `bk_printf_ext` → `syslog`。**改这三类调用点是 churn，不是原生化。**
+   - 因此写真书只在两种情况下动手：**(a) 基底不是 NuttX**（下面接的仍是 Armino 寄存器/RTOS/堆）；
+     **(b) 契约类型被换成"看起来更 NuttX"的类型**（例：签名里 `UINT32` 不能换 `uint32_t`，
+     这套头里两者宽度相同但类型不同，换了直接 `conflicting types`）。
+   - 推论：**一个外设如果 NuttX 有框架而我们没挂，它就是没做完**，不能算"已经原生化"。
+     当前状态（2026-10-23 逐个读 ops 方法体核对；导出数用基线 `.o` 的 `nm --defined-only -g`
+     对 `libarch.a` 做 `comm -23`，CP 构建 `nuttx.map` 11:16）：
+
+     | 外设 | `/dev` 面 | 两面是否同一份实现 | 第 5 条 |
+     | --- | --- | --- | --- |
+     | RTC | `rtc_ops_s` 已挂 | 寄存器一份：ops 调 `bk_aon_rtc_get_us` / `bk_alarm_unregister`。状态不分叉：lower-half 只有 `lower`，时间从驱动现读，闹钟是 `bk_alarm` 链表上的一个节点 | 通过。板上（镜像 `a21c3d6d…`，`bk7258_drvtest rtc`）：设备口 `RTC_SET_TIME(2026-01-01)` 读回一致；内核口 `clock_settime(2030-01-01)` 后 `CLOCK_REALTIME`=1893456000、`/dev/rtc0` 跟着读到 2030-01-01；`RTC_SET_ALARM(+5s)` 收到 SIGALRM(14)。契约头（2026-10-26）：在已收的 `driver/aon_rtc.h` 之外再收 `driver/aon_rtc_types.h`、`aon_rtc_hal_64bit.h`（被替换单元是 `aon_rtc_hal_64bit.c`，`aon_rtc_hal.h` 不属于它）；以 `bk7258_aon_rtc.c` 的编译参数预处理比对，声明（忽略标点两侧空白）与宏差异均为 0；收头前后 `.text`/`.data` 逐字节相同、镜像 sha256 不变（`8d11ea48…`），板上证据沿用 |
+     | 看门狗 | `/dev/watchdog0` 已挂 | 2026-10-23 状态搬进 lower-half：`struct bk7258_wdg_s` 持有 `drv`（原 `s_wdt`）、`driver_init`、`period_ms`、`feed_tick`，`bk_wdt_*` 读写同一个结构体。修掉的两处分叉：原 `getstatus` 的 `timeout` 读 lower-half 自存的 `timeout_ms`（`bk7258_flash_driver_ext.c:540-544` stop/start 之后与驱动周期不一致），`flags` 写死 `ACTIVE`（`bk_wdt_stop()` 后仍报 active）。现在 `ACTIVE` 跟 `init_bits` BIT(0)，`timeout` 读 `period_ms`；`feed_tick` 只在真正重装计数器的 `bk_wdt_start`/`bk_wdt_feed` 里更新（原来在 `bk_wdt_feed_handle` 里无条件更新：1 s 节拍下 `INT_WDG_FEED_PERIOD_TICK`=500 恒满足，平时两者等价；看门狗被 stop 后 `bk_wdt_feed` 返回 `NOT_INIT` 不重装，旧写法仍刷新时间戳，`timeleft` 就是假的）。对基线函数体的偏离：`bk_wdt_start`/`bk_wdt_feed` 各多一次 `clock_systime_ticks()` 写 `feed_tick`，寄存器写序与返回值不变。43/43 导出不变，`nm -u` 0，`decode pass`。板上（镜像 `0874d004…`，`bk7258_drvtest wdg`）：dev `SETTIMEOUT(10000)` 后 timeout=10000；Armino `bk_wdt_stop()` 后 `/dev/watchdog0` 报 active=0、timeout=8000（基线 `wdt_deinit_common` 把周期复位成默认值，`/dev` 面跟着变）；Armino `bk_wdt_start(8000)` 后 active=1；dev `STOP`/`START` 返回 0，active 0/1 跟随。契约头（2026-10-26）：在已收的 `driver/wdt.h`、`driver/aon_wdt.h` 之外，再收 `driver/wdt_types.h`、`driver/aon_wdt_types.h`、`wdt_hal.h`、`aon_wdt_hal.h`；六个头用 `sys_hal.c` 的编译参数预处理比对，声明与宏差异均为 0，`-H` 确认解析到我们的头；收头前后 CP 的 `.text`/`.data` 逐字节相同、打包镜像 sha256 不变（`8d11ea48…`），所以沿用该镜像的板上证据。停狗期间 `timeleft` 原先仍按上次重装倒数（7999、7987），已改为未 ACTIVE 时报 0；镜像 `a21c3d6d…` 上板复核：`after armino stop`、`after dev stop` 两行 `timeleft=0`，其余各行与上一轮一致 | 通过 |
+     | UART | `/dev/console`、`/dev/ttyS0` | 两面都落在 `uart_ll_*`（`uart_hal_*` 是它的宏）。2026-10-23 起 `bk7258_lowputc()` 的 FIFO 轮询/写入和 `bk7258_lowsetup()` 的关中断/清中断也改走 `uart_ll_*`；反汇编仍是 `ldr [base,#0x18]` 测 bit20、`str [base,#0x1c]`，`lowsetup` 写序 `0x08←1, 0x20←0, 0x24←0xff, 0x10←cfg` 不变。状态：控制台 ops 自存 `priv->ie`；Armino 面能改 UART0 中断使能的 `bk_uart_init` 链在镜像里不可达（见批次 4 实现记录），所以今天不分叉——它一旦变得可达，`priv->ie` 就要改为现读 | 通过（例外：`lowsetup` 里 `GLOBAL_CTRL`、`CONFIG` 两次整字写保留——`uart_ll_soft_reset` 与逐字段 setter 都是读改写，换了就改变写入序列，违反第 2 条；SoC 中断路由 `BK7258_SYS_CPU0_INT_EN` 无 `uart_ll` 对应）。契约头（2026-10-26）：`driver/uart.h`、`driver/uart_types.h`、`uart_hal.h` 收归 `chips/bk7258/include/`；以 `bk7258_uart_driver.c` 和 `wifi_armino/compat/bk7258_armino_shell_api.c` 两组编译参数预处理比对，声明与宏差异均为 0，`-H` 确认解析到我们的头；收头前后 `.text`/`.data` 逐字节相同、镜像 sha256 不变（`8d11ea48…`） |
+     | GPIO | `/dev/gpio0` 已挂 | 2026-10-26 改写。CP：Armino 面（`bk_gpio_*`、`gpio_dev_map/unmap`）改回基线函数体，全部经导出的 `s_gpio`（基线 `gpio_driver_t`）走 `gpio_hal_*`/`gpio_ll`；板级 helper（`bk7258_gpio_write/read/config_*/periph/uart0_*`）的 CFG 读写和外设复用改走 `gpio_ll_get/set_value`、`gpio_ll_get/set_perial_mode`，每个 helper 的读改写顺序不变；按 `#if` 分支检查，CP 编进来的代码里不再有直接 `getreg32/putreg32`。AP：不编基线、没有 `gpio_ll`，helper 继续直接写寄存器；其中 `bk7258_gpio_cfg_read/write` 必须是宏而不是 `static inline`——AP 是 `-O0`（`CONFIG_DEBUG_NOOPT`），函数形式给每次寄存器访问多一次调用，见下方按键对比；改成宏后 AP 中断路径各函数与改动前逐条指令相同，只有开机用的 `select_func_locked`、`periph` 不同；这是 AP 镜像里唯一的 GPIO 路径（例外）。导出：`gpio_hal` 27/27；补了 10 个（6 个 `gpio_*_sel`、`gpio_check_dev/capacity_match`、`gpio_get_interrupt_status`、`s_gpio`）；**推迟 13 个**，镜像里零引用——T12（PM）：`gpio_enter/exit_low_power`、`gpio_enable_interrupt_mult_for_wake`、`bk_gpio_retention_set/clr`、`gpio_retention_map_set/clr`、`s_gpio_bak_int_type_regs`、`s_gpio_bak_int_enable_regs`、`s_gpio_is_lowpower_keep_status`、`s_gpio_is_setted_wake_status`；T16（跨核）：`gpio_ipc`、`gpio_ipcsection`。契约头：`driver/gpio.h`、`driver/gpio_types.h`、`gpio_hal.h` 收归 `chips/bk7258/include/`，在 `bk7258_gpio.c`、`bk7258_gpio_hal.c`、`bk7258_driver.c` 三组编译参数下预处理比对差异 0，收头前后 CP/AP `.text`/`.data` 逐字节相同。CP 侧相对上一版的行为变化（按基线）：`gpio_dev_map` 要求引脚在 `usr_gpio_cfg.h` 的 `GPIO_DEFAULT_DEV_CONFIG` 里，复用前先关输出/输入/上下拉/中断；`bk_gpio_enable_interrupt` 前有 1000 次空循环；`bk_gpio_driver_init` 补上 `gpio_hal_init()`。`nm -u` 0，`decode pass`。板上（镜像 `29ad30f9…`，烧录日志 17:04 `Writing Flash OK`）：CP `bk7258_drvtest gpio` 写 1 读回 1、写 0 读回 0、恢复原值——`go_write` 返回 0 说明 `bk7258_gpio_config_output`（已改走 `gpio_ll`）确实把 GPIO40 置成了输出模式 同一镜像 AP 侧（用户观察，未留日志）：屏幕 UI 与状态灯正常；`nxrecorder` 录 `/dev/audio/pcm0c`、`nxplayer` 放 `/dev/audio/pcm0p`，能听到录音，即功放使能 GPIO 正常；AP `ping` 公网 10/10 按键（同一镜像）：KEY1/KEY2 单击 `hit`；KEY3（GPIO8）长按时 ai_agent 打出 `[ptt_button] PTT press → recording` 与 `PTT release → ASR`，期间 `/dev/audio/pcm0c` 采到 126 个块（峰值 1842–3108），即 GPIO8 两个边沿都经中断送到 `/dev/btn0`（ASR 失败是未配 API key，与 GPIO 无关）。按键丢边沿对比（都先跑 `ai_agent`，LVGL 在跑；数的是 `[key] missed edge`）：改动前 `8d11ea48…`：KEY1+KEY2 同按 14 次丢 0、单键 11 次丢 0；AP 用函数形式的 `29ad30f9…`：同按 4 次丢 3、KEY2 单击 9 次丢 1；AP 改宏后 `0cb717de…`（10-27 09:22 烧录）：同按 10 次丢 1、KEY2 单击 10 次丢 2、KEY3 丢 1 次按下沿，均由电平采样补回，手势照常触发，PTT press/release 正常。**未结论**：改宏后 AP 中断路径机器码已与改动前相同，CP 运行期也没有 GPIO 调用者，剩下的丢失找不到代码层面的来源；它要么是 10-14 记录过的老问题（`missed edge` 诊断正为此而加），要么与 LVGL 换屏时的负载有关（几次丢失都靠近 `idle rotate`）。样本小（改宏后 24 次事件丢 4，改动前 25 次丢 0），差异接近但不足以定论，需要同一方法、更大样本再对比 | 通过（剩余丢边沿另查） |
+     | 定时器 | `/dev/timer1`（`CONFIG_BK7258_TIMER`，原 `CONFIG_BK7258_TIMER0` 改名，CP 默认开） | 2026-10-23 重写：删掉自带寄存器序列的旧 `/dev/timer0` 面；状态归 lower-half——每通道一条 `struct bk7258_timer_s`（`lower`、`isr`=原 `s_timer_isr[]`、`timeout_us`、上半部 `callback/arg`），`bk_timer_*` 读写同一张表；寄存器序列抽成 `bk_timer_program()`，两面共用；中断仍只由 `bk_timer_group_isr()` 分发，通道的 `isr` 槽指向 `bk7258_timer_tick()` 再调上半部回调。只暴露 `TIMER_ID1`：`ID0` 是 `bk_timer_delay_us()` 的自由计数器，`ID2` 是 1 s 喂狗，交给用户态会被 ioctl 停掉。导出：`timer_driver` 16/16、common `timer_hal` 7/7、bk7258 `timer_hal` 2/2（2026-10-26 补齐，对基线 `.o` 做 `comm -23` 为空）。契约头收归 `chips/bk7258/include/`：`driver/timer.h`、`driver/timer_types.h`、`timer_hal.h`，用 `sys_hal.c` 的编译参数预处理比对，声明与宏逐条相同（54/395/506 条声明、1786/2293/2349 个宏，差异 0），`-H` 确认解析到我们的头。寄存器路径只剩一条：`bk_timer_*` 全部改走 `timer_hal_*` / `timer_ll_*`，与基线分层一致；SYS 块的时钟门控、XTAL 选择、ICU 路由仍直接写 SYS 寄存器，归 T12 的 `sys_driver`。相对上一版的行为变化：编程通道时补上基线 `timer_hal_init_timer` 的中断状态清除；`bk_timer_delay_us` 改走 `timer_hal_delay_us`，每次读计数加 `rtos_enter_critical`；`timer_hal_cal_end_count` 按 SYS 的实际时钟选择算，不再写死 26 MHz。`nm -u` 0，`decode pass`。板上（镜像 `a21c3d6d…`，NuttX `timer` 示例，`/dev/timer1`，100 ms × 20）：`SETTIMEOUT` 后 timeout=100000；挂回调后 flags=2（HANDLER）；START 后每次采样 flags=3、`nsignals` 1→20 与采样逐一对应；STOP 后 flags=2、timeleft=0。`timeleft` 稳定在 99740–99855 µs：信号打断 `usleep`，所以采样都落在刚重装之后，计数器从 0 往上数时 `(end-cnt)/26` 正应接近满周期（若是倒数会接近 0），且数值有抖动，说明确实读到了计数器。 | 通过。10-26 `timer_hal` 改写后复测（镜像 `8d11ea48…`，烧录日志 15:52 `Writing Flash OK`）：`timer` 示例 flags 0→2→3→2、`nsignals` 1→20 逐次对应、STOP 后 timeleft=0，与改写前一致；同一镜像 `bk7258_drvtest wdg` 各行与上一轮相同，且 `initial` 的 `timeleft=7737` 说明 263 ms 前刚有一次 `bk_wdt_feed` 重装，即 `TIMER_ID2` 的 1 s 喂狗回调在新的中断清除路径上照常运行；同一镜像在 CP 上 `ping` 公网两轮各 10/10（`bk_timer_delay_us` 改走 `timer_hal_delay_us` 后 Wi-Fi 路径正常） |
+     | 温度/电压 | `/dev/adc0` 未挂 | 随 T15 的 ADC | 未完 |
+     | PSRAM | 无设备框架，标准面是堆区 | 2026-10-27：`psram_driver` + `psram_hal` 收成一个单元，寄存器走 `psram_ll_*`、SYS 位走 `sys_drv_psram_*`，早期初始化与 `bk_psram_init()` 共用 `psram_hw_init()`；29/29 导出，板上 `bk7258_psram_test` 两核分片均 PASS（见批次 14） | 通过（例外：AHBP 电调用 HAL 入口、通道位图用临界区、不建互斥量，理由见批次 14） |
+     | Flash | `mtd_dev_s` 已挂（`/dev/mtd0`） | 2026-10-27：flash 族 7 个单元的 Armino 面与 MTD ops 共用 `flash_erase_no_lock`/`flash_write_no_lock`/`flash_read_common` 三个原语，`flash_lock()` 内含 AP 互斥；`bk7258_drvtest mtd` 证明两个面同区间读出相同 | 通过（例外：这个 NuttX 无 MTD 字符设备，节点只作挂载源；`MTDIOC_XIPBASE` 改用 `BIOC_XIPBASE`，见批次 15） |
+
+     被推翻的旧写法：本段原先把看门狗列为欠账、把 GPIO 写成"`/dev/gpio0` 未挂"、把 UART 写成
+     "ops 调 `uart_ll_*` 而 Armino 面走 `uart_hal_*`"。前两条在代码补上后没有回写；第三条错在
+     `uart_hal_*` 本身就是 `uart_ll_*` 的宏，两面在 ll 层已经是同一份，真正的缺口是 `bk7258_lowputc()`。
+     同日还用过一个错误口径："第 5 条要求 Armino 面调 ops，ops 调 `bk_*` 算方向反了"，据此把 RTC、
+     看门狗判为不通过。错在判了调用方向：上游 NuttX 的 lower-half 普遍是 ops 调厂商 HAL，
+     第 5 条要防的是两份寄存器访问和走散的状态副本，不是谁调谁。不要再用这个口径。
+
 ## 机械验收命令
 
 ```bash
@@ -54,6 +105,12 @@ awk '/\.a\([^)]*\)[[:space:]]*$/ {prov=$NF} /^[[:space:]]+0x[0-9a-f]+[[:space:]]
 arm-none-eabi-nm -u nuttx | wc -l         # 必须为 0
 
 # 5) 段属性（RAM 常驻函数）
+# 6) 交付镜像必须走 full_flow.sh
+#    build_worktree.sh 只重建 build/cp/nuttx，不刷新 package/all-app.bin，也不重写 manifest。
+#    拿 build_worktree 之后的旧包去烧，门禁会报：
+#      error: cp L1 report SHA-256 differs from the manifest
+#      error: independent decoder rejected the current package
+
 arm-none-eabi-objdump -t <新 .o> | grep <symbol>   # .itcm_sec_code 等要与基线一致
 ```
 
@@ -202,6 +259,7 @@ wdttest: raw_temp=557 (ret=0) stored_temp=27.0 (ret=0) stored_volt=1.0 (ret=0) i
 | 复位原因 / 重启 | `chips/bk7258/include/reset_reason.h`，已排到基线之前 | ✅ 预处理逐条相同（11 条声明 + 20 条宏） |
 | 温度 / 电压 | 仍用 `temp_detect.h`、`volt_detect.h` | — |
 | GPIO HAL | 仍用 `gpio_hal.h`（公开 API 暴露权威定义的 ABI 结构体，见下） | — |
+| **AON RTC** | `chips/bk7258/include/driver/aon_rtc.h`，芯片 include 根已排到基线之前 | ✅ 预处理逐条相同（10 条声明） |
 
 **为什么 `gpio_hal.h` 这类头暂时不接管**：它的 API 表面带结构体（`gpio_hal_t`、`gpio_map_t`）。
 C 不允许两个不同的匿名结构体共用同一个 typedef 名，所以"我们的头与权威头逐条比对"这个判据对它们不成立；
@@ -822,8 +880,766 @@ PRIMASK。改成 `getprimask()/setprimask()` 后正常。
 
 `uart_driver`（批次 4）、`stack_base` / `dd` / `driver` / `drv_model` / `arm` / `trap_base`（批次 7–12）、
 `sys_audio_driver`（批次 11）、`sys_touch_driver`（批次 7 前）、`touch_driver_v1_1` 与 `at_server`
-（排除）——**T17 的单元全部收敛完毕**，其中 10 个以"逐字节相同"收尾，2 个以"无传输层、整体删除"收尾。
+（排除）——**T17 的单元按前 4 条全部收敛完毕**（2026-10-23 按第 5 条复核：GPIO 两面未合一、
+UART 剩 `bk7258_lowputc()`，见文首"当前状态"表），其中 10 个以"逐字节相同"收尾，2 个以"无传输层、整体删除"收尾。
 
 批次 13 上板（镜像 `309486ca…`）：启动序列与前一批逐行一致（`psram init ok`、`EasyFlash success`、
 `wifi inited(1) ret(0)`、AP `scheduler-running`、`nsh-ap>` 就绪），没有 AT 相关报错。堆起点
 `H28096C30:00008AD0`（较前 +184 B，与 at_server 的 `.bss` −168 B 及对齐相符）。
+
+---
+
+## 阶段二第二批：T13 RTC（第 1 步，`aon_rtc_hal` 28 个符号）
+
+`cp/middleware/soc/common/hal/aon_rtc_hal_64bit.c` → `chips/bk7258/bk7258_aon_rtc_hal.c`。
+
+这一层是纯转接：每个函数从 `hal->id` 解析块基址，再调一个 `aon_rtc_ll_*` 内联，寄存器布局仍留在权威的
+`aon_rtc_ll.h` / `aon_rtc_struct.h`。`aon_rtc_hal_t` 是这一块的实现细节，照旧留在权威头里（与 `uart_hal_t`、
+`gpio_hal_t` 同一个 struct-typedef 墙）。
+
+它上面是 RTC 驱动（tick、闹钟链表、两路唤醒），再往上接 PM、flash-notify、SARADC-notify 的 64 位 tick
+读取——所以这一层先落地，驱动单元（`aon_rtc_driver_64bit.c`，1,390 行 / 15 符号 / 6 活）留到下一步。
+
+### 验收
+
+| 项 | 结果 |
+| --- | --- |
+| 导出符号 | **28 / 28**，集合差异为空 |
+| 指令 + 重定位 | **28 / 28 逐条相同** |
+| `aon_rtc_hal_64bit.c.o` 在 map | **0** |
+| 镜像内活符号 | 11 个全部仍由 `arch/libarch.a(bk7258_aon_rtc_hal.c.o)` 提供 |
+| `nm -u` | 0 |
+| `.text` / `.data` / `.bss` | 997,472 / 10,068 / 266,456 B —— **与替换前完全相同**（纯转接层的预期） |
+
+---
+
+## 阶段二第二批（下）：AON RTC 挂上 NuttX 框架，以及本批的 H 层
+
+### 一份实现，一个兼容面
+
+口径修正（用户 2026-10-22）：不是"两个平行的面"，而是**一份实现 + 一个 Armino 形状的兼容面**。
+逐模块把所有调用方改成标准 ops 不现实（`pm` / `low_pwr` / `rosc_ppm` / `flash_notify` /
+`saradc_notify` / `wifi_adapter` 六处跨三个子系统），兼容面正是让迁移可以分批做的原因。
+但**标准 ops 那一侧必须语义完整且正确**，不能是"探针够用"的浅实现。
+
+```
+rtc_ops_s (/dev/rtc0, up_rtc_* → CLOCK_REALTIME)
+        │
+        ├──► bk_aon_rtc_get_us() ──► aon_rtc_hal ──► aon_rtc_ll ──► 寄存器
+        ▲
+bk_aon_rtc_*（pm / low_pwr / rosc_ppm / flash_notify / saradc_notify / wifi）
+```
+
+`chips/bk7258/bk7258_rtc.c` 里**直接读寄存器的次数为 0**：`rdtime` 调的就是原生化的
+`bk_aon_rtc_get_us()`。所以两个面落在同一份实现上，不存在两套时间逻辑。
+
+### 框架接入
+
+- `rtc_ops_s` 实现 `rdtime` / `settime` / `havesettime`，经 `rtc_initialize(0, …)` 暴露为 `/dev/rtc0`；
+- 同一张 ops 表经 `up_rtc_set_lowerhalf()` 交给 `arch_rtc.c`，于是 `up_rtc_getdatetime()` /
+  `up_rtc_settime()` 自动成立，`CLOCK_REALTIME` 与 `clock_settime()` 都落到这里；
+- `up_rtc_initialize()` 由我们提供（返回 `OK`；计数器本身由驱动 init 启动）。
+
+四个配置开关缺一不可，这是踩出来的：`CONFIG_RTC`（框架头）→ `CONFIG_RTC_DRIVER`（`rtc_lowerhalf_s`
+与 `/dev/rtc0` 上半部）→ `CONFIG_RTC_DATETIME`（日历时间，并会拉入 `up_rtc_*`）→
+`CONFIG_RTC_ARCH`（`arch_rtc.c` 这个桥，缺它 `up_rtc_*` 全无定义）。
+
+**注意这是新增能力，不是契约变更**：Armino 那 16 + 28 个符号一个没少、签名没动、语义没动；
+新增的是平台的第二个面（`/dev/rtc0`、`CLOCK_REALTIME`），Armino 的 `4 条不变式` 约束的是被替换的单元。
+
+### H 层：`driver/aon_rtc.h` 已接管
+
+按规则第 3 条补做（这一批最初漏了）：
+
+- 文件落在与权威头相同的相对路径 `chips/bk7258/include/driver/aon_rtc.h`，用 NuttX 的 include guard 与排版；
+- 证明：`header_equiv.py` 用同一套编译参数分别预处理两边，**10 条声明逐条相同**；
+- 替换效果：芯片 include 根已排在基线 `-I` 之前，`<driver/aon_rtc.h>` 现在解析到我们的文件；
+- "改头不改行为"的三项证据：`.text` / `.data` / `.bss` = **1,003,296 / 10,076 / 266,464 B**，与换头前
+  完全相同；符号面零差异；`nm -u` 为 0。
+
+### 还没做的（RTC 的最后一块）
+
+**alarm 面没有接框架。** `bk_alarm_register/unregister` 仍是自己那份链表 + tick 比较器，
+而 `rtc_ops_s` 的 `setalarm` / `rdalarm` / `cancelalarm` 未实现。也就是说 `pm` / `low_pwr_*` 的深睡唤醒
+还走纯 Armino 路径。这块要和 T12（PM）一起做才合理：那份链表就该成为 NuttX alarm 面的实现，
+`bk_alarm_*` 退化为薄封装。
+
+### ops 的语义完整性（逐个方法）
+
+| `rtc_ops_s` 方法 | 实现 | 语义 |
+| --- | --- | --- |
+| `rdtime` | ✅ | 计数器 + epoch → 日历字段（秒级） |
+| `settime` | ✅ | 入参在 `CONFIG_RTC_DATETIME` 下是**日历**（不是秒数），用 `timegm` 换算；只移动 epoch，从不写计数器；**并重排已挂的 alarm** |
+| `havesettime` | ✅ | 恒 true（软件 epoch 可写） |
+| `setalarm` | ✅ | 绝对时间 → 剩余 tick → 驱动的按名链表，一次性（`period_cnt=1`） |
+| `setrelative` | ✅ | 转成绝对时刻后走同一条路 |
+| `rdalarm` | ✅ | 返回设定的绝对时间；未挂时 `-ENOENT` |
+| `cancelalarm` | ✅ | 按名注销，清状态 |
+| `setperiodic` / `cancelperiodic` | ❌ | `CONFIG_RTC_PERIODIC` 未开，框架不会调用 |
+| `destroy` / `ioctl` | ❌ | 可选方法，框架对 NULL 有检查 |
+
+两条必须写下来的语义要点：
+
+1. **alarm 是绝对时刻，不是延时。** 所以 `settime` 之后挂着的 alarm 必须重排——这一点最初漏了：
+   alarm 被换算成 delta 写进硬件，时钟一改，它就会在错误的墙钟时间触发。现在 `settime` 会调
+   `bk7258_rtc_arm()` 重算。
+2. **µs 单调计数不在框架语义里。** `rdtime` 只有秒（未开 `CONFIG_RTC_HIRES`，而且 32.768 kHz 的计数器
+   当系统定时器不合适）。所以 `bk_aon_rtc_get_us()` 不能改成"包一层 ops"：`flash_notify` /
+   `saradc_notify` / `wifi_adapter` 要的是 µs/ms 单调量，那部分只能留在驱动里。这是兼容面存在的原因，
+   不是偷懒。
+
+**两个上板才发现的语义点**（2026-10-22）：
+
+1. `settime` 的入参形状随配置变。开了 `CONFIG_RTC_DATETIME`，框架与 `arch_rtc.c` 的 `up_rtc_settime`
+   都先 `gmtime_r` 再调 ops，所以进 ops 的是**日历字段**；我最初把 `tm_sec` 当成 epoch 秒，结果是
+   `RTC_SET_TIME` 返回 0 但时间变成 1970（`tm_sec == 0`）。修法：`timegm` 整组日历。
+2. **写 `/dev/rtc0` 不会移动内核的 `CLOCK_REALTIME`。** 在 NuttX 里这是两个对象：内核时钟在启动时由
+   RTC 播种一次（`clock_basetime` → `up_rtc_getdatetime`），之后只有 `clock_settime()` 会经
+   `up_rtc_settime` 回到我们的 ops。所以验收要分两条：设备口做 `RTC_SET_TIME`/`RTC_RD_TIME` 往返，
+   内核口做 `clock_settime`/`clock_gettime` 并确认 `/dev/rtc0` 跟着变。
+
+**观测到的一个边界**：BK7258 只有一个 AON RTC 单元（`AON_RTC_ID_2` 仅在 `SOC_AON_RTC_UNIT_NUM > 1` 时
+存在），框架 alarm 与 `pm` / `low_pwr` 的唤醒 alarm 共用同一个单元的按名链表。
+
+---
+
+## 阶段二第三批：T14 Flash/MTD（第 1 片，`flash_hal`）
+
+`cp/middleware/soc/common/hal/flash_hal.c` → `chips/bk7258/bk7258_flash_hal.c`（36 行 / 2 符号）。
+
+从最底层开始：这个单元只做两件事——从 `hal->id` 解析块基址交给 `flash_ll_*` 内联，以及把状态寄存器
+里的保护位解码成一个值。上面的 `flash_partition` / `flash_server` / `flash_notify` / `flash_driver` /
+`flash_driver_ext` / `flash_bypass` 依次跟进，PSRAM 两个单元走 NuttX 内存侧而不是 MTD。
+
+**这一族的 NuttX 落点是 `mtd_dev_s`**（`drv->erase/write/read/byteinfo/imaxgeo/erasesize`，`mtd_register()`
+挂成 `/dev/mtdN`），所以底层先落地，MTD 驱动就架在它上面；分区表随后由 `mtd_partition` 生成，
+文件系统可以直接用 littlefs。
+
+### 验收
+
+| 项 | 结果 |
+| --- | --- |
+| 导出符号 | **2 / 2** |
+| 指令 + 重定位 | **2 / 2 相同** |
+| `flash_hal.c.o` 在 map | **0** |
+| `nm -u` | 0 |
+| `.text` / `.data` / `.bss` | 与替换前完全相同 |
+
+**操作教训（2026-10-22）**：源码改完后，用于烧板的镜像必须由 `full_flow.sh` 产出。`build_worktree.sh`
+只重建 ELF，`package/all-app.bin` 与 manifest 仍停在上一版，于是完整性门禁报
+`cp L1 report SHA-256 differs from the manifest` / `independent decoder rejected the current package`。
+症状是门禁拒绝，不是镜像损坏——重跑 `full_flow.sh` 即恢复（本次 `decode pass` + `integrity gate: pass`）。
+
+---
+
+## 阶段二第三批：看门狗的标准面（`/dev/watchdog0`）
+
+`chips/bk7258/bk7258_wdt.c` 尾部新增一节 NuttX face：`watchdog_ops_s` 的
+`start / stop / keepalive / getstatus / settimeout`，`watchdog_register("/dev/watchdog0")`。
+**方法体全部落在原有的 `bk_wdt_start/stop/feed` 上**——这就是第 5 条不变式：Armino 符号是兼容面，
+`/dev/watchdog0` 是标准面，两边同一份实现。
+
+暴露的是**中断看门狗**（`CONFIG_INT_WDT`，默认 8 s），因为它是唯一会真的咬的那只；任务看门狗是
+1 s 定时器钩子里的软件截止检查。
+
+`getstatus` 的 `timeleft` 与 `flags`（`WDFLAGS_ACTIVE | WDFLAGS_RESET`）都取自**同一个记账变量**
+`s_wdt_last_feed_tick`：它由系统的周期喂狗点 `bk_wdt_feed_handle()`（`bk_timer` 每 1 s）以及本设备的
+`keepalive`/`start`/`settimeout` 共同写入。
+
+第一版用的是 per-device 的 `last_feed`，上板 `timeleft` 直接读 0——因为系统的 1 s 钩子走的是
+`bk_wdt_feed()`，不经过这个设备，`last_feed` 永远是 0，`elapsed` 就等于开机时长。**标准面必须报告硬件
+真正所处的状态，不能自己猜一份。**
+
+**用之前要知道的一件事**：`bk7258_timer.c` 的 1 s 钩子本来就在调 `bk_wdt_feed()`，所以硬件始终被系统
+喂着——`KEEPALIVE` 只是立刻补一次，`STOP` 才是真的解除武装。因此这个设备按**诊断**用，不要让应用
+去当宠物喂它。
+
+### 验收
+
+| 项 | 结果 |
+| --- | --- |
+| 框架进镜像 | `watchdog_register` 在符号表，`CONFIG_WATCHDOG=y` |
+| `.text` | 1,009,168 → 1,010,900 B（+1,732：框架 + 我们 5 个 ops） |
+| `nm -u` | 0 |
+| 探针 | `bk7258_drvtest wdg` → GETSTATUS / SETTIMEOUT / GETSTATUS / KEEPALIVE，不碰 STOP |
+
+---
+
+## 阶段二第三批：GPIO 的标准面（`/dev/gpio0`）
+
+`chips/bk7258/bk7258_gpio.c` 尾部新增 `gpio_operations_s` 与 `gpio_pin_register()`：
+`go_read` → `bk7258_gpio_read()`，`go_write` → `bk7258_gpio_write()`。**ops 的方法体就是这一层原有的
+读写函数**，没有第二套寄存器路径——第 5 条不变式。
+
+引脚归属交给板级：`bk7258_gpio_pin_register(dev, minor)` 收引脚、方向、minor 号，默认只暴露
+**GPIO40（红色状态灯）**。选它的理由是"写错的代价可见且无害"，而且它是板上唯一已知的输出；
+它与 `bk7258_status_led.c` 共用这个脚，所以**探针读完会写回原值**，这不是所有权声明。
+
+### 验收
+
+| 项 | 结果 |
+| --- | --- |
+| 框架进镜像 | `gpio_pin_register` 在符号表，`CONFIG_DEV_GPIO=y` |
+| `.text` | 1,010,900 → 1,013,220 B（+2,320：gpio 上半部 + 我们的 ops） |
+| `nm -u` | 0 |
+| 探针 | `bk7258_drvtest gpio` → read / write1 / read / write0 / read / 还原 |
+
+**上板发现的一处语义错误（已修）**：第一版 `go_read` 调的是 `bk7258_gpio_read()`，而它与它镜像的
+Armino `bk_gpio_get_input/get_output` 一样，报的是**配置寄存器里的使能位**，不是电平。于是
+`write(0)` 之后读回仍然是 1 —— 因为输入使能位根本没变。正确的读回对象是**输出锁存位**
+`BK7258_GPIO_CFG_OUTPUT`，那才是驱动实际输出的电平。
+
+这也是第 5 条的一个实例：ops 的方法体不能随便挑一个"名字看起来对"的函数，必须挑**语义上对**的那个。
+输入脚要读焊盘时没有现成 API（`gpio_hal_get_input` 是使能位），这一点要在扩展多引脚时补。
+
+上板（镜像 `e5317a9b…`）：`bk7258_drvtest wdg` →
+
+```
+wdg: flags=0x3 timeout=8000 timeleft=7791
+wdg: SETTIMEOUT(10000) -> 0
+wdg: after set timeout=10000
+wdg: KEEPALIVE -> 0
+```
+
+`timeleft=7791` = 8000 − 209 ms，即距上一次 1 s 喂狗的实际间隔，证明它读的是真实喂狗点而不是自己猜的
+计数。`flags=0x3`（ACTIVE|RESET）、`SETTIMEOUT` 真的改了周期。
+
+---
+
+## 阶段二第三批：T14 第 2 片 `flash_partition`
+
+`cp/middleware/driver/flash/flash_partition.c` → `chips/bk7258/bk7258_flash_partition.c`（426 行 / 9 符号）。
+
+分区名 → {地址, 大小, 选项} 的表（生成在 `partitions_gen.h`）、地址与写权限检查，以及把逻辑偏移翻译成
+物理地址的 read/write/erase 入口。两处值得写下来：
+
+- **物理/逻辑地址不是简单相加**：每 34 个物理字节承载 32 个逻辑字节
+  （`FLASH_PHYSICAL_ADDR_UNIT_SIZE` / `FLASH_LOGICAL_ADDR_UNIT_SIZE`），落在每组低 32 之外的地址是被
+  **拒绝**而不是换算的；
+- **写权限是每个分区的选项位**，偏移入口与按地址入口都要检查。
+
+这一层是 MTD 的天然来源：分区表直接喂 `mtd_partition`，下面的 read/write/erase 已经很像 `mtd_dev_s` 的
+方法体。flash 驱动单元替换之前，它仍站在 Armino 的 `bk_flash_*` 上。
+
+### 第三次踩同一个坑：影子头
+
+`wifi/hal_port/include/` 里也有一份 `flash_driver.h`——没有 `FLASH_MAX_SIZE`、`FLASH_API_MAGIC_CODE`、
+`FLASH_SECTOR_SIZE_OFFSET`，而且它对 `flash_op_status_t` 的定义与基线版冲突（编译器报
+`conflicting types`）。修法与 `temp_detect.h`、`drv_model_pub.h` 一致：把
+`middleware/driver/flash` 排到 hal_port 之前。
+
+**这条现在可以算规律了**：`wifi/hal_port/include/` 是一套"精简副本"集合，替换任何跨到它的单元时先查
+同名头，再决定 include 顺序。
+
+### 验收
+
+| 项 | 结果 |
+| --- | --- |
+| 导出符号 | **9 / 9** |
+| 指令 + 重定位 | **9 / 9 相同** |
+| `flash_partition.c.o` 在 map | **0** |
+| `nm -u` | 0 |
+| `.text` | 1,013,220 → 1,013,732 B（+512：分区表与检查逻辑的少量重排） |
+
+上板（镜像 `250b5cb4…`）：`bk7258_drvtest gpio` →
+
+```
+gpio: read(before)=0
+gpio: write(1) -> 0
+gpio: read(after write 1)=1
+gpio: write(0) -> 0
+gpio: read(after write 0)=0
+gpio: restored to 0
+```
+
+电平跟着写走，读回的是真实锁存值。**RTC / 看门狗 / GPIO 三个标准面全部上板验证完毕**（`/dev/rtc0`
+含 alarm 与内核面、`/dev/watchdog0`、`/dev/gpio0`）。
+
+---
+
+## 阶段二第三批：T14 第 3 片 `flash_driver`（核心，30 符号）
+
+`cp/middleware/driver/flash/flash_driver.c` → `chips/bk7258/bk7258_flash_driver.c`（1,053 行 / 30 符号）。
+
+SPI flash 命令层（读/写/擦、状态寄存器、QE、line mode）、建在状态寄存器上的**保护位状态机**，以及每个
+操作都必须走的跨核协调（`mb_flash_op_prepare/finish`——控制器是 CP/AP 共用的）。
+
+两条给后来者的性质：
+
+- **每个操作都被 `mb_flash_op_prepare()/finish()` 夹住**，这不是可选项，AP 也在用同一个控制器；
+- **保护配置写在 flash 自己的状态寄存器里**，这里写错可能让器件进入只有上电或解锁序列才能恢复的保护态。
+  所以本文件不含任何推测性改动。
+
+### 验收
+
+| 项 | 结果 |
+| --- | --- |
+| 导出符号 | **30 / 30**，集合差异为空 |
+| 指令 + 重定位 | **30 / 30 逐条相同** |
+| `flash_driver.c.o` 在 map | **0** |
+| `nm -u` | 0 |
+| `.text` | 1,013,732 → 1,013,672 B（−60，重排） |
+| 门禁 | `decode pass` + `package integrity gate: pass` |
+
+上板（镜像 `3cf190fd…`）：启动第一屏就是三个标准面注册成功
+
+```
+[BK7258] /dev/gpio0 registered OK
+[BK7258] /dev/watchdog0 registered OK
+[BK7258] /dev/rtc0 registered OK
+...
+cpu0:ef:I(120):EasyFlash V4.1.0 is initialize success.
+cpu0:I(152):driver_init: psram init ok
+cpu0:wifi:I(440):wifi inited(1) ret(0)
+```
+
+EasyFlash 初始化成功这一行是关键证据：它读 ENV 分区，走的是**我们已经替换的** `flash_partition` +
+`flash_driver`。
+
+---
+
+## 阶段二第三批：T14 第 4 片 `flash_driver_ext`
+
+`cp/middleware/driver/flash/flash_driver_ext.c` → `chips/bk7258/bk7258_flash_driver_ext.c`（527 行 / 7 符号）。
+
+快速擦除、按字拷贝助手、**BLE 与 Wi-Fi 共享控制器时的分片写**，以及"射频正在连接时先把 flash 操作挡住"
+的 BLE 睡眠钩子。它继承下层（`flash_driver` / `flash_server`）的队列与锁纪律——这正是写操作不会撞上射频
+的原因。
+
+| 项 | 结果 |
+| --- | --- |
+| 导出符号 | **7 / 7** |
+| 指令 + 重定位 | **7 / 7 相同** |
+| `flash_driver_ext.c.o` 在 map | **0** |
+| `nm -u` | 0 |
+| `.text` | 1,013,672 → 1,013,680 B（+8，对齐） |
+
+---
+
+## 阶段二第三批：T14 第 5 片 `flash_bypass`
+
+`cp/middleware/driver/flash/flash_bypass.c` → `chips/bk7258/bk7258_flash_bypass.c`（1,237 行 / **1 个导出**）。
+
+`flash_bypass_op_write()` 手工接管 SPI 控制器：存下 SPI 与时钟寄存器、软件复位该块、自己驱动命令字节流、
+再全部还原——用于驱动层处在"无法走正常操作"的状态时仍能发一条 flash 命令。它的调用者是我们已替换的
+`flash_driver.c` 的深睡进/出路径（`:978`、`:997`），闭源库不引用它。
+
+### 一个被证据否掉的想法：只搬导出的那个函数
+
+那个函数是自包含的（只用 `REG_READ/REG_WRITE` 与 `rtos_disable_int()`），文件其余 1,200 行都是它自己的
+备选命令路径、static、出构建后不可达。所以第一版只搬了它——**源码逐行相同（129 行，去注释零差异），编译
+结果却不同**：
+
+```
+权威:  sub sp, #20   … mov r6,r2 / mov r8,r0 / mov r7,r1 / bl rtos_disable_int / ldr r3,[pc,#352]
+我们:  sub sp, #28   … mov r7,r1 / mov r6,r2 / mov r8,r0 / bl rtos_disable_int / mov r9,r0
+```
+
+多 8 字节栈、多一个活跃寄存器。原因不是源码也不是 flag——**用同一套 flag 编译权威源能逐字节复现构建产物**，
+说明是编译上下文：整文件里它有三个同 TU 的调用者，GCC 的跨过程寄存器分配因此给出不同的寄存器/栈形状。
+把整文件搬过来就**逐字节相同**了。
+
+**结论**：`static` 助手"没人用"不等于"可以不搬"；判断标准只能是"搬过来的这份 TU 编译出什么"。
+
+| 项 | 结果 |
+| --- | --- |
+| 导出符号 | **1 / 1** |
+| 指令 + 重定位 | **1 / 1 相同**（整文件搬运后） |
+| `flash_bypass.c.o` 在 map | **0** |
+| `nm -u` | 0 |
+| `.text` | 与上一片相同（该函数此前已在镜像里） |
+
+---
+
+## 阶段二第三批：T14 第 6 片 `flash_server` + `flash_notify`
+
+| 单元 | 行数 | 导出 | 镜像内活符号 |
+| --- | --- | --- | --- |
+| `flash_server.c` | 560 | 3（`bk_flash_svr_init/deinit`、`calc_crc32_xor`） | 1（`bk_flash_svr_init`） |
+| `flash_notify.c` | 213 | 7（operate-status 两个、`mb_flash_ipc_init`、`mb_flash_op_prepare/finish`、注册/注销通知） | 3（`mb_flash_ipc_init`、`prepare`、`finish`） |
+
+第 5 片学到的教训直接套用：**两个文件都整份搬运**，不抽函数。验收 3/3 与 7/7 逐字节相同。
+
+`flash_notify` 那三个活符号是整个 flash 族的纪律所在——每个 flash 操作前后都要
+`mb_flash_op_prepare()` / `mb_flash_op_finish()`，因为控制器是 CP/AP 共用的；`mb_flash_ipc_init()`
+在建链时把这条通路搭起来。
+
+| 项 | 结果 |
+| --- | --- |
+| 导出符号 | **3 / 3** 与 **7 / 7** |
+| 指令 + 重定位 | 两组全部相同 |
+| 两个成员在 map | 均 **0** |
+| `nm -u` | 0 |
+| `.text` | 与上一片相同（两族符号此前已在镜像里） |
+
+---
+
+## 判据升级：从"逐字节相同"到"MMIO 序列相同"
+
+### 为什么要换
+
+前 20 多个单元用的是**搬运 + 逐字节证明**：函数体原样搬过来、只改排版，机器码与权威对象逐字节相同。
+这只满足不变式 1、2，**不变式 3（C 写法原生 Vela 化）没有做到**——`GLOBAL_INT_*`、`UINT32`、`os_*`、
+`BK_LOG*` 全都留在原地。用户 2026-10-22 指出："两个文件都整份搬运，那不就是没有原生化了吗"——成立。
+
+而第 5 条规则原话是"ops 的**方法体就是原 Armino 的寄存器写法**"，说的是**寄存器写法**，不是源码文本。
+所以重写函数体是允许的、也是要求的；判据应该是"同样的寄存器访问序列与语义"，不是"同样的机器码"。
+
+### 新判据与工具
+
+`my_docs/bk7258-wifi/tools/mmio_seq.py`（仓库外）比对两个对象里同名符号的：
+
+- **数据访问序列**：`ldr/str/ldrb/strb/...` 的**偏移量**与**顺序**（寄存器编号不参与比较——重写允许分配不同）；
+- **字面量池加载**：MMIO 基地址就是从这儿来的，等于在比"访问的是同一块寄存器"；
+- **调用目标**：`bl <symbol>` 的符号名。
+
+用法：`mmio_seq.py <旧.o> '*' -- <新.o> '*'`，退出码 0 表示全部一致。
+
+### 工具自证：它在已知相同的样本上跑，并抓出一个真缺陷
+
+正样本是已搬运的 flash 族（机器码逐字节相同，序列必然相同）：`flash_notify` 7/7、`flash_server` 3/3、
+`flash_driver_ext` 7/7 全部一致——工具可信。
+
+但 `flash_partition` 报了 2 个差异：`toHex` / `toHexByte` / `toHexStream`。
+
+```
+权威(toHex): uxtb r3,r0 / sub.w r2,r3,#48 / cmp r2,#9 / bhi …
+我们(toHex): mov r3,r0  / subs r0,#48    / uxtb r2,r0 / cmp r2,#9 / bls …
+```
+
+**这是真问题，而且暴露了我两处方法错误**：
+
+1. 之前"9/9 逐字节相同"是拿**standalone 编译**（Armino flags）比的，不是**构建真正产出的对象**
+   （arch 目标的 NuttX flags）。两者对 `char` 的处理不同 —— 就是 `trap_base` 那个 `-fsigned-char` 坑；
+2. 只比 standalone 就永远发现不了这种"flag 差异导致的构建产物不同"。
+
+修法同 `trap_base`：`set_property(SOURCE bk7258_flash_partition.c TARGET_DIRECTORY arch PROPERTY
+COMPILE_OPTIONS "-fsigned-char")`。修完 8/8 一致。
+
+**规则**：以后凡断言"逐字节相同"，比的对象必须是**构建产物**；standalone 编译只能用来快速迭代。
+
+### 全量扫描结果（2026-10-22，第 1 步）
+
+工具：`my_docs/bk7258-wifi/tools/mmio_seq.py`。基线：用 `armino_units.tsv` / `component_flags.tsv` 记录的
+组件参数**重新编译权威源码**（`driver` 组件还要补上构建当时用的 `-include compat/bk7258_armino_nuttx_config.h`
+与 NuttX 的 include 路径，否则那份基线不是基线）。逐符号按"数据访问偏移与顺序 + 字面量符号 + 调用目标"比对。
+
+**22 个已搬单元，18 个一致，4 个有差异：**
+
+| 单元 | 差异符号数 | 定性 |
+| --- | --- | --- |
+| `bk7258_printf.c` | 16 | **预期内**。批次 5 有意重写：sink 改成 `syslog`、`bk_printf_init()` 不再碰 UART0、加 mod-disable 列表。这是行为变更，不是缺陷。 |
+| `bk7258_wdt.c` | 8（`aon_wdt_hal_set_period`、`bk_aon_wdt_feed/get_period/set_period`、`bk_task_wdt_stop/timeout_check`…） | **待定性** |
+| `bk7258_uart_driver.c` | 4（`bk_uart_disable_rx/tx`、`uart_wait_tx_over`、`uart_write_byte_for_fr`） | **待定性** |
+| `bk7258_gpio_hal.c` | 2（`gpio_hal_func_map/unmap`） | **待定性** |
+
+工具本身在过程中修了三处（都是自证环节抓出来的）：
+
+1. 调用目标解析把 `bl 0 <sym>` 里的 `0` 当成了符号名；
+2. 字面量池**偏移**（`lit:<sym+0xNN>`）是布局噪声，必须归一化掉，否则任何尺寸变化都误报；
+3. **尾调用**（`b.w` + `R_ARM_THM_JUMP24`）没算成调用，把 `uart_wait_tx_over`（编译成一条尾跳）读成 0 条指令。
+
+结论：这条路线可用，但**"待定性"的 3 个单元必须先定性**——要么是文档里记过的有意变更，要么是缺陷。
+在定性完成前，不得再把这三处称为"逐字节相同"。
+
+### 定性：`gpio_hal`（2 个）——真缺陷，已修
+
+`gpio_hal_func_map/unmap` 在权威里 `HAL_LOGW`/`GPIO_LOGW` 都是**宏**（`GPIO_LOGW` 来自
+`middleware/driver/gpio/gpio_driver_base.h:26`），两份源码逐行相同。但我们的 TU **没有那个 include**，
+于是 `GPIO_LOGW` 成了隐式函数调用（对象里出现 `R_ARM_THM_CALL GPIO_LOGW`，而镜像里根本没有这个符号）。
+
+今天不炸的唯一原因是批次 3 之后 `gpio_hal_*` 全部被 gc 掉——**一旦有人调用就是链接错误**。
+
+修法：`#include "gpio_driver_base.h"`，并把 `middleware/driver/gpio` 加到芯片 include 列表。修完
+`gpio_hal_func_map` 37/37、`gpio_hal_func_unmap` 11/11 一致。
+
+**这一类缺陷值得单独记**：`HAL_LOGW` 这种"日志宏间接依赖一个头"在搬运时最容易漏——源码照抄不会报错，
+因为它只影响一个宏的可见性，隐式声明在 C 里只是 warning（本仓库加 `-Wno-error`）。
+
+### 定性：`uart_driver`（4 个）——编译上下文的 inlining 差异，接受
+
+| 符号 | 差异 | 判定 |
+| --- | --- | --- |
+| `uart_wait_tx_over` | 基线把 `uart_ll_wait_tx_over` **内联**成 14 条寄存器读；我们编译成一条尾跳 `b.w uart_ll_wait_tx_over` | 行为等价：读的是同一个**未改动**的 ll 内联，只是没在调用点展开。同 `flash_bypass` 的 IPA 现象 |
+| `bk_uart_disable_rx/tx` | 静态助手 `uart_deinit_rx_gpio` 在基线里被内联（出现 `gpio_dev_unmap`+`bk_gpio_pull_up` 两次调用），我们保留为调用 | 同上，源码逐行相同 |
+| `uart_write_byte_for_fr` | 只有一条 `tail:.rodata.__FUNCTION__` 的差异 | **工具噪声**：尾调用判定把一个 rodata 重定位当成了跳转目标 |
+
+结论：`uart_driver` **不动代码**，把这条记进文档；它和 `flash_bypass` 同属"整文件 TU 上下文效应"。
+
+**留给下次的第一件事**：`wdt` 的 8 个符号定性（`aon_wdt_hal_set_period`、`bk_aon_wdt_feed/get_period/
+set_period`、`bk_task_wdt_stop/timeout_check`…）。其中 `bk_task_wdt_*` 可能是批次 1 记录过的有意变更
+（惰性 arm），其余需逐个对照。
+
+### 工具还修了 4 处，其中一处让上一轮结论作废
+
+| # | 缺陷 | 后果 |
+| --- | --- | --- |
+| 4 | `objdump --disassemble=<sym>` 在 `-ffunction-sections` 下按**地址**匹配，同地址多节时返回错节 | 读数全错（`wdt` 那8个"差异"就是这么来的） |
+| 5 | 符号值带 **Thumb 位**（`0x1`），没掩掉 | 切片起点错，整函数读空 |
+| 6 | 偏移按**十六进制**打印（`#0x600`） | 大偏移访问全丢 |
+| 7 | **`str.w` / `ldr.w` 的点后缀没匹配** | **最常见的宽访问全被丢弃** —— 上一轮"22 个里 18 个 OK"因此作废 |
+
+修法：整对象反汇编一次，按 readelf 的节归属 + 符号偏移切片；`value &= ~1`；偏移用 `int(x, 0)`；内存操作正则允许 `(?:\.\w+)?`。
+
+### 重扫（工具可信之后）
+
+| 单元 | 可比符号 | 差异 | 定性 |
+| --- | --- | --- | --- |
+| `printf` | 26 | 16 | ✅ 有意重写（批次 5：syslog sink、mod-disable 列表） |
+| **`trap_base`** | 22 | **2**（`arch_is_enter_exception`、`arch_set_enter_exception`） | ❓ 待定性 |
+| **`uart_driver`** | 57 | **5**（`bk_uart_disable_rx/tx`、`uart_wait_tx_over`、`uart_write_string`、`uart_write_byte_for_fr`） | ❓ 待定性 |
+| **`wdt`** | 30 | **8** | ❓ 待定性 |
+| 其余 18 个 | — | 0 | ✅ 序列一致 |
+
+**教训**：判据工具本身必须先自证。这轮工具修了 7 处缺陷，其中第 7 处（`str.w`）会把任何差异都吃掉——如果没在已知样本上验证，我会拿一份"全部通过"的报告去继续重写，而真相是根本没比到东西。
+
+### 三个待定性单元的结论（全部可解释，无缺陷）
+
+**`trap_base`（2 个）—— 共享区搬家。** 两边算的是同一个字段，只是区域基址不同：
+
+| | 基址字面量 | 偏移 | 最终地址 |
+| --- | --- | --- | --- |
+| 基线 | `0x2805D000` | `#0xb30` | `0x2805DB30` = 厂商 PWR_MNG(`0x2805DB00`)+0x30 |
+| 我们 | `0x2809F000` | `#0x730` | `0x2809F730` = 我们的 PWR_MNG(`0x2809F700`)+0x30 |
+
+`+0x30` 正是 `FIXED_ADDR_EXCEPTION_DUMPER`。PWR_MNG 区域由板级 SRAM 划分搬过
+（`pm/nuttx_port/include/ram_regions.h`），所以地址不同是**记录在案的设计**。
+
+**`wdt`（8 个）—— 源文件合并带来的内联差异，加一处我有意的记账。**
+
+权威把它拆成 4 个文件（`wdt_driver` / `aon_wdt_driver` / `wdt_hal` / `aon_wdt_hal`），跨 TU 无法内联；
+我们合成 `bk7258_wdt.c` 一个文件，于是 `aon_wdt_hal_set_period`↔`aon_wdt_ll_set_period` 之间被内联、
+`bk_aon_wdt_feed` 里那次 `hal` 调用被折成 `ll` 调用。**寄存器与顺序不变**，只是展开层次不同。
+`bk_wdt_feed_handle` 多出的 `clock_systime_ticks` + 一次 `str`，是看门狗标准面那批加的喂狗记账（有意）。
+
+**`uart_driver`（5 个）—— 同一类 TU 上下文差异 + 一处工具噪声。**
+`uart_wait_tx_over`（基线内联 ll、我们尾跳）、`bk_uart_disable_rx/tx`（静态助手 `uart_deinit_rx_gpio`
+内联与否）、`uart_write_string`（同）；`uart_write_byte_for_fr` 只是 `tail:.rodata.__FUNCTION__` 的误判。
+
+### 定性小结
+
+| 单元 | 结论 |
+| --- | --- |
+| `printf` | 有意重写（批次 5） |
+| **`gpio_hal`** | **真缺陷，已修**（缺 `gpio_driver_base.h` → `GPIO_LOGW` 变隐式调用） |
+| `trap_base` | PWR_MNG 区域搬家，板级设计 |
+| `wdt` | 4→1 文件合并导致的内联差异 + 一处有意记账 |
+| `uart_driver` | TU 上下文内联差异 + 工具噪声 |
+
+**净结果：22 个已搬单元里，1 个真缺陷（已修），其余全部可解释。** 这条判据可以用于重写了。
+
+---
+
+## 第一个"真重写"：`flash_notify`
+
+搬运版只满足不变式 1、2。这一轮把它按 NuttX 惯用法重写，判据换成 MMIO 序列 + 错误分支 + 上板。
+
+### 改了什么（写法规格）
+
+| 项 | 搬运版 | 重写版 |
+| --- | --- | --- |
+| 静态量命名 | `s_flash_op_notify`、`flash_erase_ipc_state` | `g_flash_op_notify`、`g_flash_erase_ipc_state`（NuttX 文件级静态量用 `g_`） |
+| 类型 | `u32`、隐式 int | `uint32_t`，`stddef.h` 显式引入 |
+| 静态助手 | `send_flash_op_state()` | `bk7258_flash_send_op_state()`（带芯片前缀，见下） |
+| ISR 命名 | `mb_flash_ipc_tx_cmpl_isr` | `bk7258_flash_ipc_tx_cmpl_isr` |
+| 魔数 | 裸 `2000` / `5000` | `FLASH_WAIT_ACK_SPINS` / `FLASH_WAIT_ACK_TIMEOUT_US`，并写清单位是微秒 |
+| 条件编译 | `#if 1` 包住整段"新设计" | 去掉 `#if 1`；`#if CONFIG_FLASH_MB` 的**两个分支都保留** |
+| extern 声明 | 文件头裸放 | 移到使用点旁，参数写成 `uint32_t` |
+| 注释 | Armino 中文/缩写 | 说明"为什么"：5 ms 窗口为什么不用系统 tick、为什么超时返回 `BK_OK` 而不报错 |
+
+**刻意没改的**（改了就是语义变更）：
+- 返回值类型 `bk_err_t`、`BK_OK`/`BK_FAIL`/`BK_ERR_FLASH_WAIT_CB_NOT_REGISTER` —— 调用方按它判断；
+- `mb_chnl_*` / `flash_op_status_t` / `.itcm_sec_code` 段属性；
+- **等待循环的双重边界**（2000 次 + 5 ms，且循环耗尽返回 `BK_OK`）。把超时改成错误会把"对端慢"变成"flash 写失败"；
+- `bk_aon_rtc_get_us()` 作为微秒时钟（系统 tick 是 1 ms，对 5 ms 窗口太粗）。
+
+### 验收
+
+| 项 | 结果 |
+| --- | --- |
+| MMIO 序列 | **7 / 7 与基线一致**（数据访问偏移与顺序、字面量、全局调用目标） |
+| `.text` | 1,013,680 B —— **与重写前完全相同**（写法变了，机器码几乎不变） |
+| 门禁 | `decode pass` + `package integrity gate: pass` |
+| 上板 | 待烧（镜像 `708f840b…`）——flash 在启动路径上，EasyFlash 那行是关键证据 |
+
+### 工具的第 8 次修正
+
+第一次比较时 `mb_flash_op_prepare/finish` 报了差异，原因是静态助手改名
+（`send_flash_op_state` → `bk7258_flash_send_op_state`）。**静态符号是 TU 内部的，重写允许改名**，
+所以工具改为：LOCAL binding 的函数在调用序列里归一成 `<static>`，只比**全局**调用目标。
+这样既不放过"调错了全局函数"，也不因重命名误报。
+
+上板（镜像 `708f840b…`）：三个标准面注册成功，`EasyFlash V4.1.0 is initialize success`（走我们重写过的
+`flash_notify` + 分区表 + flash 驱动），`psram init ok`、`wifi inited(1) ret(0)`、`nsh-ap>` 就绪。
+**第一个真重写通过验收。**
+
+---
+
+## 第二个真重写：`drv_model`
+
+Armino 惯用法密度最高的文件（51 处 / 443 行），只有 12 个短函数。
+
+### 改了什么
+
+| 项 | 之前 | 之后 |
+| --- | --- | --- |
+| 临界区 | `GLOBAL_INT_DECLARATION/DISABLE/RESTORE`（包在 `rtos_disable_int()` 上） | NuttX 的 `irqstate_t flags` + `up_irq_save()` / `up_irq_restore()` |
+| 清零 | `os_memset()` | `memset()`（`<string.h>`） |
+| 头 | `<os/mem.h>`、`<os/os.h>` | `<string.h>`、`<nuttx/irq.h>` |
+
+**签名里的 `UINT32` 没有换**——这套头里 `uint32_t` 是 `unsigned long`，而权威头声明的是 `UINT32`（`unsigned int`），
+换成 `uint32_t` 会与 `bk_drv_model.h` 冲突（`conflicting types`）。契约类型不因"看起来更 NuttX"而改。
+
+也没有用 `enter_critical_section()`：那个符号在本 TU 的链接闭包里没有定义（NuttX 非 SMP 下它是宏，
+且 sched 库不在芯片层链接表里），`up_irq_save()` 是同等惯用法且无额外依赖。
+
+### 验收
+
+| 项 | 结果 |
+| --- | --- |
+| 数据访问序列 | **逐条一致**（10/7/3/1 条访问，偏移与顺序相同） |
+| 调用序列 | 差异只有 `rtos_disable_int/enable_int` 被内联、`os_memset`→`memset` —— 都是换惯用法的预期 |
+| 全量扫描 | 22 个对象里 18 个一致，其余 4 个仍是已定性的（printf/trap_base/uart/wdt） |
+
+工具因此加了第 9 条规则：**惯用法等价表**（`os_memset↔memset`、`os_malloc↔kmm_zalloc`、
+`rtos_disable_int↔内联`、`bk_printf_ext↔syslog`…）。表外的调用目标仍必须逐条相同——这样既不放过
+"调错了业务函数"，也不因换惯用法误报。
+
+`drv_model` 重写上板（镜像 `7abc97dc…`）：启动序列与重写前逐行一致（三个 `/dev` 节点、`EasyFlash V4.1.0
+is initialize success`、`psram init ok`、`wifi inited(1) ret(0)`、`nsh-ap>`）。
+
+顺带验了一条复位路径：AP 上 `reboot bootloader` → `Rptun driver reset remote cp reason: 3` →
+CP 侧 `FATAL: Reset by remote core: ap reason: 3` → `Rptun driver reset remote ap reason: 3` →
+`set ap rr: 0x2` → `!RST` → 完整重启。两核都复位、AP 原因落盘，BootROM 冷启动链走完（串口下载窗口有时限，
+没有工具在等就继续启动，所以最终回到 `nsh-ap>`）。
+
+---
+
+## 批次 14：PSRAM（`psram_driver` + `psram_hal`，29 个符号，T14 的存储半边）
+
+替换 `cp/middleware/driver/psram/psram_driver.c`（16 符号）与
+`cp/middleware/soc/common/hal/psram_hal.c`（13 符号），共 **29** 个符号，落在
+`chips/bk7258/bk7258_psram.c`。这是同一块控制器上**两套并行实现**的收口：该文件此前已有一份
+为 `arm_addregion()` 写的自带寄存器序列的 bring-up，和 Armino 那两个单元各配一遍同样的控制器。
+
+### 逐函数比对（第 2 条）：以权威为准
+
+寄存器偏移（`REG2=0x08`、`REG4=0x10`、`REG5=0x14`、`REG8=0x20`、`REG9=0x24`、
+`REGA=0x28`、`REGB=0x2c`）与 `PSRAM_MODE6`/`PSRAM_MODE7`、三组芯片 ID 都对得上。
+差异全在旧端口这一侧，逐条按权威改回：
+
+| 位置 | 旧端口 | 权威 |
+| --- | --- | --- |
+| `cmd_read` | 单次等待、超时返回 `-ETIMEDOUT` | 5 次尝试，每次失败后 `sf_reset(0)`、`sf_reset(1)`、`cmd_reset` 再重发；耗尽返回 0 |
+| `cmd_write` | 有界等待 | 无限等待命令位清除 |
+| APS6408L 配置 | 写 addr0 后直接读 addr4 | 写 addr4 之前多一次 `cmd_read(0)` |
+| 上电 | 直接写 `ANA_REG13`/`CLKDIV2`/`DEV_CLK_EN` | `sys_drv_psram_psldo_vset(1,0)` → `sys_drv_psram_ldo_enable(1)` → `bk_delay_us(1000)` → AHBP 上电 → `sys_drv_psram_psram_disckg(1)` → `set_clk(80M)` → `sys_drv_dev_clk_pwr_up` → `delay(3000)` |
+| 电压 | 隐含在 ANA_REG13 位里 | `bk_psram_set_voltage(PSRAM_OUT_1_95V)` 显式一步 |
+| 120 MHz | 直接改 CLKDIV2 | `psram_hal_set_default_clk()` → `set_clk(PSRAM_120M)`（sel=1, div=1） |
+| 芯片 ID 记忆 | 无 | easyflash `psram_id`，由 `bk_psram_id_auto_detect()` 起线程写入 |
+
+### 分层与一份实现（第 5 条）
+
+寄存器走权威的 `psram_ll_macro_def.h`，SYS/时钟位走 `sys_drv_psram_*` 与
+`sys_drv_dev_clk_pwr_up`，所以这个块只有一份program。PSRAM 在 NuttX 里没有设备框架，
+它的"标准面"就是**堆区**：`bk7258_psram_initialize(size, id)` 只做探测与上报，
+硬件序列和 `bk_psram_init()` 共用同一个 `psram_hw_init()`——早期调用把
+`bk7258_psram_init_done` 置位，`driver_init()` 里的 `bk_psram_init()` 随后直接返回。
+
+三处写明理由的偏离：
+
+1. **AHBP 电源**用 `sys_hal_module_power_ctrl()` 而不是
+   `bk_pm_module_vote_power_ctrl()`：这段在 `arm_addregion()` 里跑，PM 模块还没起；
+   且 PSRAM 是常驻堆区，引用计数没有意义。T12 把权威 `pm.c` 搬过来后，这里换回 submodule 投票即可。
+2. **写通通道位图**用临界区代替权威的 Armino 互斥量，语义相同（一次位图更新是原子的）。
+3. **`bk_psram_init()` 不建互斥量**：第一个调用者在 `nx_start()` 之前，之后只有读标志，没有并发可防
+   （权威自己也用 `rtos_is_scheduler_started()` 跳过互斥量）。
+
+另有一处**新增**（非权威）：`bk7258_psram_probe()` 在加堆前对首尾各写一组 3 个模式并恢复原值，
+防止"能应答 ID 但存不住数据"的片子把分配器搞坏。
+
+### 契约头（第 3 条）
+
+`driver/psram.h`、`driver/psram_types.h`、`psram_hal.h` 收归 `chips/bk7258/include/`，
+用 `bk7258_psram.c` 与 `bk7258_driver.c` 两组编译参数预处理比对：声明 120/207/457 条、
+宏 1425/1425/2163 个，差异均为 0。`psram_driver.h` 只有日志标签宏，不是契约，未收。
+
+### 验收
+
+| 项 | 结果 |
+| --- | --- |
+| 导出符号 | **29 / 29**（对两个基线 `.o` 的 `nm --defined-only -g` 做 `comm -23`，为空） |
+| `psram_driver.c.o` / `psram_hal.c.o` 在 map | **0** |
+| `nm -u` | CP / AP 均 0 |
+| 打包 | `decode pass` |
+| 收头前后 CPU 代码 | `.text`/`.data` 逐字节相同，镜像 sha256 不变 |
+
+板上（镜像 `de7a3d62…`）：
+
+- 开机 `cpu0:I(126):driver_init: psram init ok`；CP 侧 PSRAM 行、AP 侧
+  `[BK7258] PSRAM id=0x0000 size=16777216 split: core region 60b00000-60ffffff`（AP 分支固定
+  `device_id=0`、只读设备确认 CP 已初始化，不重复探测）。
+- `bk7258_psram_test 4096` → `PASS: 4096 KiB, 3 patterns`，分配地址 `0x60b00010`（AP 分片）；
+  CP 分片 `bk7258_psram_test 4915` → `PASS: 4915 KiB`，地址 `0x60610618`。
+- `free` 的 `Umem` 总量 5278192 B，与 `CONFIG_BK7258_PSRAM_CP_HEAP_SIZE=0x500000` 吻合，
+  说明 5 MiB 分片确实进了堆。
+- 说明：测试默认 8192 KiB 大于单核分片 5 MiB，会 `malloc failed`——这是默认值与分区不匹配，
+  不是回归；用 ≤4915 KiB 即可。
+
+`ping`：用户在同一镜像上确认正常（未留日志）。T14 的另一半是 flash 族 7 个单元挂 `mtd_dev_s`，仍未做。
+
+---
+
+## 批次 15：flash 挂 `mtd_dev_s`（T14 的另一半）
+
+flash 族 7 个单元的源码早在批次 14 之前就已换成我们的（`bk7258_flash_driver.c` 等），但它们只有
+Armino 面、没有 NuttX 标准面，按第 5 条不算完成。本批补上标准面，并把两条访问路径收到同一份原语上。
+
+### 一个下半部
+
+`chips/bk7258/bk7258_flash_driver.c` 末尾新增 `mtd_dev_s`，注册为 `/dev/mtd0`：
+
+| op | 方法体 |
+| --- | --- |
+| `erase` | 按 4 KiB 扇区循环 `flash_erase_no_lock(addr, FLASH_OP_CMD_SE)`，整段持一次 `flash_lock` |
+| `bread` / `bwrite` | 按扇区块，`flash_read_common` / `flash_write_no_lock` |
+| `read` | 字节粒度，`flash_read_common` |
+| `ioctl` | `MTDIOC_GEOMETRY`（4096/4096/2048，model `bk7258-spi-nor`）、`MTDIOC_BULKERASE`、`BIOC_XIPBASE` |
+| `isbad` / `markbad` | NOR 无坏块表：恒 0 / `-ENOSYS` |
+
+Armino 面的 `bk_flash_read_bytes`/`write_bytes`/`erase_sector/32k/block` 仍调同样三个原语，
+所以两条路只有一份寄存器实现。**`flash_lock()` 内已经含 `mb_flash_op_prepare/finish`**，
+AP 互斥自动随每次擦写生效，MTD 不需要另加。
+
+### 两个必须记住的事实
+
+1. **这个 NuttX 没有 MTD 字符设备。** `register_mtddriver()` 只建 `INODE_IS_MTD` 节点，供
+   `find_mtddriver()` / littlefs 这类挂载源使用；`open("/dev/mtd0")` 返回 `ENXIO`。第一版自检就是
+   这样失败的（errno 6）。要给用户态读写，得自己写一层字符设备（mainline 的 `mtdchar.c`），
+   本批没做，因为现在没有消费者。
+2. **`MTDIOC_XIPBASE` 已被移除**，头文件里写明用 `BIOC_XIPBASE` 替代；我们用的是后者。
+
+### 验收
+
+| 项 | 结果 |
+| --- | --- |
+| 开框架开销 | `CONFIG_MTD=y` 使 CP 镜像 +208 B（框架），加下半部与自检后 CP 共 1 030 452 B |
+| CP flash 余量 | 分区 1 462 272 B，镜像 1 030 452 B，**剩 421.7 KiB**（用掉 70.5%） |
+| `nm -u` | CP / AP 均 0 |
+| 打包 | `decode pass` |
+| 板上（镜像 `7ac10cfb…`） | `bk7258_drvtest mtd` → `blocksize=4096 erasesize=4096 neraseblocks=2048 model=bk7258-spi-nor`，随后 `first 32 bytes identical on both faces`：MTD 面与 `bk_flash_read` 同区间读出完全相同 |
+
+板上持久化（镜像 `bf68d649…`，`bk7258_drvtest env set/get`，走 `bk_set_env_enhance`/
+`bk_get_env_enhance`，即 `ef_port.c` 那条 Armino 面）：
+
+1. `env set probe 1234` → `-> 0`
+2. `env get probe` → `"1234" (5 bytes)`
+3. `reboot`；开机日志 `cpu0:flash:I(105):/dev/mtd0 registered (8192 KiB, 4096 B sectors)`、
+   `ENV start address is 0x007FA000, size is 8192 bytes`、`EasyFlash V4.1.0 is initialize success`
+4. 重启后 `env get probe` → **仍为 `"1234" (5 bytes)`**
+
+所以擦、写、读经我们的寄存器序列落到了 `easyflash` 分区（0x7fa000），重启后仍在。
+easyflash 仍走 Armino 面、没改它的调用路径——两份实现共享的是下面那三个原语。
+
+T14 剩余未复测：本镜像的**连接 3/3**（S2.6 要求阶段二每一步都测 3/3）；`ping` 已在 PSRAM
+那批确认过。

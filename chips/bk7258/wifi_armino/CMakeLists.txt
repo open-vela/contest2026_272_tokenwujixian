@@ -187,10 +187,47 @@ if(CONFIG_BK7258_WIFI_ARMINO_BASELINE)
       # Timer belongs to the chip layer for the same reason: chips/bk7258/
       # bk7258_timer.c owns TIMER_ID0..5 (SOC_TIMER0_REG_BASE ==
       # BK7258_TIMER0_BASE == 0x44810000) and now supplies bk_timer_* too.
-      # rosc_ppm's TIMER_ID0 is the channel /dev/timer0 uses, so two drivers
-      # were writing the same enable and end-count registers.
+      # Before that, timer_driver.c and the chip's own timer code were two
+      # drivers writing the same enable and end-count registers.
       cp/middleware/driver/timer/timer_driver.c
       cp/middleware/soc/common/hal/timer_hal.c
+      # T14 sixth slice: the flash server (CRC helper + server init) and the
+      # notify layer whose mb_flash_op_prepare/finish brackets every operation.
+      # 3 + 7 symbols, byte for byte, carried whole.
+      cp/middleware/driver/flash/flash_server.c
+      cp/middleware/driver/flash/flash_notify.c
+      # T14 fifth slice: the flash bypass path, carried whole for the reason
+      # bk7258_flash_bypass.c states (extracting the one export changes the
+      # codegen).  Same 1 exported symbol, byte for byte.
+      cp/middleware/driver/flash/flash_bypass.c
+      # T14 fourth slice: the flash extensions (fast erase, split write for
+      # the radio/flash share, BLE sleep gating).  chips/bk7258/
+      # bk7258_flash_driver_ext.c provides the same 7 symbols, byte for byte.
+      cp/middleware/driver/flash/flash_driver_ext.c
+      # T14 third slice: the flash command layer itself (read/write/erase,
+      # status register, protection state machine, cross-core bracketing).
+      # chips/bk7258/bk7258_flash_driver.c provides the same 30 symbols,
+      # byte for byte.
+      cp/middleware/driver/flash/flash_driver.c
+      # T14 second slice: the partition table and its access checks.
+      # chips/bk7258/bk7258_flash_partition.c provides the same 9 symbols,
+      # byte for byte; this is the layer an mtd_partition table would come from.
+      cp/middleware/driver/flash/flash_partition.c
+      # T14 first slice: the flash register layer.  chips/bk7258/
+      # bk7258_flash_hal.c provides the same 2 symbols, byte for byte.
+      cp/middleware/soc/common/hal/flash_hal.c
+      # The AON RTC driver: chips/bk7258/bk7258_aon_rtc.c provides the same 16
+      # symbols (two 64-bit units, tick/upper comparators, the per-unit alarm
+      # list, the two ISR entry points and the wake-source registration) with
+      # every #if gate carried.  Only the __LINE__ constants in two log/assert
+      # messages differ from the authority object.
+      cp/middleware/driver/rtc/aon_rtc_driver_64bit.c
+      # The register layer under it, already replaced (see below).
+      # The AON RTC register layer: chips/bk7258/bk7258_aon_rtc_hal.c provides
+      # the same 28 wrappers on the authority's aon_rtc_ll.h inlines.  The
+      # driver unit above it (aon_rtc_driver_64bit.c) is the next step, and
+      # stays until then.
+      cp/middleware/soc/common/hal/aon_rtc_hal_64bit.c
       cp/middleware/soc/bk7258/hal/timer_ll.c
       cp/middleware/soc/bk7258/hal/timer_hal.c
       cp/middleware/soc/bk7258/hal/timer_hal_debug.c
@@ -215,7 +252,13 @@ if(CONFIG_BK7258_WIFI_ARMINO_BASELINE)
       # authority's bodies.  cli_temp_detect.c stays: it is a caller.
       cp/components/temp_detect/temp_detect.c
       cp/components/temp_detect/bk_sensor.c
-      cp/components/temp_detect/volt_detect.c)
+      cp/components/temp_detect/volt_detect.c
+      # PSRAM: chips/bk7258/bk7258_psram.c carries the psram_driver.c and
+      # psram_hal.c bodies on the authority's psram_ll register layer.  This
+      # is the pair that used to be the block's only owner, next to the
+      # port's own bring-up copy.
+      cp/middleware/driver/psram/psram_driver.c
+      cp/middleware/soc/common/hal/psram_hal.c)
 
   # driver.c is excluded (chips/bk7258/bk7258_driver.c is its port), so the
   # CONFIG_SPI collision it needed this list for is handled inside that file

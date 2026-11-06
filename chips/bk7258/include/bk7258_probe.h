@@ -50,6 +50,24 @@ void bk7258_trap_probe(void);
 
 void bk7258_drv_model_probe(void);
 
+/* Read /dev/rtc0 and CLOCK_REALTIME, move the clock through the RTC ioctl and
+ * read both faces back.  Evidence for the AON RTC + framework landing.
+ */
+
+void bk7258_rtc_probe(void);
+
+/* Walk /dev/watchdog0: status, settimeout, keepalive.  Evidence for the
+ * watchdog's standard face.
+ */
+
+void bk7258_wdg_probe(void);
+
+/* Drive /dev/gpio0 (the red status LED) and read it back.  Evidence for the
+ * gpio device's standard face.
+ */
+
+void bk7258_gpio_probe(void);
+
 #ifdef __cplusplus
 }
 #endif

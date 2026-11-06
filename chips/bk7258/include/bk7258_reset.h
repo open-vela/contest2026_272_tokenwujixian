@@ -100,6 +100,17 @@ void bk7258_wdt_test_force_reset(void);
 
 int bk7258_wdt_test_sensor(void);
 
+/****************************************************************************
+ * NuttX faces
+ ****************************************************************************/
+
+/* Register /dev/watchdog0 over the interrupt watchdog.  Requires CONFIG_WATCHDOG.
+ * Same bodies as the Armino symbols in bk7258_wdt.c -- one implementation, two
+ * faces.
+ */
+
+int bk7258_wdg_initialize(void);
+
 #ifdef __cplusplus
 }
 #endif

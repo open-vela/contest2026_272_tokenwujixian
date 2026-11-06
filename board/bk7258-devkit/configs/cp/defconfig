@@ -46,6 +46,9 @@ CONFIG_DEV_CONSOLE=y
 CONFIG_DEV_SIMPLE_ADDRENV=y
 CONFIG_DHCPC_RENEW_STACKSIZE=4096
 CONFIG_EXAMPLES_GPIOPROBE=y
+CONFIG_EXAMPLES_TIMER=y
+CONFIG_EXAMPLES_TIMER_DEVNAME="/dev/timer1"
+CONFIG_EXAMPLES_TIMER_INTERVAL=100000
 CONFIG_LVX_USE_DEMO_CONTEST2026_272_BK7258_PLATFORM_TEST=y
 CONFIG_IDLETHREAD_STACKSIZE=2048
 CONFIG_INIT_ENTRYPOINT="bk7258_cp_init_main"
@@ -118,7 +121,6 @@ CONFIG_BK7258_PSRAM=y
 CONFIG_WIRELESS_WAPI=y
 CONFIG_WIRELESS_WAPI_CMDTOOL=y
 CONFIG_WIRELESS_WAPI_STACKSIZE=8192
-# CONFIG_BK7258_TIMER0 is not set
 CONFIG_RPMSG_LOCAL_CPUNAME="cp"
 CONFIG_RPMSG_PING=y
 CONFIG_RPMSG_UART=y
@@ -129,7 +131,7 @@ CONFIG_RPTUN_STACKSIZE=4096
 CONFIG_SERIAL=y
 CONFIG_OTHER_SERIAL_CONSOLE=y
 CONFIG_PREALLOC_TIMERS=4
-CONFIG_RR_INTERVAL=200
+CONFIG_RR_INTERVAL=20
 CONFIG_SCHED_WAITPID=y
 CONFIG_START_YEAR=2026
 CONFIG_STANDARD_SERIAL=y
@@ -258,3 +260,33 @@ CONFIG_ARM_MPU_NREGIONS=8
 # bk7258_mpu_test: dumps and checks the region table, plus two fault probes.
 CONFIG_BK7258_MPU_TEST=y
 CONFIG_DEBUG_MEMFAULT=y
+
+# NuttX RTC framework, for /dev/rtc0 over the AON RTC counter.
+CONFIG_RTC=y
+
+# NuttX watchdog framework, for /dev/watchdog0 over the interrupt watchdog.
+CONFIG_WATCHDOG=y
+
+# NuttX gpio character device, for /dev/gpio0.
+CONFIG_DEV_GPIO=y
+CONFIG_RTC_DRIVER=y
+CONFIG_RTC_ARCH=y
+CONFIG_RTC_ALARM=y
+CONFIG_RTC_NALARMS=1
+CONFIG_RTC_DATETIME=y
+CONFIG_LVX_USE_DEMO_CONTEST2026_272_DRVTEST=y
+
+# Memory Technology Device framework: the flash block's standard face
+# (mtd_dev_s) and its /dev/mtd0 node are in bk7258_flash_driver.c.
+CONFIG_MTD=y
+
+# Console baud, raised from the 115200 default.
+# Measured on the board: printing a `ps` table (~2 KB) over RPMsg -> CP -> UART0
+# at 115200 kept nsh_main at ~47% of the single AP core, so the shell felt
+# dead while the UI animated.  The console is a link-bandwidth problem, not CPU.
+# 1 MHz divides the 26 MHz XTAL exactly: 26000000/1000000 - 1 = 25, so the
+# programmed rate is exactly 1,000,000 (no rounding error, unlike 921600 whose
+# nearest divisor gives 928571, +0.76%).  UART_MAX_BAUD_RATE here is
+# UART_CLOCK/5 = 5.2 MHz, so 1 MHz is well inside the driver's own limit.
+# The host terminal must be switched to the same rate.
+CONFIG_BK7258_UART0_BAUD=1000000

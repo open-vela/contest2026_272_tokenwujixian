@@ -63,4 +63,7 @@
 
 FAR struct lcd_dev_s *jd9853_lcdinitialize(FAR struct spi_dev_s *spi);
 
+
+
+
 #endif /* __BOARD_BK7258_DEVKIT_SRC_JD9853_H */

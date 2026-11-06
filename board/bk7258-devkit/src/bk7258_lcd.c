@@ -36,6 +36,7 @@
 #include <nuttx/arch.h>
 #include <nuttx/board.h>
 #include <nuttx/spi/spi.h>
+#include <arch/chip/bk7258_qspi.h>
 #include <nuttx/lcd/lcd.h>
 
 #include "bk7258_internal.h"
@@ -55,6 +56,10 @@
  ****************************************************************************/
 
 static FAR struct spi_dev_s *g_lcd_spi;
+
+#if defined(CONFIG_BK7258_LCD_JD9853_QSPI)
+static FAR struct qspi_dev_s *g_lcd_qspi;
+#endif
 static FAR struct lcd_dev_s *g_lcd_dev;
 static int (*g_lcd_setpower)(FAR struct lcd_dev_s *dev, int power);
 
@@ -156,23 +161,42 @@ int board_lcd_initialize(void)
 
   bk7258_lcd_hw_reset();
 
+#if defined(CONFIG_BK7258_LCD_JD9853_QSPI)
+  /* QSPI transport: no SPI lower-half.  CLK/CSN/IO0 are muxed to QSPI1 and
+   * D/C stays a GPIO output, both set up by bk7258_qspi_initialize(); the
+   * panel driver keeps its own command set -- only the four bus primitives
+   * differ.
+   */
+
+  g_lcd_qspi = bk7258_qspi_initialize(48000000);
+  if (g_lcd_qspi == NULL)
+    {
+      lcderr("ERROR: QSPI1 init failed\n");
+      return -ENODEV;
+    }
+
+  g_lcd_dev = jd9853_lcdinitialize(NULL);
+#else
   g_lcd_spi = bk7258_spi_initialize();
   if (g_lcd_spi == NULL)
     {
       lcderr("ERROR: Failed to initialize display SPI\n");
       return -ENODEV;
     }
-
 #if defined(CONFIG_LCD_JD9853)
   g_lcd_dev = jd9853_lcdinitialize(g_lcd_spi);
 #elif defined(CONFIG_LCD_GC9D01)
   g_lcd_dev = gc9d01_lcdinitialize(g_lcd_spi);
 #endif
+#endif /* CONFIG_BK7258_LCD_JD9853_QSPI */
   if (g_lcd_dev == NULL)
     {
       lcderr("ERROR: Failed to initialize LCD\n");
       return -ENODEV;
     }
+
+#if defined(CONFIG_BK7258_LCD_JD9853_QSPI)
+#endif
 
   /* Tie the board backlight to the panel power state */
 

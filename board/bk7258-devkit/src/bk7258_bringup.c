@@ -32,7 +32,11 @@ int bk7258_status_led_initialize(void);
 
 #include <arch/chip/bk7258_ap_boot.h>
 #include <arch/chip/bk7258_mb_ipc.h>
+#include <arch/chip/bk7258_gpio.h>
 #include <arch/chip/bk7258_memorymap.h>
+#include <arch/chip/bk7258_reset.h>
+#include <arch/chip/bk7258_rtc.h>
+#include <arch/chip/bk7258_clock.h>
 #include <arch/chip/bk7258_timer.h>
 #include <arch/chip/bk7258_wifi.h>
 #include <arch/board/board.h>
@@ -299,17 +303,66 @@ void board_late_initialize(void)
   bk7258_ca_init();
 
 #ifdef CONFIG_BK7258_COMPONENT_CP
-#ifdef CONFIG_BK7258_TIMER0
+
+  /* /dev/rtc0 over the AON RTC counter (always-on domain, keeps counting
+   * across sleep).  Registered before the timer so the time base exists
+   * before anything asks for the wall clock.
+   */
+
+#ifdef CONFIG_DEV_GPIO
+  {
+    int gio_ret = bk7258_gpio_initialize();
+    if (gio_ret < 0)
+      {
+        syslog(LOG_ERR, "[BK7258] /dev/gpio0 register failed: %d\n", gio_ret);
+      }
+    else
+      {
+        syslog(LOG_INFO, "[BK7258] /dev/gpio0 registered OK\n");
+      }
+  }
+#endif
+
+#ifdef CONFIG_WATCHDOG
+  {
+    int wdg_ret = bk7258_wdg_initialize();
+    if (wdg_ret < 0)
+      {
+        syslog(LOG_ERR, "[BK7258] /dev/watchdog0 register failed: %d\n",
+               wdg_ret);
+      }
+    else
+      {
+        syslog(LOG_INFO, "[BK7258] /dev/watchdog0 registered OK\n");
+      }
+  }
+#endif
+
+#ifdef CONFIG_RTC
+  {
+    int rtc_ret = bk7258_rtc_initialize();
+    if (rtc_ret < 0)
+      {
+        syslog(LOG_ERR, "[BK7258] RTC lower-half init failed: %d\n", rtc_ret);
+      }
+    else
+      {
+        syslog(LOG_INFO, "[BK7258] /dev/rtc0 registered OK\n");
+      }
+  }
+#endif
+
+#ifdef CONFIG_BK7258_TIMER
   {
     int timer_ret = bk7258_timer_initialize();
     if (timer_ret < 0)
       {
-        syslog(LOG_ERR, "[BK7258] Timer0 lower-half init failed: %d\n",
+        syslog(LOG_ERR, "[BK7258] /dev/timer1 init failed: %d\n",
                timer_ret);
       }
     else
       {
-        syslog(LOG_INFO, "[BK7258] Timer0 lower-half registered\n");
+        syslog(LOG_INFO, "[BK7258] /dev/timer1 registered\n");
       }
 
     up_putc('L');
@@ -757,6 +810,19 @@ static void bk7258_ap_initialize(void)
    */
 
   syslog(LOG_INFO, "BK7258: bk7258_ap_initialize called\n");
+
+#ifdef CONFIG_BK7258_COMPONENT_AP
+  /* What this core actually runs at, measured from its own DWT cycle counter
+   * against the 32 kHz-sourced tick.  The CP only proves CPU0's clock; the AP
+   * cores are a separate claim (Armino's 480M step gives CPU1/CPU2 480 MHz to
+   * CPU0's 240 MHz), so measure it here instead of assuming. */
+
+  syslog(LOG_INFO, "[AP] measured core clock: %lu Hz (cpu%u)\n",
+         (unsigned long)bk7258_clock_measure_hz(),
+         (unsigned)up_cpu_index());
+
+
+#endif
 
 #ifdef CONFIG_BK7258_PSRAM
   /* The .psram_bss section (flash_ap.ld) is NOLOAD: startup zeroes only

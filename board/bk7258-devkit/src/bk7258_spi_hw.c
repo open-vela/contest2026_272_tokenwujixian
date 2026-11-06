@@ -71,14 +71,6 @@
 #define BK7258_SPI1_FUNC_SCK  0
 #define BK7258_SPI1_FUNC_MOSI 0
 
-/* SPI1 lives in the BAKP power domain (SPI0 is the AON-domain controller
- * and is always on).  Power SPI1 on by clearing pwd_bakp in
- * cpu_power_sleep_wakeup (BK7258_SYS_POWER_WAKEUP); the bit is low-active:
- * 1 = powered down, 0 = powered on.
- */
-
-#define BK7258_SYS_PWR_BAKP   (UINT32_C(1) << 4)   /* pwd_bakp, SYS+0x40 */
-
 /* Poll-loop bounds.  Each wait is bounded so a missing FIFO/busy bit can
  * never hang the LCD flush path.
  */
@@ -150,6 +142,15 @@ static const struct spi_ops_s g_bk7258_spiops =
 
 static struct bk7258_spi_dev_s g_spidev;
 
+/* Source clock actually in use.  The authority's SPI select offers an APLL
+ * source, but no shipped configuration enables it and no vendor code enables
+ * the APLL for SPI, so this link stays on the 26 MHz XTAL: 13 MHz at
+ * clk_rate = 1.  The QSPI transport (bk7258_qspi.c) is the way past it.
+ */
+
+static uint32_t g_spi1_src_clk = 26000000U;
+
+
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
@@ -192,7 +193,7 @@ static uint32_t bk7258_spi_setfrequency(FAR struct spi_dev_s *dev,
 
   /* baud = f_src / (2 * clk_rate), round up to stay below the request */
 
-  clk_rate = (BK7258_SPI1_SRC_CLK + (2 * frequency) - 1) / (2 * frequency);
+  clk_rate = (g_spi1_src_clk + (2 * frequency) - 1) / (2 * frequency);
   if (clk_rate < 1)
     {
       clk_rate = 1;
@@ -205,7 +206,7 @@ static uint32_t bk7258_spi_setfrequency(FAR struct spi_dev_s *dev,
   priv->hw->ctrl.clk_rate = clk_rate;
 
   priv->frequency = frequency;
-  priv->actual    = BK7258_SPI1_SRC_CLK / (2 * clk_rate);
+  priv->actual    = g_spi1_src_clk / (2 * clk_rate);
 
   return priv->actual;
 }
@@ -382,26 +383,11 @@ FAR struct spi_dev_s *bk7258_spi_initialize(void)
   FAR bk7258_spi_hw_t *hw = (FAR bk7258_spi_hw_t *)BK7258_SPI1_BASE;
   uint32_t regval;
 
-  /* Power up the BAKP domain, which owns SPI1 (0x45880000).  It is gated by
-   * cpu_power_sleep_wakeup.pwd_bakp (bit 4); while the bit is set the whole
-   * window reads back 0x60007e07 (the "black screen, two white lines" HW-SPI
-   * failure).
-   *
-   * Clear pwd_bakp directly.  Neither bk_pm_module_vote_power_ctrl() nor
-   * sys_hal_module_power_ctrl() is linked on this AP core: both live under
-   * armino_baseline/cp/ (hal/platform_shim.c and hal/sys_hal.c), which only
-   * the CP compiles -- the CP's bk7258_psram.c may call the HAL entry, this
-   * AP driver may not.  The bit-clear below is exactly what
-   * sys_hal_module_power_ctrl(BAKP, ON) performs (value &= ~(1 << module));
-   * on the AP there is no vote layer to later power the domain back down, so
-   * a one-shot clear at init is sufficient.
+  /* Enable the SPI1 clock gate.  clksel_spi1 stays 0, i.e. the 26 MHz XTAL:
+   * switching it to the APLL is what the authority's spi_hal does for rates
+   * above XTAL, but that path also programs and powers the audio PLL, and it
+   * is not what any shipped configuration uses.
    */
-
-  regval  = getreg32(BK7258_SYS_PWR_SLEEP_WAKEUP);
-  regval &= ~BK7258_SYS_PWR_BAKP;
-  putreg32(regval, BK7258_SYS_PWR_SLEEP_WAKEUP);
-
-  /* Enable the SPI1 clock gate and pin the source clock to XTAL 26M. */
 
   regval  = getreg32(BK7258_SYS_DEV_CLK_EN);
   regval |= BK7258_SYS_SPI1_CLK_EN;
@@ -449,18 +435,8 @@ FAR struct spi_dev_s *bk7258_spi_initialize(void)
   hw->ctrl.bit_width    = 0;  /* 8-bit */
   hw->ctrl.lsb_first_en = 0;  /* MSB first */
   hw->ctrl.wire3_en     = 0;  /* 4-wire (MOSI/MISO) */
-  hw->ctrl.slave_release_int_en = 1;  /* 4-wire mode, spi_hal_configure() */
   hw->ctrl.cpol         = 0;  /* mode 0 */
   hw->ctrl.cpha         = 0;
-
-  /* ARMINO spi_ll_init() sets these two before spi_hal_configure().  They
-   * are RX-centric (byte spacing / Rx sample edge) but are reproduced here
-   * so the controller state matches the reference SDK bit-for-bit.
-   */
-
-  hw->ctrl.byte_interval = 1;  /* bit[24:29] > 0 avoids SPI clock glitches */
-  hw->ctrl.reserved      = 1;  /* bit[30:31] rx_sample_edge = 1st negedge */
-
   hw->ctrl.enable       = 1;
 
   hw->cfg.tx_finish_int_en = 1;
@@ -476,33 +452,6 @@ FAR struct spi_dev_s *bk7258_spi_initialize(void)
   priv->nbits     = 8;
   priv->dev.ops   = &g_bk7258_spiops;
   nxmutex_init(&priv->lock);
-
-  /* Bring-up diagnostic: read back the SPI1 controller and the SCK/MOSI
-   * mux so a black screen can be localized to (a) the controller config,
-   * (b) the clock gate, or (c) the pad routing — without a logic analyzer.
-   * Expected on a healthy config: ctrl=41c100b0 (rx_sample_edge bit30 +
-   * enable bit23 + master_en bit22 + slave_release_int bit16 +
-   * byte_interval bit24 + rx_fifo_int bit7 + rx_ovf bit5 + tx_udf bit4;
-   * clk_rate is still 0 here, set later by setfrequency), global_ctrl=1
-   * (soft_reset released), CLK_EN bit9 set, SCK/MOSI GPIO_CFG bit6
-   * (second_func) set, SYS_FUNC0 SCK/MOSI fields 0.
-   */
-
-  printf("SPI1: ctrl=%08x global=%08x dev_status=%08x\n",
-         (unsigned int)hw->ctrl.v,
-         (unsigned int)hw->global_ctrl.v,
-         (unsigned int)hw->dev_status);
-  printf("SPI1: CLK_EN=%08x CLKSEL=%08x\n",
-         (unsigned int)getreg32(BK7258_SYS_DEV_CLK_EN),
-         (unsigned int)getreg32(BK7258_SYS_CLKSEL));
-  printf("SPI1: GPIO_CFG SCK(2)=%08x MOSI(4)=%08x CS(3)=%08x DC(5)=%08x\n",
-         (unsigned int)getreg32(BK7258_GPIO_CFG(2)),
-         (unsigned int)getreg32(BK7258_GPIO_CFG(4)),
-         (unsigned int)getreg32(BK7258_GPIO_CFG(3)),
-         (unsigned int)getreg32(BK7258_GPIO_CFG(5)));
-  printf("SPI1: SYS_FUNC0=%08x SYS_FUNC1=%08x\n",
-         (unsigned int)getreg32(BK7258_SYS_GPIO_FUNC(2)),
-         (unsigned int)getreg32(BK7258_SYS_GPIO_FUNC(10)));
 
   return &priv->dev;
 }

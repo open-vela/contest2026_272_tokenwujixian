@@ -8,7 +8,8 @@ set(SRCS
     bk7258_ap_boot.c
     bk7258_gpio.c
     bk7258_trng.c
-    bk7258_ca.c)
+    bk7258_ca.c
+    bk7258_cycles.c)
 
 if(CONFIG_ARM_MPU)
   list(APPEND SRCS bk7258_mpuinit.c)
@@ -24,6 +25,10 @@ endif()
 
 if(CONFIG_BK7258_MAILBOX)
   list(APPEND SRCS bk7258_mailbox.c)
+endif()
+
+if(CONFIG_BK7258_QSPI)
+  list(APPEND SRCS bk7258_qspi.c)
 endif()
 
 if(CONFIG_BK7258_MB_IPC_RPMSG)
@@ -58,6 +63,7 @@ else()
        bk7258_start.c
        bk7258_sysctrl.c
        bk7258_clock.c
+       bk7258_dvfs.c
        bk7258_lowputc.c
        bk7258_uart.c
        bk7258_wdt.c
@@ -73,6 +79,16 @@ else()
        bk7258_arm.c
        bk7258_trap_base.c
        bk7258_sys_audio_driver.c
+       bk7258_aon_rtc_hal.c
+       bk7258_aon_rtc.c
+       bk7258_rtc.c
+       bk7258_flash_hal.c
+       bk7258_flash_partition.c
+       bk7258_flash_driver.c
+       bk7258_flash_driver_ext.c
+       bk7258_flash_bypass.c
+       bk7258_flash_server.c
+       bk7258_flash_notify.c
        bk7258_printf.c)
 
   if(CONFIG_BK7258_PSRAM)
@@ -90,6 +106,14 @@ if(CONFIG_BK7258_COMPONENT_CP)
   # property set here only reaches a target created in this directory
   # otherwise.
   set_property(SOURCE bk7258_trap_base.c TARGET_DIRECTORY arch
+               PROPERTY COMPILE_OPTIONS "-fsigned-char")
+
+  # Same reason: toHex/toHexByte/toHexStream in the partition layer branch on
+  # char values, and without the baseline's -fsigned-char they compile to
+  # different code than the authority object (uxtb + unsigned compares instead
+  # of signed ones).  Caught by my_docs/bk7258-wifi/tools/mmio_seq.py comparing
+  # the *built* object, not a standalone compile.
+  set_property(SOURCE bk7258_flash_partition.c TARGET_DIRECTORY arch
                PROPERTY COMPILE_OPTIONS "-fsigned-char")
 endif()
 
@@ -142,6 +166,19 @@ if(CONFIG_BK7258_COMPONENT_CP)
                              ${NUTTX_CHIP_ABS_DIR}/armino_baseline/cp/middleware/driver/uart
                              ${NUTTX_CHIP_ABS_DIR}/armino_baseline/cp/components/bk_common/include
                              ${NUTTX_CHIP_ABS_DIR}/armino_baseline/cp/middleware/driver/bk7258
+                             # bk7258_gpio_hal.c needs gpio_driver_base.h for the
+                             # GPIO_LOGW macro the authority picks up there.
+                             ${NUTTX_CHIP_ABS_DIR}/armino_baseline/cp/middleware/driver/gpio
+                             # The flash directory must precede
+                             # wifi/hal_port/include: both carry a
+                             # flash_driver.h, hal_port's is a reduced copy
+                             # without FLASH_MAX_SIZE / FLASH_API_MAGIC_CODE /
+                             # FLASH_SECTOR_SIZE_OFFSET, and it redefines
+                             # flash_op_status_t against the baseline one.
+                             ${NUTTX_CHIP_ABS_DIR}/armino_baseline/cp/middleware/driver/flash
+                             # bk7258_aon_rtc.c keeps its authority signature
+                             # from aon_rtc_driver_64bit.h in this directory.
+                             ${NUTTX_CHIP_ABS_DIR}/armino_baseline/cp/middleware/driver/rtc
                              # bk7258_driver.c and bk7258_dd.c keep their
                              # authority signatures from dd_pub.h and
                              # drv_model.h in this directory.

@@ -30,10 +30,11 @@
  * (DD_HANDLE_MAGIC_WORD 0xA5A50000), so every entry point starts by
  * validating that magic and the index before touching the table.
  *
- * Critical sections are the authority's GLOBAL_INT_DISABLE/RESTORE pair, i.e.
- * rtos_disable_int()/rtos_enable_int() -- the same save-and-restore shape used
- * across the baseline, and the reason the state and use-count updates are not
- * lost between an ISR and a task.
+ * Critical sections are NuttX's up_irq_save()/up_irq_restore() pair rather
+ * than the authority's GLOBAL_INT_* macros: same save-and-restore shape, but
+ * the IRQ state is a NuttX primitive instead of a wrapper over the Armino RTOS
+ * seam.  The state and use-count updates stay inside one section, which is what
+ * keeps an ISR from landing between them.
  *
  * ddev_control() carries one extra guard the others do not have: after the
  * handle check it re-tests idx against DD_MAX_DEV.  It is redundant with
@@ -55,8 +56,9 @@
 
 #include "sdkconfig.h"
 
-#include <os/mem.h>
-#include <os/os.h>
+#include <string.h>
+
+#include <nuttx/irq.h>
 
 #include "bk_drv_model.h"
 #include "drv_model.h"
@@ -76,14 +78,14 @@ static DRV_DEV_S drv_dev_tbl[DD_MAX_DEV] =
 
 UINT32 drv_model_init(void)
 {
-  os_memset(drv_dev_tbl, 0, sizeof(drv_dev_tbl));
+  memset(drv_dev_tbl, 0, sizeof(drv_dev_tbl));
 
   return DRV_SUCCESS;
 }
 
 UINT32 drv_model_uninit(void)
 {
-  os_memset(drv_dev_tbl, 0, sizeof(drv_dev_tbl));
+  memset(drv_dev_tbl, 0, sizeof(drv_dev_tbl));
 
   return DRV_SUCCESS;
 }
@@ -143,7 +145,7 @@ DD_HANDLE ddev_open(dd_device_type dev, UINT32 *status, UINT32 op_flag)
   DRV_DEV_PTR dev_ptr;
   DD_OPERATIONS *operation;
 
-  GLOBAL_INT_DECLARATION();
+  irqstate_t flags;
 
   handle = DD_HANDLE_UNVALID;
   idx = ddev_get_id_from_handle(dev);
@@ -169,18 +171,18 @@ DD_HANDLE ddev_open(dd_device_type dev, UINT32 *status, UINT32 op_flag)
           *status = (operation->open)(op_flag);
         }
 
-      GLOBAL_INT_DISABLE();
+      flags = up_irq_save();
       dev_ptr->state = DD_STATE_OPENED;
       dev_ptr->use_cnt = 0;
-      GLOBAL_INT_RESTORE();
+      up_irq_restore(flags);
     }
   else
     {
     }
 
-  GLOBAL_INT_DISABLE();
+  flags = up_irq_save();
   dev_ptr->use_cnt++;
-  GLOBAL_INT_RESTORE();
+  up_irq_restore(flags);
 
   return handle;
 }
@@ -191,7 +193,7 @@ UINT32 ddev_close(DD_HANDLE handle)
   DRV_DEV_PTR dev_ptr;
   DD_OPERATIONS *operation;
 
-  GLOBAL_INT_DECLARATION();
+  irqstate_t flags;
 
   idx = ddev_get_id_from_handle(handle);
   if (DD_ID_UNVALID == idx)
@@ -201,9 +203,9 @@ UINT32 ddev_close(DD_HANDLE handle)
 
   dev_ptr = &drv_dev_tbl[idx];
 
-  GLOBAL_INT_DISABLE();
+  flags = up_irq_save();
   dev_ptr->use_cnt--;
-  GLOBAL_INT_RESTORE();
+  up_irq_restore(flags);
 
   if (0 == dev_ptr->use_cnt)
     {
@@ -213,9 +215,9 @@ UINT32 ddev_close(DD_HANDLE handle)
           (operation->close)();
         }
 
-      GLOBAL_INT_DISABLE();
+      flags = up_irq_save();
       dev_ptr->state = DD_STATE_CLOSED;
-      GLOBAL_INT_RESTORE();
+      up_irq_restore(flags);
     }
 
   return DRV_SUCCESS;
