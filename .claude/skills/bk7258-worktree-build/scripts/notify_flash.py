@@ -25,11 +25,13 @@ the line to a different baud rate, so no further writes are ever issued.
 
 from __future__ import annotations
 
+import errno
 import os
 import pty
 import select
 import signal
 import sys
+import termios
 import time
 
 
@@ -63,21 +65,72 @@ def child_serial_device(command: list[str]) -> str:
     return device if device is not None else f"/dev/ttyUSB{port}"
 
 
+def write_retry_eagain(fd: int, data: bytes, attempts: int = 20, delay: float = 0.05) -> None:
+    """Write to an O_NONBLOCK tty, riding out a momentarily full TX queue.
+
+    Measured on the desk: the 14-byte injection raised [Errno 11] EAGAIN and the
+    auto reset gave up for the whole 16 s GetBus window, costing a manual K1
+    press.  The queue drains in milliseconds, so retry briefly before failing.
+    """
+    for attempt in range(attempts):
+        try:
+            os.write(fd, data)
+            return
+        except OSError as exc:
+            if exc.errno != errno.EAGAIN or attempt == attempts - 1:
+                raise
+            time.sleep(delay)
+
+
 def inject_reboot_bootloader(device: str) -> bool:
     try:
         fd = os.open(device, os.O_WRONLY | os.O_NOCTTY | os.O_NONBLOCK)
     except OSError as exc:
         banner(f"[BK7258] 自动复位注入失败（无法打开 {device}）：{exc}")
         return False
+    saved = None
     try:
-        os.write(fd, b"\r\n")
+        # The AP NSH console runs at 1,000,000 baud since merge a452910
+        # (CONFIG_BK7258_UART0_BAUD=1000000), but the loader opens the line at
+        # 115200 for the BL2 download handshake.  Write the reboot command at
+        # the console's baud, then restore the loader's setting before the
+        # board actually enters download mode so the handshake still lands at
+        # 115200.  This only touches termios, never reads the device, so the
+        # loader's handshake bytes stay intact.
+        try:
+            saved = termios.tcgetattr(fd)
+            attrs = list(saved)
+            attrs[4] = termios.B1000000  # ISPEED
+            attrs[5] = termios.B1000000  # OSPEED
+            termios.tcsetattr(fd, termios.TCSANOW, attrs)
+        except (termios.error, OSError, AttributeError):
+            # B1000000 unsupported here; write anyway at the current baud.
+            saved = None
+        write_retry_eagain(fd, b"\r\n")
         time.sleep(0.15)
-        os.write(fd, REBOOT_CMD)
+        write_retry_eagain(fd, REBOOT_CMD)
+        # The loader holds the line at 115200; this function only borrows it at
+        # 1,000,000 to talk to the console.  Restoring that termios while the
+        # command is still in the driver's TX queue changes the baud
+        # mid-transmission, which truncates the trailing newline -- the shell
+        # receives the text without the Enter and never runs it (measured: the
+        # injected command silently never executed and GetBus always failed).
+        # Drain first, then give the tail a beat before the restore.
+        try:
+            termios.tcdrain(fd)
+        except (termios.error, OSError):
+            pass
+        time.sleep(0.25)
         return True
     except OSError as exc:
         banner(f"[BK7258] 自动复位注入失败：{exc}")
         return False
     finally:
+        if saved is not None:
+            try:
+                termios.tcsetattr(fd, termios.TCSANOW, saved)
+            except (termios.error, OSError):
+                pass
         os.close(fd)
 
 
