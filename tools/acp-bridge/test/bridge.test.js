@@ -24,8 +24,10 @@ test("maps once to the agent supplied optionId exactly once", () => {
   const snapshot = bridge.ptSubmit(permissionRequest());
   assert.equal(snapshot.prompt.id, promptIdFor("session-1", 42, "tool-9"));
   assert.ok(Buffer.byteLength(snapshot.prompt.id, "utf8") <= 40);
-  assert.match(snapshot.prompt.hint, /\[redacted\]/);
-  assert.doesNotMatch(snapshot.prompt.hint, /never-leak/);
+  /* The hint now shows only the operative field (the command), so a credential
+   * key is not echoed at all — stronger than the old redacted JSON dump. */
+  assert.equal(snapshot.prompt.hint, "git status");
+  assert.doesNotMatch(snapshot.prompt.hint, /never-leak|apiKey/);
 
   const accepted = bridge.receiveDeviceDecision({ id: snapshot.prompt.id, decision: "once" });
   assert.deepEqual(accepted.result, { outcome: { outcome: "selected", optionId: "agent-choice-allow" } });
@@ -63,7 +65,7 @@ test("hints and messages preserve their separate UTF-8 caps", () => {
   const hint = summarizeArguments({ text: "你".repeat(100) });
   const message = summarizeMessage("你".repeat(100));
 
-  assert.ok(Buffer.byteLength(hint, "utf8") <= 96);
+  assert.ok(Buffer.byteLength(hint, "utf8") <= 160);
   assert.ok(Buffer.byteLength(message, "utf8") <= 128);
   assert.ok(hint.endsWith("…"));
   assert.ok(message.endsWith("…"));
@@ -71,15 +73,24 @@ test("hints and messages preserve their separate UTF-8 caps", () => {
   assert.doesNotThrow(() => Buffer.from(message, "utf8").toString("utf8"));
 });
 
+test("hint summarizes the operative field instead of dumping JSON", () => {
+  assert.equal(
+    summarizeArguments({ command: "git push origin HEAD:refs/for/trunk" }),
+    "git push origin HEAD:refs/for/trunk",
+  );
+  const both = summarizeArguments({ path: "examples/hello/hello_main.c", command: "ls" });
+  assert.equal(both, "ls · examples/hello/hello_main.c");
+});
+
 test("opaque prompt IDs remain within the wire contract for long ACP IDs", () => {
   const id = promptIdFor("session-".repeat(50), 42, "tool-".repeat(50));
   assert.equal(Buffer.byteLength(id, "utf8"), 40);
 });
 
-test("tool title remains within the 24-byte display limit", () => {
+test("tool title remains within the 40-byte display limit", () => {
   const bridge = new AcpBridge();
   const snapshot = bridge.ptSubmit(permissionRequest({ toolCall: { toolCallId: "tool-9", title: "你".repeat(20) } }));
-  assert.ok(Buffer.byteLength(snapshot.prompt.tool, "utf8") <= 24);
+  assert.ok(Buffer.byteLength(snapshot.prompt.tool, "utf8") <= 40);
 });
 
 test("agent text redacts inline and JSON-shaped secret fields", () => {

@@ -1,8 +1,24 @@
 import { createHash } from "node:crypto";
 
-const HINT_MAX_BYTES = 96;
+/* The device renders the prompt on a 240x296 round panel, so a hint has to be
+ * short enough to read but long enough to decide on: 160 bytes is ~6-7 lines of
+ * 16 px CJK text inside the approval card.  REMOTE_HINT_MAX in the firmware's
+ * remote_link.h and async_approval_t.hint must stay >= this value. */
+const HINT_MAX_BYTES = 160;
+const TOOL_TITLE_MAX_BYTES = 40;
 const MESSAGE_MAX_BYTES = 128;
 const PROMPT_ID_MAX_BYTES = 40;
+
+/* Fields a human needs in order to decide on a permission prompt, most
+ * operative first.  ACP tools put the payload under different names depending
+ * on the tool (shell / read / write / search / fetch), and the raw JSON dump we
+ * used to show ("external filetory{...}") told the user nothing. */
+const HINT_FIELDS = [
+  "command", "cmd", "script",
+  "path", "filePath", "file_path", "filename", "target", "files",
+  "pattern", "query", "q", "url", "uri",
+  "name", "description", "prompt", "text", "title",
+];
 
 const SENSITIVE_KEY = /(?:api[_-]?key|authorization|cookie|credential|password|secret|token)/i;
 const SENSITIVE_TEXT = /\b(?:api[_ -]?key|authorization|cookie|credential|password|secret|token)\b\s*([:=])\s*(?:Bearer\s+)?[^\s,;]+/gi;
@@ -51,13 +67,75 @@ function redact(value, key = "") {
   return value;
 }
 
-function summarizeArguments(argumentsValue) {
+/* Human-readable one-glance summary of a tool call's input.
+ *
+ * The device shows this under the tool title so a person can decide "approve or
+ * deny" without opening a terminal.  A raw JSON dump was unreadable on a round
+ * 240 px panel, so pick the operative fields (the shell command, the file path,
+ * the search query ...) and join them with a middle dot.  Unknown shapes fall
+ * back to `key=value` pairs, and only then to JSON. */
+/* ACP's `title` is what the agent itself would show in its own UI, so prefer
+ * it; `kind` (e.g. "execute", "edit", "fetch") is the fallback when a backend
+ * sends no title, which is how we used to end up with a generic label. */
+function toolLabel(toolCall) {
+  const title = typeof toolCall?.title === "string" ? toolCall.title.trim() : "";
+  if (title) {
+    return title;
+  }
+  const kind = typeof toolCall?.kind === "string" ? toolCall.kind.trim() : "";
+  if (kind) {
+    return kind;
+  }
+  return "Tool call";
+}
+
+function summarizeArguments(argumentsValue, maxBytes = HINT_MAX_BYTES) {
   if (argumentsValue === undefined || argumentsValue === null) {
     return "";
   }
+
   const redacted = redact(argumentsValue);
-  const rendered = typeof redacted === "string" ? redacted : JSON.stringify(redacted);
-  return utf8Summary(rendered, HINT_MAX_BYTES);
+  const clean = (value) => sanitizeAgentText(String(value)).replace(/\s+/g, " ").trim();
+
+  if (typeof redacted === "string") {
+    return utf8Summary(clean(redacted), maxBytes);
+  }
+  if (Array.isArray(redacted)) {
+    const joined = redacted.map((item) => (typeof item === "string" ? item : "")).filter(Boolean).join(" · ");
+    return utf8Summary(clean(joined || JSON.stringify(redacted)), maxBytes);
+  }
+
+  const parts = [];
+  for (const field of HINT_FIELDS) {
+    const value = redacted[field];
+    let text = "";
+    if (typeof value === "string") {
+      text = value;
+    } else if (Array.isArray(value)) {
+      text = value.filter((item) => typeof item === "string").join(" ");
+    }
+    if (!text.trim()) {
+      continue;
+    }
+    parts.push(clean(text));
+    if (Buffer.byteLength(parts.join(" · "), "utf8") >= maxBytes) {
+      break;
+    }
+  }
+
+  if (parts.length === 0) {
+    for (const [key, value] of Object.entries(redacted)) {
+      if (["string", "number", "boolean"].includes(typeof value) && String(value).trim() !== "") {
+        parts.push(`${key}=${value}`);
+        if (parts.length >= 4) {
+          break;
+        }
+      }
+    }
+  }
+
+  const rendered = parts.length > 0 ? parts.join(" · ") : JSON.stringify(redacted) ?? "";
+  return utf8Summary(clean(rendered), maxBytes);
 }
 
 function summarizeMessage(value) {
@@ -108,7 +186,7 @@ function normalizePermission(params) {
     acpRequestId: requestId,
     prompt: {
       id: promptId,
-      tool: utf8Prefix(typeof toolCall.title === "string" ? toolCall.title : "Tool call", 24),
+      tool: utf8Prefix(toolLabel(toolCall), TOOL_TITLE_MAX_BYTES),
       hint: summarizeArguments(toolCall.rawInput ?? toolCall.input ?? toolCall.arguments),
       canOnce: typeof allowOnce === "string",
       canDeny: typeof rejectOnce === "string",
