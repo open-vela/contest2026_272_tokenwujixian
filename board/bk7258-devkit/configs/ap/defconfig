@@ -192,6 +192,10 @@ CONFIG_AI_AGENT_REMOTE_CTRL=y
 # No media server here: media_recorder/player are weak stubs, so voice
 # needs the direct /dev/audio/pcm0c + pcm0p backend.
 CONFIG_AI_AGENT_AUDIO_NUTTX_DIRECT=y
+# Single analog MIC (16-bit mono capture, no DMIC downmix): gain 6 is the
+# Kconfig default meant to compensate a 6-channel DMIC with 1 active mic,
+# and it clips the real mic to full scale (peak=32768) so ASR hears nothing.
+CONFIG_AI_AGENT_AUDIO_CAPTURE_GAIN=1
 # Default 16 is too small to hold two MCP servers: gerrit exposes 15 tools
 # and jira 16, and discover_server_tools() hands each server
 # (MCP_CLIENT_MAX_TOOLS - total) slots.  At 16 the second server silently
