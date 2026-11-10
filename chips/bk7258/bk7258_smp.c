@@ -78,6 +78,26 @@
 #define BK7258_SMP_PROBE_ITERS            UINT32_C(4096)
 #define BK7258_SMP_PROBE_PEER_WAIT_LOOPS  UINT32_C(50000000)
 
+/* Phase B (CAS stomper): lock-shaped contention on a single shared word
+ * using the exact primitive the runtime scheduler lock uses.  A broken
+ * cross-core exclusive monitor does not necessarily lose plain fetch-adds
+ * (phase A passed on silicon that still deadlocks the scheduler lock); what
+ * it does do is let BOTH cores' STREX report success on the same word.  The
+ * read-back after each successful seize can only disagree if a foreign
+ * store overwrote our ownership, because the peer can never legally take a
+ * non-zero word. */
+
+#define BK7258_SMP_PROBE_CAS_ITERS        UINT32_C(8192)
+
+/* Bounded seize retry: when the monitor enters a state where our STREX
+ * can never win, an unbounded inner loop would wedge the boot BEFORE the
+ * probe can fail -- observed as bootmark stuck at CPU2_GATE_WAIT on 2 of
+ * 7 real boots.  Give each seize 1024 tries; exhaustion counts as a
+ * loss, fails the probe and parks CPU2 (the failsafe that was designed
+ * for exactly this part behavior). */
+
+#define BK7258_SMP_PROBE_CAS_RETRIES      UINT32_C(1024)
+
 /* CPU1 scheduler-gate spin bound (v5).  bk7258_cpu2_boot() holds CPU2 out of
  * the shared scheduler until CPU0 finished constructing the early-board
  * threads; the bound only prevents the secondary core from spinning forever
@@ -163,12 +183,122 @@ static atomic_t g_smp_probe_go;
 static atomic_t g_smp_probe_fadd;
 static atomic_t g_smp_probe_c2done;
 
+/* Phase B shared word: 0 = free, otherwise (cpu + 1) ownership tag. */
+
+static volatile uint32_t g_smp_probe_cas;
+static atomic_t g_smp_probe_stomps;
+
 static void bk7258_smp_probe_reset(void)
 {
   atomic_set(&g_smp_probe_go, 0);
   atomic_set(&g_smp_probe_fadd, 0);
   atomic_set(&g_smp_probe_c2done, 0);
+  atomic_set(&g_smp_probe_stomps, 0);
+  g_smp_probe_cas = 0;
   __asm__ volatile ("dsb" : : : "memory");
+}
+
+static void bk7258_smp_probe_cas_phase(int cpu)
+{
+  uint32_t i;
+  uint32_t stomps = 0;
+
+  for (i = 0; i < BK7258_SMP_PROBE_CAS_ITERS; i++)
+    {
+      uint32_t expect = 0;
+      uint32_t tries;
+
+      for (tries = 0; tries < BK7258_SMP_PROBE_CAS_RETRIES; tries++)
+        {
+          expect = 0;
+
+          if (__atomic_compare_exchange_n(&g_smp_probe_cas, &expect,
+                                          (uint32_t)cpu + 1, false,
+                                          __ATOMIC_ACQUIRE,
+                                          __ATOMIC_RELAXED))
+            {
+              break;
+            }
+        }
+
+      if (tries == BK7258_SMP_PROBE_CAS_RETRIES)
+        {
+          /* Seize never succeeded: the monitor is not arbitrating in our
+           * favor this boot.  Force-release the word so the peer can move,
+           * count the loss and move on; the evaluation below fails the
+           * probe and parks CPU2. */
+
+          stomps++;
+          __atomic_store_n(&g_smp_probe_cas, 0, __ATOMIC_RELEASE);
+          continue;
+        }
+
+      /* Verify we really own the word.  Only a foreign store that clobbered
+       * our successful STREX can produce a mismatch here. */
+
+      if (g_smp_probe_cas != (uint32_t)cpu + 1)
+        {
+          stomps++;
+        }
+
+      __atomic_store_n(&g_smp_probe_cas, 0, __ATOMIC_RELEASE);
+    }
+
+  if (stomps != 0)
+    {
+      atomic_add(&g_smp_probe_stomps, (atomic_t)stomps);
+    }
+}
+
+static void bk7258_smp_probe_fadd_phase(int cpu)
+{
+  uint32_t i;
+  uint32_t loss = 0;
+
+  /* Same semantics as atomic_add(&g_smp_probe_fadd, 1) but with a bounded
+   * LDREX/STREX retry per operation: the raw arch loop retries forever
+   * while the exclusive monitor misbehaves, which wedged one boot for ~60
+   * seconds (bootmark stuck at CPU2_GATE_WAIT, self-recovered) before this
+   * bounding existed.  A lost increment fails the probe exactly like the
+   * unbounded version losing it silently. */
+
+  for (i = 0; i < BK7258_SMP_PROBE_ITERS; i++)
+    {
+      uint32_t expect;
+      uint32_t tries;
+
+      for (tries = 0; tries < BK7258_SMP_PROBE_CAS_RETRIES; tries++)
+        {
+          expect = __atomic_load_n(&g_smp_probe_fadd, __ATOMIC_RELAXED);
+
+          if (__atomic_compare_exchange_n(&g_smp_probe_fadd, &expect,
+                                          expect + 1, false,
+                                          __ATOMIC_ACQUIRE,
+                                          __ATOMIC_RELAXED))
+            {
+              break;
+            }
+        }
+
+      if (tries == BK7258_SMP_PROBE_CAS_RETRIES)
+        {
+          /* Could not win the word this boot: the monitor is not
+           * arbitrating.  Write the increment with a plain store (matching
+           * the probe's job: characterize the monitor, not survive it) and
+           * count the loss. */
+
+          loss++;
+          __atomic_store_n(&g_smp_probe_fadd,
+                           __atomic_load_n(&g_smp_probe_fadd,
+                                           __ATOMIC_RELAXED) + 1,
+                           __ATOMIC_RELEASE);
+        }
+    }
+
+  if (loss != 0)
+    {
+      atomic_add(&g_smp_probe_stomps, (atomic_t)loss);
+    }
 }
 
 static void bk7258_smp_probe_cpu2(void)
@@ -187,10 +317,9 @@ static void bk7258_smp_probe_cpu2(void)
         }
     }
 
-  for (i = 0; i < BK7258_SMP_PROBE_ITERS; i++)
-    {
-      (void)atomic_add(&g_smp_probe_fadd, 1);
-    }
+  bk7258_smp_probe_fadd_phase(1);
+
+  bk7258_smp_probe_cas_phase(1);
 
   atomic_set(&g_smp_probe_c2done, 1);
   __asm__ volatile ("dsb" : : : "memory");
@@ -222,10 +351,13 @@ static void bk7258_smp_probe_run(void)
   atomic_set(&g_smp_probe_go, 1);
   __asm__ volatile ("dsb" : : : "memory");
 
-  for (i = 0; i < BK7258_SMP_PROBE_ITERS; i++)
-    {
-      (void)atomic_add(&g_smp_probe_fadd, 1);
-    }
+  bk7258_smp_probe_fadd_phase(0);
+
+  /* Overlap both cores' CAS phases: CPU2 runs its loop before raising
+   * c2done, so CPU1 hammering here makes the seize/release contention
+   * genuinely concurrent. */
+
+  bk7258_smp_probe_cas_phase(0);
 
   for (i = 0; i < BK7258_SMP_PROBE_PEER_WAIT_LOOPS; i++)
     {
@@ -237,6 +369,11 @@ static void bk7258_smp_probe_run(void)
     }
 
   loss = (2 * BK7258_SMP_PROBE_ITERS) - atomic_read(&g_smp_probe_fadd);
+
+  /* Phase B must also be complete: c2done is set after CPU2's CAS loop, so
+   * the peer's stomp count is final here. */
+
+  loss += atomic_read(&g_smp_probe_stomps);
 
   if (loss == 0)
     {

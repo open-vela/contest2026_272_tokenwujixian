@@ -27,6 +27,18 @@
 #define BK7258_AP_MONITOR_STACK_SIZE     2048
 #define BK7258_AP_STALL_SAMPLES          3
 #define BK7258_AP_UART_TOKEN_SAMPLES     15 /* s an AP dump may hold UART0 */
+
+/* Without the nuttx-core fixes the AP can die in classes board code cannot
+ * prevent (the upstream recursive-spinlock lost-update class among them);
+ * every observed death ends the same way: the heartbeat stops.  Restart the
+ * AP from the CP once the death is confirmed -- the recover primitive is the
+ * same one the generation-change branch uses and needs no cooperation from
+ * the wedged core. */
+
+#define BK7258_AP_STALL_RECOVER_SAMPLES  13 /* s heartbeat stagnant -> restart */
+#define BK7258_AP_DEAD_RECOVER_SAMPLES   30 /* s no record at all -> restart */
+#define BK7258_AP_BOOT_TIMEOUT_SAMPLES   30 /* s boot ladder not finished -> restart */
+#define BK7258_AP_RECOVER_ATTEMPTS_MAX   5  /* consecutive restarts, then give up */
 #define BK7258_AP_POWER_STABILIZE_LOOPS  1000
 #define BK7258_AP_POWER_WAIT_LOOPS       10000
 #define BK7258_AP_RESET_WAIT_ATTEMPTS    50
@@ -662,6 +674,50 @@ out:
   return ret;
 }
 
+/* Board-only transport recovery dispatcher.  The generic RPTUN stop path
+ * (rptun_poweroff -> rptun_dev_stop) kills and waitpid()s the "ap" rptun
+ * worker thread, whose pid goes stale the moment the worker finishes
+ * registering the devices: waitpid() then either errors out or -- worse --
+ * blocks forever on a REUSED pid.  That path is only safe when the AP really
+ * did run long enough to bind the transport, which is what the 30-round
+ * soak exercised.  For a generation that never reached the scheduler there
+ * is nothing bound on the CP side: skip the framework entirely and restart
+ * CPU1 through the board's own start primitive (force-reset, contract
+ * check, bounded release), trading the RPMsg transport for a live console.
+ *
+ * Returns true when the caller must reset its per-generation state. */
+
+static bool bk7258_ap_monitor_recover(bool was_running, uint32_t seq,
+                                      unsigned int attempt)
+{
+  int ret;
+
+  if (was_running)
+    {
+      syslog(LOG_ERR,
+             "[AP] restarting from CP, seq=%u (%u/%u)\n",
+             (unsigned int)seq, attempt, BK7258_AP_RECOVER_ATTEMPTS_MAX);
+      ret = bk7258_ap_recover_transport();
+    }
+  else
+    {
+      syslog(LOG_ERR,
+             "[AP] boot never reached scheduler; direct restart seq=%u "
+             "(%u/%u), rpmsg down until CP reboot\n",
+             (unsigned int)seq, attempt, BK7258_AP_RECOVER_ATTEMPTS_MAX);
+      g_ap_started = false;
+      ret = board_start_cpu(1);
+    }
+
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "[AP] restart failed ret=%d\n", ret);
+      return false;
+    }
+
+  return true;
+}
+
 /* Print the AP panic record.  The AP writes it once without and once with
  * its backtrace, so give the unwinder a moment before reading. */
 
@@ -701,6 +757,150 @@ static void bk7258_ap_print_panic(uint32_t boot_sequence)
     }
 }
 
+/* Temporary SMP bring-up forensics: dump the AP's rspin CAS-stall table
+ * from the SWAP region.  The AP appends a snapshot there whenever a CAS
+ * wait inside rspin_lock() exceeds ~2**20 retries (see
+ * sched/misc/assert.c in the nuttx tree); when the monitor first reports
+ * the AP as stalled we print the newest records: which lock, who owned it,
+ * who was waiting, from where.  Bring-up forensics only, do not upstream. */
+
+#define BK7258_SWAP_STALL_OFFSET     0x280
+#define BK7258_SWAP_STALL_SEQ_OFFSET 0x340
+#define BK7258_SWAP_BW_OFFSET        0x380
+#define BK7258_SWAP_BW_SEQ_OFFSET    0x440
+#define BK7258_SWAP_RPWA_OFFSET      0x480
+#define BK7258_SWAP_RPWA_SEQ_OFFSET  0x4e0
+#define BK7258_SWAP_RPWC_OFFSET      0x500
+#define BK7258_SWAP_RPWC_SEQ_OFFSET  0x560
+#define BK7258_SWAP_STALL_NSLOT      8
+#define BK7258_SWAP_STALL_MAGIC      UINT32_C(0x4d4d5458) /* "MMTX" */
+#define BK7258_SWAP_BW_MAGIC         UINT32_C(0x4d425759) /* "MBWY" */
+#define BK7258_SWAP_RPW_MAGIC        UINT32_C(0x4d525057) /* "MRPW" */
+
+/* Print the newest records of both SWAP forensics tables.  Order matters:
+ * the UART TX path wedges shortly after the first stall report, so the
+ * record lines go out first and the (less interesting) counters last. */
+
+static void bk7258_ap_stall_dump(bool replay)
+{
+  FAR const volatile uint32_t *cas_base =
+    (FAR const volatile uint32_t *)(BK7258_SWAP_BASE +
+                                    BK7258_SWAP_STALL_OFFSET);
+  FAR const volatile uint32_t *bw_base =
+    (FAR const volatile uint32_t *)(BK7258_SWAP_BASE +
+                                    BK7258_SWAP_BW_OFFSET);
+  FAR const volatile uint32_t *rpw_a_base =
+    (FAR const volatile uint32_t *)(BK7258_SWAP_BASE +
+                                    BK7258_SWAP_RPWA_OFFSET);
+  FAR const volatile uint32_t *rpw_c_base =
+    (FAR const volatile uint32_t *)(BK7258_SWAP_BASE +
+                                    BK7258_SWAP_RPWC_OFFSET);
+  uint32_t cas_seq = *(FAR const volatile uint32_t *)
+    (BK7258_SWAP_BASE + BK7258_SWAP_STALL_SEQ_OFFSET);
+  uint32_t bw_seq = *(FAR const volatile uint32_t *)
+    (BK7258_SWAP_BASE + BK7258_SWAP_BW_SEQ_OFFSET);
+  uint32_t ap_rpw_seq = *(FAR const volatile uint32_t *)
+    (BK7258_SWAP_BASE + BK7258_SWAP_RPWA_SEQ_OFFSET);
+  uint32_t cp_rpw_seq = *(FAR const volatile uint32_t *)
+    (BK7258_SWAP_BASE + BK7258_SWAP_RPWC_SEQ_OFFSET);
+  uint32_t n;
+
+  for (n = 0; n < BK7258_SWAP_STALL_NSLOT && n < cas_seq; n++)
+    {
+      FAR const volatile uint32_t *s =
+        cas_base + ((cas_seq - n - 1) & (BK7258_SWAP_STALL_NSLOT - 1)) * 6;
+
+      if (s[0] != BK7258_SWAP_STALL_MAGIC)
+        {
+          continue;
+        }
+
+      syslog(LOG_ERR,
+             "[AP] %srec: lock=0x%08x own=0x%04x cnt=0x%04x lr=0x%08x "
+             "pid=%u cpu=%u spins=%u\n",
+             replay ? "prev-" : "",
+             (unsigned int)s[1],
+             (unsigned int)(s[2] & 0xffffu),
+             (unsigned int)(s[2] >> 16),
+             (unsigned int)s[3],
+             (unsigned int)(s[4] >> 16),
+             (unsigned int)(s[4] & 0xffffu),
+             (unsigned int)s[5]);
+    }
+
+  for (n = 0; n < BK7258_SWAP_STALL_NSLOT && n < bw_seq; n++)
+    {
+      FAR const volatile uint32_t *s =
+        bw_base + ((bw_seq - n - 1) & (BK7258_SWAP_STALL_NSLOT - 1)) * 6;
+
+      if (s[0] != BK7258_SWAP_BW_MAGIC)
+        {
+          continue;
+        }
+
+      syslog(LOG_ERR,
+             "[AP] %sbw: marker=0x%08x lr=0x%08x pid=%u cpu=%u spins=%u\n",
+             replay ? "prev-" : "",
+             (unsigned int)s[1],
+             (unsigned int)s[3],
+             (unsigned int)(s[4] >> 16),
+             (unsigned int)(s[4] & 0xffffu),
+             (unsigned int)s[2]);
+    }
+
+  /* RPW tables: the AP kernel appends to RPWA, the CP kernel to RPWC. */
+
+  for (n = 0; n < BK7258_SWAP_STALL_NSLOT && n < ap_rpw_seq; n++)
+    {
+      FAR const volatile uint32_t *s =
+        rpw_a_base + ((ap_rpw_seq - n - 1) & (BK7258_SWAP_STALL_NSLOT - 1)) * 6;
+
+      if (s[0] != BK7258_SWAP_RPW_MAGIC)
+        {
+          continue;
+        }
+
+      syslog(LOG_ERR,
+             "[AP] %srpw-a: marker=0x%08x val=%u lr=0x%08x pid=%u cpu=%u\n",
+             replay ? "prev-" : "",
+             (unsigned int)s[1],
+             (unsigned int)s[2],
+             (unsigned int)s[3],
+             (unsigned int)(s[4] >> 16),
+             (unsigned int)(s[4] & 0xffffu));
+    }
+
+  for (n = 0; n < BK7258_SWAP_STALL_NSLOT && n < cp_rpw_seq; n++)
+    {
+      FAR const volatile uint32_t *s =
+        rpw_c_base + ((cp_rpw_seq - n - 1) & (BK7258_SWAP_STALL_NSLOT - 1)) * 6;
+
+      if (s[0] != BK7258_SWAP_RPW_MAGIC)
+        {
+          continue;
+        }
+
+      syslog(LOG_ERR,
+             "[AP] %srpw-c: marker=0x%08x val=%u lr=0x%08x pid=%u cpu=%u\n",
+             replay ? "prev-" : "",
+             (unsigned int)s[1],
+             (unsigned int)s[2],
+             (unsigned int)s[3],
+             (unsigned int)(s[4] >> 16),
+             (unsigned int)(s[4] & 0xffffu));
+    }
+
+  syslog(LOG_ERR, "[AP] %sstall-cnt cas=%u bw=%u rpw-a=%u rpw-c=%u\n",
+         replay ? "prev-" : "",
+         (unsigned int)cas_seq, (unsigned int)bw_seq,
+         (unsigned int)ap_rpw_seq, (unsigned int)cp_rpw_seq);
+}
+
+static void bk7258_ap_stall_forensics(void)
+{
+  bk7258_ap_stall_dump(false);
+}
+
 static int bk7258_ap_monitor(int argc, char *argv[])
 {
   struct bk7258_ap_boot_record_s record;
@@ -713,9 +913,17 @@ static int bk7258_ap_monitor(int argc, char *argv[])
   bool stalled_reported = false;
   bool heartbeat_seen = false;
   unsigned int token_samples = 0;
+  unsigned int recover_attempts = 0;
+  unsigned int boot_samples = 0;
+  bool ap_ever_running = false; /* this generation reached the scheduler */
 
   (void)argc;
   (void)argv;
+
+  /* SWAP survives chip resets, so a table filled by the previous boot's
+   * stall is still here: replay it once while the console is healthy. */
+
+  bk7258_ap_stall_dump(true);
 
   for (; ; )
     {
@@ -746,6 +954,7 @@ static int bk7258_ap_monitor(int argc, char *argv[])
                      (unsigned int)g_ap_boot_sequence,
                      (unsigned int)record.boot_sequence);
               (void)bk7258_ap_recover_transport();
+              ap_ever_running = false; /* the CP-armed generation is fresh */
               nxsig_usleep(1000 * 1000);
               continue;
             }
@@ -758,6 +967,32 @@ static int bk7258_ap_monitor(int argc, char *argv[])
                      "[AP] no valid record for seq=%u\n",
                      (unsigned int)g_ap_boot_sequence);
               invalid_reported = true;
+            }
+
+          /* A boot that wedges before the scheduler never writes a
+           * heartbeat to watch.  Once the boot window is long past with no
+           * record at all, the released core is wedged: restart it from the
+           * CP.  A healthy self-reboot re-writes its record within seconds
+           * and resets this window, so only a real wedge gets here. */
+
+          if (invalid_samples >= BK7258_AP_DEAD_RECOVER_SAMPLES &&
+              recover_attempts < BK7258_AP_RECOVER_ATTEMPTS_MAX)
+            {
+              recover_attempts++;
+              syslog(LOG_ERR,
+                     "[AP] no record for %u s seq=%u\n",
+                     BK7258_AP_DEAD_RECOVER_SAMPLES,
+                     (unsigned int)g_ap_boot_sequence);
+              if (bk7258_ap_monitor_recover(false, g_ap_boot_sequence,
+                                            recover_attempts))
+                {
+                  invalid_samples = 0;
+                  invalid_reported = false;
+                  ap_ever_running = false;
+                  last_stage = BK7258_AP_STAGE_RESET_ENTERED;
+                  last_heartbeat = 0;
+                  heartbeat_seen = false;
+                }
             }
 
           nxsig_usleep(1000 * 1000);
@@ -808,12 +1043,16 @@ static int bk7258_ap_monitor(int argc, char *argv[])
 
       if (record.stage == BK7258_AP_STAGE_SCHEDULER_RUNNING)
         {
+          boot_samples = 0;
+          ap_ever_running = true;
+
           if (record.heartbeat != last_heartbeat)
             {
               stagnant_samples = 0;
               stalled_reported = false;
               last_heartbeat = record.heartbeat;
               heartbeat_seen = true;
+              recover_attempts = 0; /* a live heartbeat refills the budget */
             }
           else if (heartbeat_seen)
             {
@@ -826,7 +1065,66 @@ static int bk7258_ap_monitor(int argc, char *argv[])
                          (unsigned int)record.boot_sequence,
                          (unsigned int)record.heartbeat,
                          stagnant_samples);
+                  bk7258_ap_stall_forensics();
                   stalled_reported = true;
+                }
+
+              /* The heartbeat is confirmed dead and forensics are on the
+               * SWAP: nothing on the AP is going to unpick the wedge by
+               * itself.  Restart it from the CP; the fresh generation
+               * re-runs the boot ladder and the console re-attaches. */
+
+              if (stagnant_samples >= BK7258_AP_STALL_RECOVER_SAMPLES &&
+                  recover_attempts < BK7258_AP_RECOVER_ATTEMPTS_MAX)
+                {
+                  recover_attempts++;
+                  syslog(LOG_ERR,
+                         "[AP] heartbeat stagnant %u s seq=%u\n",
+                         BK7258_AP_STALL_RECOVER_SAMPLES,
+                         (unsigned int)record.boot_sequence);
+                  if (bk7258_ap_monitor_recover(true, record.boot_sequence,
+                                                recover_attempts))
+                    {
+                      stagnant_samples = 0;
+                      stalled_reported = false;
+                      heartbeat_seen = false;
+                      ap_ever_running = false;
+                      last_stage = BK7258_AP_STAGE_RESET_ENTERED;
+                      last_heartbeat = 0;
+                    }
+                }
+            }
+        }
+      else if (record.stage != BK7258_AP_STAGE_FAULT &&
+               record.boot_sequence == g_ap_boot_sequence)
+        {
+          /* The start proof passed (this sequence is the one the start path
+           * armed) but the boot ladder never reached the scheduler: the
+           * released core wedged somewhere between reset-entered and its
+           * first heartbeat.  Nothing on the AP can observe this state by
+           * definition -- a running kernel would have advanced the record --
+           * so time it out here.  A FAULT stage is excluded: that is the
+           * deliberate park of a failed probe, not a wedge. */
+
+          boot_samples++;
+          if (boot_samples >= BK7258_AP_BOOT_TIMEOUT_SAMPLES &&
+              recover_attempts < BK7258_AP_RECOVER_ATTEMPTS_MAX)
+            {
+              recover_attempts++;
+              syslog(LOG_ERR,
+                     "[AP] boot stalled at stage=%s for %u s seq=%u\n",
+                     bk7258_ap_stage_name(record.stage),
+                     BK7258_AP_BOOT_TIMEOUT_SAMPLES,
+                     (unsigned int)record.boot_sequence);
+              if (bk7258_ap_monitor_recover(ap_ever_running,
+                                            record.boot_sequence,
+                                            recover_attempts))
+                {
+                  boot_samples = 0;
+                  ap_ever_running = false;
+                  last_stage = BK7258_AP_STAGE_RESET_ENTERED;
+                  last_heartbeat = 0;
+                  heartbeat_seen = false;
                 }
             }
         }
