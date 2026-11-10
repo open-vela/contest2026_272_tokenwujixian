@@ -34,7 +34,7 @@ description: "Use when 需要在 BK7258 真机(串口 /dev/ttyUSB0)驱动并判�
 | # | 步骤 | 命令(提示符) | 标志性节点 |
 |---|---|---|---|
 | 0 | 烧录 | `full_flow.sh --image <all-app.bin> --worktree <repo> --flash --device /dev/ttyUSB0` | `connect success` → `Gotten Bus...` → `Writing Flash OK`,烧完停在 `nsh-ap>` |
-| 1 | 开串口 | `sudo minicom -o -D /dev/ttyUSB0 -b 115200` | `nsh-ap>` |
+| 1 | 开串口 | `sudo minicom -o -D /dev/ttyUSB0 -b 1000000`(**AP 控制台物理线速率是 1 Mbaud**,`CONFIG_BK7258_UART0_BAUD=1000000`;开 115200 会全静默,那不是挂死) | `nsh-ap>` |
 | 2 | 联网 | `wapi connect "<SSID>" <密码>`(`nsh-ap>`) | `BK STA got ip4` / `wlan0 ip` |
 | 3 | 启动 | `ai_agent`(`nsh-ap>`) | `vela>` + `[pet_view] pet screen shown` |
 | 4 | 配模型 | `set_dns 10.237.25.8` → `set_llm http://model.mify.ai.srv deepseek/deepseek-flash <api_key>` → `config_show`(`vela>`) | `[llm] LLM config updated atomically: ...` |
@@ -45,12 +45,12 @@ description: "Use when 需要在 BK7258 真机(串口 /dev/ttyUSB0)驱动并判�
 | 命令 | 作用 |
 |---|---|
 | `set_pet 0..5` | 设宠物状态(0 待机/1 听音/2 思考/3 执行/4 等待/5 错误) |
-| `set_page 0\|1` / `show_chat` | 切宠物页/粒子页 / 切聊天屏 |
+| `set_page 0` / `show_chat` | 回宠物主页(**只有 page 0**,粒子页已删;传 1 会打印 `set_page: only page 0 (pet home) exists`) / 切聊天屏 |
 | `ask <文本>` | 真实 agent 生命周期(驱动 chat + 状态机) |
 | `rpending <tool> [hint]` | 造一个假审批(S2/S3 决定;CLI `ronce`/`rdeny` 关不掉) |
 | `voice_start`/`voice_stop` | 只驱动音频/ASR,**不驱动 UI**;语音 UI 支线必须物理按 S1 |
 | `config_show` / `net_status` | 查凭据配置 / 联网状态 |
-| `set_ptype 0..4` | 换宠物形象(0 白猫/1 绿青蛙/2 黑猫/3 棕狗/4 粉猪) |
+| `set_ptype [0..3]` | 换宠物形象(**0 猫 / 1 青蛙 / 2 狗 / 3 猪**,黑猫已删)。每次烧录后首启随机定一只并持久化,运行中切页面不换;无参只回显当前编号 |
 | `sync_time` | 查时钟与 SNTP 状态;待机屏日期时间靠它对齐(联网后自动对时) |
 
 ## 判定与脱敏

@@ -1,6 +1,6 @@
 # 联网 + 模型配置流程(真机)
 
-> 适用范围:整片烧录后的 BK7258 真机,AP 侧 NSH 控制台 `/dev/ttyUSB0`(115200)。
+> 适用范围:整片烧录后的 BK7258 真机,AP 侧 NSH 控制台 `/dev/ttyUSB0`(**1000000**,即 1 Mbaud;按 115200 开是全静默,不是挂死)。
 > 两步配置是 `ask` / PTT 的前置:先让 AP 出网,再告诉 agent 用哪个模型。
 > 本文只写「怎么配、怎么确认、坑在哪」,界面顺序与观察点见
 > [ui-flow-and-test.md](ui-flow-and-test.md),判据见 [main_loop.md](main_loop.md) §0。
@@ -163,7 +163,7 @@ sntp   synced (re-syncs every 30 min)
 
 ## 3. 自动化驱动方式(串口脚本)
 
-- 用 pyserial 直接开 `/dev/ttyUSB0`(115200),不要经 minicom。
+- 用 pyserial 直接开 `/dev/ttyUSB0`(**1000000**,1 Mbaud),不要经 minicom。
 - **先写 `\r\n` 再等提示符**,否则永远等不到(板子不主动输出)。
 - 一次性从 `../scripts/cmd_scripts.sh` 里取 `set_llm` 整行原样下发,避免脚本文本里再存一份 key。
 - 落到文件的日志**必须把 key 打码**再存/提交(见 `contest-log-redact` skill)。
