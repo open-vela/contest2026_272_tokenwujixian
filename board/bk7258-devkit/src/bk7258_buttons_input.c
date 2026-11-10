@@ -68,6 +68,7 @@ struct remote_input_ops_s
                 remote_action_fn session_new,
                 remote_dismiss_fn dismiss,
                 remote_wake_fn wake,
+                remote_action_fn back,
                 void *ctx);
   void (*detach)(void);
 };
@@ -173,6 +174,7 @@ static void action_scroll_up(void);
 static void action_scroll_down(void);
 static void action_model(void);
 static void action_session(void);
+static void action_back(void);
 
 static const struct keymap_s g_global_map[] =
 {
@@ -181,21 +183,29 @@ static const struct keymap_s g_global_map[] =
 
 /* Idle: KEY2/KEY3 scroll the chat transcript on a tap, or cycle the remote
  * model / open a fresh session on a hold.  KEY1 (GPIO13) is push-to-talk,
- * owned by ai_agent's ptt_button thread on its own /dev/btn0 open. */
+ * owned by ai_agent's ptt_button thread on its own /dev/btn0 open.
+ *
+ * Both keys together is the way back to the pet home screen: the chat screen
+ * stays up until it is asked to leave, and a person should not have to wait
+ * out the idle timer to get home. */
 static const struct keymap_s g_idle_map[] =
 {
   { KEY_BIT(1), GESTURE_TAP,    action_scroll_up },
   { KEY_BIT(2), GESTURE_TAP,    action_scroll_down },
   { KEY_BIT(1), GESTURE_HOLD,   action_model },
   { KEY_BIT(2), GESTURE_HOLD,   action_session },
+  { KEY_BIT(1) | KEY_BIT(2), GESTURE_COMBO, action_back },
 };
 
 /* Approval: pushed on top of idle while a permission request is pending, so
- * the same two keys answer it instead of scrolling. */
+ * the same two keys answer it instead of scrolling.  The combo keeps its
+ * "abandon the decision" meaning here rather than becoming a back key: while
+ * an approval is on screen, leaving the page must not look like an answer. */
 static const struct keymap_s g_approval_map[] =
 {
   { KEY_BIT(1), GESTURE_TAP,    action_once },
   { KEY_BIT(2), GESTURE_TAP,    action_deny },
+  { KEY_BIT(1) | KEY_BIT(2), GESTURE_COMBO, action_cancel },
 };
 
 static const struct keyctx_s g_global_ctx =
@@ -300,11 +310,26 @@ static remote_action_fn s_model_next;
 static remote_action_fn s_session_new;
 static remote_dismiss_fn s_dismiss;
 static remote_wake_fn s_wake;
+static remote_action_fn s_back;
 static void *s_ctx;
 
+/* Cancel stays a diagnostic on purpose: abandoning a permission request is
+ * not a decision, so it must never be reported as one. */
 static void action_cancel(void)
 {
   printf("[key] cancel\n");
+}
+
+static void action_back(void)
+{
+  if (s_back != NULL)
+    {
+      s_back(s_ctx);
+    }
+  else
+    {
+      printf("[key] back (no input adapter)\n");
+    }
 }
 
 static void action_once(void)
@@ -386,6 +411,7 @@ static int keymap_attach(remote_decide_fn decide,
                          remote_action_fn session_new,
                          remote_dismiss_fn dismiss,
                          remote_wake_fn wake,
+                         remote_action_fn back,
                          void *ctx)
 {
   s_decide = decide;
@@ -395,6 +421,7 @@ static int keymap_attach(remote_decide_fn decide,
   s_session_new = session_new;
   s_dismiss = dismiss;
   s_wake = wake;
+  s_back = back;
   s_ctx = ctx;
   return 0;
 }
@@ -408,6 +435,7 @@ static void keymap_detach(void)
   s_session_new = NULL;
   s_dismiss = NULL;
   s_wake = NULL;
+  s_back = NULL;
   s_ctx = NULL;
 }
 
