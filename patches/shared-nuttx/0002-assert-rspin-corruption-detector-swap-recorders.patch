@@ -1,0 +1,214 @@
+diff --git a/sched/misc/assert.c b/sched/misc/assert.c
+index 8ea8aa07b27..78c75e9cb4a 100644
+--- a/sched/misc/assert.c
++++ b/sched/misc/assert.c
+@@ -38,10 +38,195 @@
+ #include <nuttx/tls.h>
+ #include <nuttx/signal.h>
+ #include <nuttx/sched.h>
++#include <nuttx/spinlock.h>
++#include <nuttx/percpu.h>
+ #ifdef CONFIG_ARCH_LEDS
+ #  include <arch/board/board.h>
+ #endif
+ #include <nuttx/panic_notifier.h>
++
++#if defined(CONFIG_SMP) && defined(CONFIG_DEBUG_ALERT)
++/* Optional chip/board hook: prints critical-section bookkeeping forensics
++ * from dump_assert_info() before the register dump.  Weak: the symbol is
++ * only defined by ports that implement the forensics (e.g. bk7258). */
++
++extern void sched_csection_diag_dump(void) weak_function;
++#endif
++
++#if defined(CONFIG_SMP) && defined(CONFIG_SPINLOCK)
++/* Temporary SMP bring-up forensics (diag layer, do not upstream).  Backing
++ * store for the rspin_diag_rec() ring declared in include/nuttx/spinlock.h:
++ * a per-CPU circular history of critical-section bookkeeping ops
++ * ([op|isr-flag, pid, lock val owner:16|count:16, caller]) plus the
++ * corruption trap that dumps the ring before asserting. */
++
++volatile uint32_t g_rspin_hist[CONFIG_SMP_NCPUS][RSPIN_DIAG_ENTRIES][4];
++volatile uint32_t g_rspin_hist_seq[CONFIG_SMP_NCPUS];
++
++void rspin_corrupt_fail(FAR volatile rspinlock_t *lock) noinstrument_function;
++
++void rspin_corrupt_fail(FAR volatile rspinlock_t *lock)
++{
++  uint32_t cpu = (uint32_t)this_cpu();
++  uint32_t i;
++
++  _alert("rspinlock corrupt: cpu=%u lock=%p val=%08lx owner=%u count=%u\n",
++         cpu, lock, (unsigned long)atomic_read(&lock->val),
++         lock->owner, lock->count);
++
++  for (i = 0; i < RSPIN_DIAG_ENTRIES; i++)
++    {
++      _alert("rspin hist[%u][%u]: op=%04x isr=%u pid=%u val=%08lx lr=%08x\n",
++             cpu, i,
++             g_rspin_hist[cpu][i][0] & 0xffffu,
++             (g_rspin_hist[cpu][i][0] >> 8) & 1u,
++             g_rspin_hist[cpu][i][1],
++             (unsigned long)g_rspin_hist[cpu][i][2],
++             (unsigned long)g_rspin_hist[cpu][i][3]);
++    }
++
++  __assert(__ASSERT_FILE__, __ASSERT_LINE__,
++           "rspinlock owner/count corrupted");
++}
++
++/* Temporary SMP bring-up forensics: CAS-stall recorder (declared in
++ * include/nuttx/spinlock.h, called from the rspin_lock() CAS loop when a
++ * wait exceeds RSPIN_DIAG_CAS_RECORD_EVERY retries).  Appends a snapshot of
++ * the stuck wait to a fixed table in the BK7258 SWAP region so the CP
++ * monitor can read it after the AP console dies:
++ *
++ *   SWAP base 0x2809f800 + 0x280 : 8 slots x 6 words
++ *     [0] magic "MMTX"    [1] lock address   [2] val (owner:16|count:16)
++ *     [3] caller          [4] pid<<16|cpu    [5] CAS retries
++ *   SWAP base + 0x340            : number of records written so far
++ *
++ * A second table records non-spinlock busy-wait loops (rptun mailbox kick
++ * retries and friends) the same way at +0x380, count at +0x440, magic
++ * "MBWY".  Offsets chosen to stay clear of the boot record (0x000), the
++ * panic record (0x100) and the AP image contract (0x200).
++ *
++ * Lock-free: the only writers are the two AP CPUs (slot index allocated by
++ * a fetch-add, records then written with plain stores), the only reader is
++ * the CP monitor.  Bring-up forensics only, do not upstream. */
++
++#define BK7258_SWAP_STALL_BASE   UINT32_C(0x2809fa80)
++#define BK7258_SWAP_STALL_SEQ    UINT32_C(0x2809fb40)
++#define BK7258_SWAP_STALL_NSLOT  8
++#define BK7258_SWAP_STALL_MAGIC  UINT32_C(0x4d4d5458) /* "MMTX" */
++
++#define BK7258_SWAP_BW_BASE      UINT32_C(0x2809fb80)
++#define BK7258_SWAP_BW_SEQ       UINT32_C(0x2809fc40)
++#define BK7258_SWAP_BW_NSLOT     8
++#define BK7258_SWAP_BW_MAGIC     UINT32_C(0x4d425759) /* "MBWY" */
++
++static atomic_t g_rspin_stall_seq; /* AP-side writers only */
++static atomic_t g_rspin_bw_seq;    /* AP-side writers only */
++
++void rspin_cas_stall_record(FAR volatile rspinlock_t *lock,
++                            uint32_t ownerval, uint32_t spins,
++                            uint32_t caller) noinstrument_function;
++
++void rspin_cas_stall_record(FAR volatile rspinlock_t *lock,
++                            uint32_t ownerval, uint32_t spins,
++                            uint32_t caller)
++{
++  FAR volatile uint32_t *slot;
++  int32_t n = atomic_add_relaxed(&g_rspin_stall_seq, 1);
++  int cpu = this_cpu();
++  int pid = this_task()->pid;
++
++  slot = (FAR volatile uint32_t *)(uintptr_t)BK7258_SWAP_STALL_BASE +
++         (uint32_t)(n & (BK7258_SWAP_STALL_NSLOT - 1)) * 6;
++
++  slot[0] = BK7258_SWAP_STALL_MAGIC;
++  slot[1] = (uint32_t)(uintptr_t)lock;
++  slot[2] = ownerval;
++  slot[3] = caller;
++  slot[4] = ((uint32_t)pid << 16) | ((uint32_t)cpu & 0xffffu);
++  slot[5] = spins;
++
++  __asm__ volatile ("dmb sy" ::: "memory");
++
++  *(FAR volatile uint32_t *)(uintptr_t)BK7258_SWAP_STALL_SEQ =
++    (uint32_t)(n + 1);
++}
++
++void rspin_busywait_record(uint32_t marker, uint32_t spins,
++                           uint32_t caller) noinstrument_function;
++
++void rspin_busywait_record(uint32_t marker, uint32_t spins,
++                           uint32_t caller)
++{
++  FAR volatile uint32_t *slot;
++  int32_t n = atomic_add_relaxed(&g_rspin_bw_seq, 1);
++  int cpu = this_cpu();
++  int pid = this_task()->pid;
++
++  slot = (FAR volatile uint32_t *)(uintptr_t)BK7258_SWAP_BW_BASE +
++         (uint32_t)(n & (BK7258_SWAP_BW_NSLOT - 1)) * 6;
++
++  slot[0] = BK7258_SWAP_BW_MAGIC;
++  slot[1] = marker;
++  slot[2] = spins;
++  slot[3] = caller;
++  slot[4] = ((uint32_t)pid << 16) | ((uint32_t)cpu & 0xffffu);
++  slot[5] = 0;
++
++  __asm__ volatile ("dmb sy" ::: "memory");
++
++  *(FAR volatile uint32_t *)(uintptr_t)BK7258_SWAP_BW_SEQ =
++    (uint32_t)(n + 1);
++}
++#endif
++
++/* RP-msg wait forensics, compiled into BOTH kernels (no CONFIG_SMP guard).
++ * The AP kernel appends to the RPWA table, the CP kernel to the RPWC table,
++ * so no cross-core atomic update on the shared SWAP is ever needed (the
++ * very primitive under test).  Markers: 0x100 = AP tx-buffer retry loop,
++ * 0x200 = peer rx-buffer release progression, 0x300 = notify_wait result.
++ * The CP monitor dumps both tables after a stall. */
++
++#define BK7258_SWAP_RPWA_BASE    UINT32_C(0x2809fc80)
++#define BK7258_SWAP_RPWA_SEQ     UINT32_C(0x2809fce0)
++#define BK7258_SWAP_RPWC_BASE    UINT32_C(0x2809fd00)
++#define BK7258_SWAP_RPWC_SEQ     UINT32_C(0x2809fd60)
++#define BK7258_SWAP_RPW_NSLOT    8
++#define BK7258_SWAP_RPW_MAGIC    UINT32_C(0x4d525057) /* "MRPW" */
++
++#if defined(CONFIG_SMP) && defined(CONFIG_SPINLOCK)
++#  define RPW_TABLE_BASE BK7258_SWAP_RPWA_BASE
++#  define RPW_TABLE_SEQ  BK7258_SWAP_RPWA_SEQ
++#else
++#  define RPW_TABLE_BASE BK7258_SWAP_RPWC_BASE
++#  define RPW_TABLE_SEQ  BK7258_SWAP_RPWC_SEQ
++#endif
++
++static atomic_t g_rspin_rpw_seq;
++
++void rspin_rpw_record(uint32_t marker, uint32_t val,
++                      uint32_t caller) noinstrument_function;
++
++void rspin_rpw_record(uint32_t marker, uint32_t val, uint32_t caller)
++{
++  FAR volatile uint32_t *slot;
++  int32_t n = atomic_add_relaxed(&g_rspin_rpw_seq, 1);
++  int cpu = this_cpu();
++  int pid = this_task() != NULL ? this_task()->pid : 0;
++
++  slot = (FAR volatile uint32_t *)(uintptr_t)RPW_TABLE_BASE +
++         (uint32_t)(n & (BK7258_SWAP_RPW_NSLOT - 1)) * 6;
++
++  slot[0] = BK7258_SWAP_RPW_MAGIC;
++  slot[1] = marker;
++  slot[2] = val;
++  slot[3] = caller;
++  slot[4] = ((uint32_t)pid << 16) | ((uint32_t)cpu & 0xffffu);
++  slot[5] = 0;
++
++  __asm__ volatile ("dmb sy" ::: "memory");
++
++  *(FAR volatile uint32_t *)(uintptr_t)RPW_TABLE_SEQ = (uint32_t)(n + 1);
++}
+ #include <nuttx/reboot_notifier.h>
+ #include <nuttx/syslog/syslog.h>
+ #include <nuttx/usb/usbdev_trace.h>
+@@ -738,6 +923,13 @@ static void dump_assert_info(FAR struct tcb_s *rtcb,
+ 
+   nxsched_put_tcb(ptcb);
+ 
++#if defined(CONFIG_SMP) && defined(CONFIG_DEBUG_ALERT)
++  if (sched_csection_diag_dump != NULL)
++    {
++      sched_csection_diag_dump();
++    }
++#endif
++
+   /* Dump current CPU registers, running task stack and backtrace. */
+ 
+   dump_running_task(rtcb, regs);

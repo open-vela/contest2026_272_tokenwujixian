@@ -1,0 +1,332 @@
+diff --git a/include/nuttx/spinlock.h b/include/nuttx/spinlock.h
+index 7947051fac3..8e2b7b8e156 100644
+--- a/include/nuttx/spinlock.h
++++ b/include/nuttx/spinlock.h
+@@ -80,6 +80,71 @@ pid_t spinlock_get_holder(FAR spinlock_debug_t *info);
+ #  define spinlock_get_holder(info) INVALID_PROCESS_ID
+ #endif
+ 
++/* Debug-only circular history of the critical-section bookkeeping on the
++ * shared g_schedlock (CONFIG_BMP off).  Used to diagnose the lost/unbalanced
++ * owner+count updates that end in the rspin_unlock() owner assert or in a
++ * lost unlock.  Each entry: [0]=op|isr-flag, [1]=pid, [2]=lock val
++ * (owner:16|count:16 little-endian), [3]=caller address. */
++
++#if defined(CONFIG_SMP) && defined(CONFIG_SPINLOCK)
++#  define RSPIN_DIAG_ENTRIES 8
++#  define RSPIN_DIAG_OP_ENTER   0xe1 /* acquired the lock (depth 1) */
++#  define RSPIN_DIAG_OP_LEAVE   0xe2 /* releasing the last nesting level */
++#  define RSPIN_DIAG_OP_BREAK   0xb0 /* break_critical_section */
++#  define RSPIN_DIAG_OP_RESTORE 0xe3 /* restore_critical_section */
++#  define RSPIN_DIAG_OP_FAIL    0xf0 /* owner/count corrupt at unlock */
++
++extern volatile uint32_t g_rspin_hist[CONFIG_SMP_NCPUS][RSPIN_DIAG_ENTRIES][4];
++extern volatile uint32_t g_rspin_hist_seq[CONFIG_SMP_NCPUS];
++
++void rspin_corrupt_fail(FAR volatile rspinlock_t *lock) noinstrument_function;
++
++/* Temporary SMP bring-up forensics: CAS-stall recorder.  rspin_lock() hands
++ * a snapshot of any CAS wait that exceeds RSPIN_DIAG_CAS_RECORD_EVERY
++ * retries to this recorder (implemented in sched/misc/assert.c), which
++ * appends it to a fixed table in the BK7258 SWAP region that the CP monitor
++ * reads when it reports the AP as stalled.  Must stay lock-free and callable
++ * from irq-disabled CAS spin context. */
++
++#  define RSPIN_DIAG_CAS_RECORD_EVERY (1u << 20)
++
++void rspin_cas_stall_record(FAR volatile rspinlock_t *lock,
++                            uint32_t ownerval, uint32_t spins,
++                            uint32_t caller) noinstrument_function;
++
++/* Non-spinlock busy-wait loop recorder (rptun mailbox kick retries and
++ * friends); marker encodes the site, spins the loop counter so far. */
++
++void rspin_busywait_record(uint32_t marker, uint32_t spins,
++                           uint32_t caller) noinstrument_function;
++
++#  define rspin_diag_rec(op, val32) \
++  do \
++    { \
++      uint32_t diag_cpu_ = (uint32_t)this_cpu(); \
++      uint32_t diag_idx_ = (g_rspin_hist_seq[diag_cpu_]++) % RSPIN_DIAG_ENTRIES; \
++      FAR struct tcb_s *diag_tcb_ = this_task(); \
++      g_rspin_hist[diag_cpu_][diag_idx_][0] = \
++        (uint32_t)(op) | ((uint32_t)up_interrupt_context() << 8); \
++      g_rspin_hist[diag_cpu_][diag_idx_][1] = \
++        diag_tcb_ != NULL ? (uint32_t)diag_tcb_->pid : UINT32_MAX; \
++      g_rspin_hist[diag_cpu_][diag_idx_][2] = (uint32_t)(val32); \
++      g_rspin_hist[diag_cpu_][diag_idx_][3] = \
++        (uint32_t)(uintptr_t)__builtin_return_address(0); \
++    } \
++  while (0)
++#else
++#  define rspin_diag_rec(op, val32)
++#endif /* CONFIG_SMP && CONFIG_SPINLOCK */
++
++/* RPMSG-path recorder (open-amp tx retry rounds, notify_wait outcomes,
++ * and the bounded-CAS fallbacks below); marker encodes the site.  Defined
++ * unconditionally in sched/misc/assert.c: SMP cores append to the RPWA
++ * table, non-SMP cores (the BK7258 CP) to RPWC. */
++
++void rspin_rpw_record(uint32_t marker, uint32_t val,
++                      uint32_t caller) noinstrument_function;
++
+ /****************************************************************************
+  * Public Data Types
+  ****************************************************************************/
+@@ -673,30 +738,99 @@ void rspin_lock(FAR rspinlock_t *lock)
+ 
+   if (old_val.owner == cpu)
+     {
+-      lock->count += 1;
+-    }
+-  else
+-    {
+-      /* Mark that we want to hold lock */
++      /* Re-entrant acquire: bump the nesting level with a full-word CAS.
++       * A plain 16-bit "count += 1" races a foreign core's 32-bit STREX
++       * on the same word and silently loses updates, which surfaces as
++       * the "rspinlock owner/count corrupted" assert on BK7258 SMP.
++       *
++       * The CAS is bounded: on the BK7258 AP pair the exclusive monitor
++       * can keep failing while the peer core hammers the word, and an
++       * unbounded retry here wedges the primary core before AMP init
++       * ever runs (observed: bootmark stuck at AP_FLUSH_DONE).  On
++       * repeated failure fall back to the plain store and record the
++       * degradation in the RPW table. */
++
++      uint32_t rcas;
++
++      for (rcas = 0; rcas < 1024; rcas++)
++        {
++          new_val.val = old_val.val;
++          new_val.count += 1;
+ 
+-      spinlock_mark_locking(&lock->info);
++          if (atomic_cmpxchg_acquire(&lock->val, &old_val.val, new_val.val))
++            {
++              return;
++            }
+ 
+-      /* Try seize the ownership of the lock using CAS. */
++          old_val.val = atomic_read(&lock->val);
+ 
+-      new_val.count = 1;
+-      new_val.owner = cpu;
++          if (old_val.owner != cpu)
++            {
++              /* Ownership was lost between the snapshot and the CAS;
++               * fall through to the seize path below. */
+ 
+-      do
++              break;
++            }
++        }
++
++      if (old_val.owner == cpu)
+         {
+-          old_val.val = 0;
++          /* Last resort: the non-atomic increment the upstream code used
++           * before the cross-core stomps were understood.  Better to
++           * degrade than to wedge with interrupts off. */
++
++          rspin_rpw_record(0x110, old_val.count,
++                           (uint32_t)(uintptr_t)__builtin_return_address(0));
++          lock->count += 1;
++          return;
+         }
+-      while (!atomic_cmpxchg_acquire(&lock->val,
+-             &old_val.val, new_val.val));
++    }
++
++  /* Mark that we want to hold lock */
++
++  spinlock_mark_locking(&lock->info);
+ 
+-      /* Mark locked only when the lock is acquired for the first time. */
++  /* Try seize the ownership of the lock using CAS. */
+ 
+-      spinlock_mark_locked(&lock->info);
++  new_val.count = 1;
++  new_val.owner = cpu;
++
++#ifdef CONFIG_SMP
++  {
++    /* Temporary SMP bring-up forensics: count CAS retries and record a
++     * snapshot every RSPIN_DIAG_CAS_RECORD_EVERY of them (see
++     * rspin_cas_stall_record).  Plain stores, no locks, IRQs stay off. */
++
++    uint32_t spins = 0;
++
++    do
++      {
++        old_val.val = 0;
++
++        if ((++spins & (RSPIN_DIAG_CAS_RECORD_EVERY - 1)) == 0)
++          {
++            rspin_cas_stall_record(lock, atomic_read(&lock->val),
++                                   spins,
++                                   (uint32_t)(uintptr_t)
++                                   __builtin_return_address(0));
++          }
++      }
++    while (!atomic_cmpxchg_acquire(&lock->val,
++           &old_val.val, new_val.val));
++  }
++#else
++  do
++    {
++      old_val.val = 0;
+     }
++  while (!atomic_cmpxchg_acquire(&lock->val,
++         &old_val.val, new_val.val));
++#endif
++
++  /* Mark locked only when the lock is acquired for the first time. */
++
++  spinlock_mark_locked(&lock->info);
++  rspin_diag_rec(RSPIN_DIAG_OP_ENTER, new_val.val);
+ }
+ 
+ static inline_function
+@@ -1033,17 +1167,115 @@ static inline_function
+ bool rspin_unlock(FAR rspinlock_t *lock)
+ {
+   bool ret = false;
++  rspinlock_t old_val;
++  rspinlock_t new_val;
++  int         cpu = this_cpu() + 1;
+ 
+-  DEBUGASSERT(lock->owner == this_cpu() + 1);
+-  DEBUGASSERT(lock->count >= 1);
+-
+-  if (--lock->count == 0)
++  for (; ; )
+     {
+-      spinlock_mark_unlocked(&lock->info);
+-      atomic_set_release(&lock->val, 0);
+-      ret = true;
++      /* Snapshot the whole word atomically: reading owner and count as two
++       * separate 16-bit loads tears against a foreign core's 32-bit STREX. */
++
++      old_val.val = atomic_read(&lock->val);
++
++      if (old_val.owner != cpu || old_val.count < 1)
++        {
++          /* Snapshot the corruption state and assert from a noinline helper so
++           * the panic dump can also print the lock history. */
++
++          rspin_corrupt_fail(lock);
++        }
++
++      if (old_val.count > 1)
++        {
++          /* Nested release: drop one level, keep ownership.  Full-word CAS
++           * for the same reason as the matching re-entrant acquire, with
++           * the same bounded fallback: on the BK7258 AP pair the peer core
++           * can keep winning the word while this core holds it, and an
++           * unbounded retry wedges the scheduler. */
++
++          uint32_t rcas;
++
++          for (rcas = 0; rcas < 1024; rcas++)
++            {
++              new_val.val = old_val.val;
++              new_val.count = old_val.count - 1;
++
++              if (atomic_cmpxchg_release(&lock->val, &old_val.val,
++                                         new_val.val))
++                {
++                  break;
++                }
++
++              old_val.val = atomic_read(&lock->val);
++
++              if (old_val.owner != cpu || old_val.count < 1)
++                {
++                  rspin_corrupt_fail(lock);
++                }
++            }
++
++          if (rcas == 1024 && old_val.owner == cpu && old_val.count > 1)
++            {
++              rspin_rpw_record(0x120, old_val.count,
++                (uint32_t)(uintptr_t)__builtin_return_address(0));
++              lock->count = old_val.count - 1;
++            }
++
++          break;
++        }
++
++      /* Last nesting level: hand the lock back. */
++
++      new_val.val = 0;
++
++      if (atomic_cmpxchg_release(&lock->val, &old_val.val, new_val.val))
++        {
++          spinlock_mark_unlocked(&lock->info);
++          ret = true;
++          break;
++        }
++
++      /* The full release lost the word to the peer core.  The original
++       * upstream code stored zero unconditionally here; retry the CAS a
++       * bounded number of times, then degrade the same way so the
++       * scheduler can never wedge inside an unlock. */
++
++      {
++        uint32_t rcas;
++
++        for (rcas = 1; rcas < 1024; rcas++)
++          {
++            old_val.val = atomic_read(&lock->val);
++
++            if (old_val.owner != cpu || old_val.count < 1)
++              {
++                rspin_corrupt_fail(lock);
++              }
++
++            new_val.val = 0;
++
++            if (atomic_cmpxchg_release(&lock->val, &old_val.val, new_val.val))
++              {
++                break;
++              }
++          }
++
++        if (rcas == 1024)
++          {
++            rspin_rpw_record(0x121, old_val.val,
++              (uint32_t)(uintptr_t)__builtin_return_address(0));
++            atomic_set_release(&lock->val, 0);
++          }
++
++        spinlock_mark_unlocked(&lock->info);
++        ret = true;
++        break;
++      }
+     }
+ 
++  rspin_diag_rec(RSPIN_DIAG_OP_LEAVE, old_val.val);
++
+   return ret;
+ }
+ 
+@@ -1089,6 +1321,8 @@ uint16_t rspin_breaklock(FAR rspinlock_t *lock)
+     {
+       oldcount = lock->count;
+       lock->count = 1;
++      rspin_diag_rec(RSPIN_DIAG_OP_BREAK,
++                     ((uint32_t)lock->owner << 16) | (uint32_t)oldcount);
+       rspin_unlock(lock);
+     }
+ 
+@@ -1102,6 +1336,8 @@ void rspin_restorelock(FAR rspinlock_t *lock, uint16_t count)
+     {
+       rspin_lock(lock);
+       lock->count = count;
++      rspin_diag_rec(RSPIN_DIAG_OP_RESTORE,
++                     ((uint32_t)lock->owner << 16) | (uint32_t)count);
+     }
+ }
+ #else

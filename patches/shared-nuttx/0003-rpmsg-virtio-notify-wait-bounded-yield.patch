@@ -1,0 +1,58 @@
+diff --git a/drivers/rpmsg/rpmsg_virtio.c b/drivers/rpmsg/rpmsg_virtio.c
+index 119bec90082..a697d8739cb 100644
+--- a/drivers/rpmsg/rpmsg_virtio.c
++++ b/drivers/rpmsg/rpmsg_virtio.c
+@@ -31,6 +31,7 @@
+ 
+ #include <nuttx/kmalloc.h>
+ #include <nuttx/nuttx.h>
++#include <nuttx/signal.h>
+ #include <nuttx/power/pm.h>
+ #include <nuttx/rpmsg/rpmsg_virtio.h>
+ #include <nuttx/semaphore.h>
+@@ -42,7 +43,11 @@
+ 
+ #include "rpmsg.h"
+ 
+-/****************************************************************************
++/* SMP bring-up forensics recorder (sched/misc/assert.c). */
++
++void rspin_rpw_record(uint32_t marker, uint32_t val, uint32_t caller);
++
++/*
+  * Pre-processor Definitions
+  ****************************************************************************/
+ 
+@@ -668,7 +673,31 @@ static int rpmsg_virtio_notify_wait(FAR struct rpmsg_device *rdev,
+ 
+   ret = rpmsg_tickwait(&priv->rvdev.rdev.ns_ept, &priv->semtx,
+                        MSEC2TICK(RPMSG_VIRTIO_TIMEOUT_MS));
+-  return ret == -ETIMEDOUT ? 0 : ret;
++
++  /* SMP bring-up forensics: the peer stopped draining our tx vring while a
++   * sender loops here once per timeout.  0x301 marks a timed-out wait (the
++   * loop keeps running), 0x300 a wait that got posted. */
++
++  if (ret == -ETIMEDOUT)
++    {
++      rspin_rpw_record(UINT32_C(0x301), id,
++                       (uint32_t)(uintptr_t)rpmsg_virtio_notify_wait);
++
++      /* Keep the upstream contract (fold the timeout to success so the
++       * caller keeps polling), but really yield the CPU first: the peer
++       * drains at its own pace (the BK7258 console relay runs at 115200
++       * baud), and a tight retry here starves every lower-priority thread
++       * on this core -- the heartbeat stalls and the CP monitor reports
++       * the AP as dead while it is merely backpressured. */
++
++      metal_sleep_usec(RPMSG_TICKS_PER_INTERVAL);
++      return 0;
++    }
++
++  rspin_rpw_record(UINT32_C(0x300), id,
++                   (uint32_t)(uintptr_t)rpmsg_virtio_notify_wait);
++
++  return ret;
+ }
+ 
+ /****************************************************************************
