@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import process from "node:process";
 import readline from "node:readline";
+import { spawn } from "node:child_process";
 import { join } from "node:path";
 import { rmSync } from "node:fs";
 import { DeskMateBridgeCore } from "../src/bridge-core.js";
@@ -9,7 +10,10 @@ import { adapterFor } from "../src/acp-adapter.js";
 import { LoopTransportServer } from "../src/transport.js";
 import { MqttTransport } from "../src/mqtt-transport.js";
 import { bridgeHelp, formatUsage } from "../src/terminal-format.js";
-import { mimoAcpPort, mimoAttachUrl, publishMimoAttachReady, removeMimoAttachReady } from "../src/mimo-attach.js";
+import {
+  mimoAcpPort, mimoAttachUrl, publishMimoAttachReady, removeMimoAttachReady,
+  resolveMimoBinary, mimoAttachWindowSpec,
+} from "../src/mimo-attach.js";
 
 const args = process.argv.slice(2);
 const index = args.indexOf("--socket");
@@ -21,6 +25,7 @@ const deviceIdIndex = args.indexOf("--device-id");
 const modelsIndex = args.indexOf("--models");
 const mimoAcpPortIndex = args.indexOf("--mimo-acp-port");
 const mimoAttachReadyFileIndex = args.indexOf("--mimo-attach-ready-file");
+const mimoAttachOnPromptIndex = args.indexOf("--mimo-attach-on-prompt");
 const backendName = backendIndex >= 0 ? args[backendIndex + 1] : "fake";
 const transportName = transportIndex >= 0 ? args[transportIndex + 1] : "loop";
 const runtime = process.env.XDG_RUNTIME_DIR;
@@ -31,6 +36,7 @@ const deviceId = deviceIdIndex >= 0 ? args[deviceIdIndex + 1] : process.env.DESK
 const models = modelsIndex >= 0 ? args[modelsIndex + 1].split(",").map((name) => name.trim()).filter(Boolean) : [];
 const attachPort = mimoAcpPortIndex >= 0 ? mimoAcpPort(args[mimoAcpPortIndex + 1]) : null;
 const attachReadyFile = mimoAttachReadyFileIndex >= 0 ? args[mimoAttachReadyFileIndex + 1] : null;
+const attachOnPrompt = mimoAttachOnPromptIndex >= 0;
 if (transportName === "loop" && (!socket || !socket.startsWith("/"))) throw new Error("provide an absolute --socket path when XDG_RUNTIME_DIR is unavailable");
 if (transportName === "mqtt" && (!brokerUrl || !topicPrefix || !deviceId)) throw new Error("MQTT requires --broker, --topic-prefix, and --device-id");
 if (transportName !== "loop" && transportName !== "mqtt") throw new Error("--transport must be loop or mqtt");
@@ -39,6 +45,12 @@ if ((attachPort !== null || attachReadyFile !== null) && backendName !== "mimo")
 }
 if (attachReadyFile !== null && attachPort === null) {
   throw new Error("--mimo-attach-ready-file requires --mimo-acp-port");
+}
+if (attachOnPrompt && backendName !== "mimo") {
+  throw new Error("--mimo-attach-on-prompt requires --backend mimo");
+}
+if (attachOnPrompt && attachPort === null) {
+  throw new Error("--mimo-attach-on-prompt requires --mimo-acp-port");
 }
 process.once("exit", () => {
   if (attachReadyFile !== null) {
@@ -108,17 +120,70 @@ const core = new DeskMateBridgeCore({
 transport = transportName === "loop"
   ? new LoopTransportServer(socket)
   : new MqttTransport({ brokerUrl, topicPrefix, deviceId, username: process.env.DESKMATE_MQTT_USERNAME, password: process.env.DESKMATE_MQTT_PASSWORD });
+let attachSessionId = null;
+let attachWindowOpened = false;
+let attachWarmup = Promise.resolve();
+const attachWarmupMs = (() => {
+  const raw = Number(process.env.DESKMATE_ATTACH_WARMUP_MS);
+  return process.env.DESKMATE_ATTACH_WARMUP_MS !== undefined && Number.isFinite(raw) && raw >= 0
+    ? raw
+    : 7_000;
+})();
+
+/* Open one terminal window already attached to the live MiMo session so the
+ * operator can watch the Q&A and code edits. Triggered by the first prompt
+ * the device sends — that is the moment there is something to show.
+ *
+ * The attach client shares the session with the bridge, and connecting while
+ * the bridge's own ACP turn is in flight leaves that turn without a usable
+ * answer (measured on the desk: the turn never returned). So the first prompt
+ * is held until the window has had time to connect -- `mimo attach` needs a
+ * few seconds to start and load the session. Only the first prompt pays this;
+ * later turns run straight through. DESKMATE_ATTACH_WARMUP_MS tunes the wait. */
+function openAttachWindowForPrompt() {
+  if (!attachOnPrompt || attachWindowOpened || attachSessionId === null) return attachWarmup;
+  attachWindowOpened = true;
+  try {
+    const spec = mimoAttachWindowSpec({
+      url: mimoAttachUrl(attachPort),
+      sessionId: attachSessionId,
+      bin: resolveMimoBinary(),
+    });
+    const child = spawn(spec.command, spec.args, { detached: true, stdio: "ignore" });
+    child.unref();
+    process.stderr.write(`[deskmate-bridge] opened MiMo attach window for session ${attachSessionId}\n`);
+    attachWarmup = new Promise((resolve) => {
+      const timer = setTimeout(resolve, attachWarmupMs);
+      timer.unref?.();
+      child.once("error", (error) => {
+        clearTimeout(timer);
+        process.stderr.write(`[deskmate-bridge] could not open MiMo attach window: ${error.message}\n`);
+        resolve();
+      });
+    });
+  } catch (error) {
+    process.stderr.write(`[deskmate-bridge] could not open MiMo attach window: ${error.message}\n`);
+    attachWarmup = Promise.resolve();
+  }
+  return attachWarmup;
+}
+
 try {
   await adapter.start();
-  if (attachReadyFile !== null) {
-    const sessionId = adapter.attachSession?.();
-    if (!sessionId) throw new Error("MiMo ACP session was not created");
-    await publishMimoAttachReady(attachReadyFile, {
-      url: mimoAttachUrl(attachPort), sessionId,
-    });
+  if (attachReadyFile !== null || attachOnPrompt) {
+    attachSessionId = adapter.attachSession?.() ?? null;
+    if (!attachSessionId) throw new Error("MiMo ACP session was not created");
+    if (attachReadyFile !== null) {
+      await publishMimoAttachReady(attachReadyFile, {
+        url: mimoAttachUrl(attachPort), sessionId: attachSessionId,
+      });
+    }
   }
   await transport.start({
-    onMessage: (message) => core.receive(message).catch((error) => transport.send({ v: 1, type: "error", error: error.message })),
+    onMessage: async (message) => {
+      if (message?.cmd === "prompt_submit") await openAttachWindowForPrompt();
+      return core.receive(message).catch((error) => transport.send({ v: 1, type: "error", error: error.message }));
+    },
     onLinkState: (state) => { if (state === "down") core.disconnect(); },
     onError: (error) => transport.send({ v: 1, type: "error", error }),
   });

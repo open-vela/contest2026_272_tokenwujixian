@@ -112,6 +112,27 @@ The chosen port must be unused before launch. If an earlier `mimo acp` still
 owns `4096`, stop that bridge first or choose another explicit port, such as
 `--mimo-attach-port 4097`.
 
+### Open the MiMo window when the device sends its first prompt
+
+`--mimo-attach-on-prompt` waits for the device instead of opening the window at
+startup: the first `prompt_submit` that arrives over the transport pops up the
+same attached terminal window, so an operator watching the screen sees the
+device's question and the coding agent's answer appear live.
+
+```sh
+bin/deskmate-demo.sh bridge mimo mqtt \
+  --broker mqtt://127.0.0.1:1883 --device-id bk-1 \
+  --mimo-attach-on-prompt --mimo-attach-port 4096
+```
+
+The attach client shares the one ACP session with the bridge. Connecting while
+the bridge's own turn is in flight leaves that turn without an answer (observed
+on a real device: the turn never completed), so the bridge holds that first
+prompt until the window has had time to start and load the session. The hold is
+`DESKMATE_ATTACH_WARMUP_MS` (default `7000`); only the first prompt pays it,
+later turns run straight through. If the terminal cannot be launched the hold
+ends as soon as the spawn fails and the turn proceeds without a window.
+
 The bridge writes an atomic, mode-`0600` runtime ready file containing only the
 loopback URL and session ID, then deletes it when the bridge exits. Inside tmux,
 the launcher creates a `deskmate-mimo` window running `mimo attach`. Outside

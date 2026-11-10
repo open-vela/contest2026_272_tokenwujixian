@@ -17,6 +17,8 @@ Common options:
   --topic-prefix PREFIX  MQTT topic prefix (default: deskmate)
   --device-id ID         MQTT device ID (default: demo-1)
   --mimo-attach          Open `mimo attach` after a MiMo bridge is ready (tmux or GNOME Terminal)
+  --mimo-attach-on-prompt
+                         Open `mimo attach` when the device sends its first prompt
   --mimo-attach-port N   Explicit MiMo ACP/attach port (default: 4096)
 
 Examples:
@@ -46,6 +48,7 @@ parse_transport_options() {
   topic_prefix="${DESKMATE_MQTT_TOPIC_PREFIX:-deskmate}"
   device_id="${DESKMATE_DEVICE_ID:-demo-1}"
   mimo_attach=false
+  mimo_attach_on_prompt=false
   mimo_attach_port="${DESKMATE_MIMO_ATTACH_PORT:-4096}"
 
   while [ "$#" -gt 0 ]; do
@@ -55,6 +58,7 @@ parse_transport_options() {
       --topic-prefix) need_value "$@"; topic_prefix="$2"; shift 2 ;;
       --device-id) need_value "$@"; device_id="$2"; shift 2 ;;
       --mimo-attach) mimo_attach=true; shift ;;
+      --mimo-attach-on-prompt) mimo_attach_on_prompt=true; shift ;;
       --mimo-attach-port) need_value "$@"; mimo_attach_port="$2"; shift 2 ;;
       --help|-h) usage; exit 0 ;;
       *) printf 'unknown option: %s\n' "$1" >&2; usage >&2; exit 2 ;;
@@ -152,10 +156,22 @@ case "$command_name" in
       printf '%s\n' '--mimo-attach requires a device ID of up to 32 letters, digits, _ or -' >&2
       exit 2
     fi
+    if [ "$mimo_attach_on_prompt" = true ] && [ "$backend" != "mimo" ]; then
+      printf '%s\n' '--mimo-attach-on-prompt requires backend mimo' >&2
+      exit 2
+    fi
+    if [ "$mimo_attach_on_prompt" = true ] && ! valid_port "$mimo_attach_port"; then
+      printf '%s\n' '--mimo-attach-port must be an integer from 1 through 65535' >&2
+      exit 2
+    fi
     if [ "$transport" = "loop" ]; then
       bridge_command=(node "$tool_dir/bin/deskmate-bridge.mjs" --backend "$backend" --transport loop --socket "$socket")
     else
       bridge_command=(node "$tool_dir/bin/deskmate-bridge.mjs" --backend "$backend" --transport mqtt --broker "$broker" --topic-prefix "$topic_prefix" --device-id "$device_id")
+    fi
+    if [ "$mimo_attach_on_prompt" = true ]; then
+      bridge_command+=(--mimo-acp-port "$mimo_attach_port" --mimo-attach-on-prompt)
+      exec "${bridge_command[@]}"
     fi
     if [ "$mimo_attach" != true ]; then
       exec "${bridge_command[@]}"

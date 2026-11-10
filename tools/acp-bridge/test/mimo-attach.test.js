@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { mimoAcpPort, mimoAttachUrl, publishMimoAttachReady, removeMimoAttachReady } from "../src/mimo-attach.js";
+import { mimoAcpPort, mimoAttachUrl, publishMimoAttachReady, removeMimoAttachReady, resolveMimoBinary, mimoAttachWindowSpec } from "../src/mimo-attach.js";
 
 test("MiMo attach ready file is atomic-looking JSON with private permissions", async () => {
   const directory = await mkdtemp(join(tmpdir(), "deskmate-mimo-attach-"));
@@ -33,4 +33,32 @@ test("MiMo attach rejects unsafe ports and ready metadata", async () => {
   await assert.rejects(publishMimoAttachReady("/tmp/ready.json", {
     url: "http://localhost:4096", sessionId: "ses_valid",
   }));
+});
+
+test("MiMo binary resolution prefers the override, then the per-user install", () => {
+  assert.equal(
+    resolveMimoBinary({ env: { DESKMATE_MIMO_BIN: "/opt/mimo" }, home: "/home/u", exists: () => false }),
+    "/opt/mimo",
+  );
+  assert.equal(
+    resolveMimoBinary({ env: {}, home: "/home/u", exists: (p) => p === "/home/u/.mimocode/bin/mimo" }),
+    "/home/u/.mimocode/bin/mimo",
+  );
+  assert.equal(
+    resolveMimoBinary({ env: {}, home: "/home/u", exists: () => false }),
+    "mimo",
+  );
+});
+
+test("MiMo attach window command targets the live session", () => {
+  assert.deepEqual(
+    mimoAttachWindowSpec({ url: "http://127.0.0.1:4096", sessionId: "ses_abc", bin: "/opt/mimo" }),
+    {
+      command: "gnome-terminal",
+      args: ["--title=DeskMate MiMo", "--", "/opt/mimo", "attach", "http://127.0.0.1:4096", "--session", "ses_abc"],
+    },
+  );
+  assert.throws(() => mimoAttachWindowSpec({ url: "http://10.0.0.1:4096", sessionId: "ses_abc" }));
+  assert.throws(() => mimoAttachWindowSpec({ url: "http://127.0.0.1:4096", sessionId: "bad id!" }));
+  assert.throws(() => mimoAttachWindowSpec({ url: "http://127.0.0.1:4096", sessionId: "ses_abc", bin: "  " }));
 });
