@@ -40,7 +40,12 @@
 #define BK7258_AUDIO_DEFAULT_SAMPLE_RATE  16000
 #define BK7258_AUDIO_DEFAULT_CHANNELS     2
 #define BK7258_AUDIO_DEFAULT_BPSAMP       16
-#define BK7258_AUDIO_DEFAULT_VOLUME       20    /* 0..100                   */
+/* Default volume 0..100, mapped linearly onto the DAC gain (100 ->
+ * BK7258_AUDIO_MAX_DAC_GAIN).  20 left only about a fifth of full scale and
+ * was heard as "very quiet" on the board; 60 (gain 27/45, about -4 dB) is the
+ * level picked after listening tests.  The rest of the loudness comes from
+ * the TTS loudness_rate. */
+#define BK7258_AUDIO_DEFAULT_VOLUME       60    /* 0..100                   */
 #define BK7258_AUDIO_MAX_DAC_GAIN         0x2Du /* AVDK default, ~0 dB.     */
 
 /* Power Amplifier control ************************************************
@@ -111,6 +116,18 @@ struct bk7258_audio_s
   /* GDMA channel handle. -1 while none is allocated. */
 
   int dma_ch;
+
+  /* Mono (1-channel) playback must be expanded to stereo before DMA: the
+   * DAC FIFO port is one 32-bit {R:16, L:16} word per frame, and feeding two
+   * consecutive mono samples per word makes the single (left) driven DAC
+   * replay every-other sample at 2x speed (octave-up chipmunk).  Two scratch
+   * areas (ping-pong) hold the expanded frames so the DMA never reads a
+   * half-rewritten region while the CPU prepares the next one.  NULL when
+   * unused; only allocated for a mono stream.
+   */
+
+  FAR void *mono_expand_buf;          /* 2 x (BUFFER_SIZE * 2) bytes         */
+  uint8_t   expand_idx;               /* parity of last-used scratch area    */
 
   spinlock_t lock;
   struct work_s work;

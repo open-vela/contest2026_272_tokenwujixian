@@ -277,20 +277,51 @@ static int bk7258_start_next_locked(FAR struct bk7258_audio_s *priv)
       return OK;
     }
 
-  cfg.buf          = (uintptr_t)apb->samp;
-  cfg.buf_len      = apb->nbytes;
   cfg.dest         = bk7258_dac_fifo_addr();
   cfg.dest_req_mux = BK7258_DMA_REQ_AUDIO_DAC;
+
   /* The DAC FIFO port is a single 32-bit register (AUD_DAC_FPORT).  Each
-   * word is one stereo frame {R:16, L:16} or two mono samples.  Both
-   * source and destination widths must be 32-bit so the DMA engine drops
-   * exactly one word into the FIFO per transfer beat.  Using 16-bit width
-   * would leave the FIFO half-loaded and the "finish" interrupt would
-   * never fire.
+   * word is one stereo frame {R:16, L:16}.  Both source and destination
+   * widths must be 32-bit so the DMA engine drops exactly one word into the
+   * FIFO per transfer beat.  Using 16-bit width would leave the FIFO
+   * half-loaded and the "finish" interrupt would never fire.
+   *
+   * A mono (1-channel) stream therefore cannot be fed verbatim: packing two
+   * consecutive mono samples into one word would make the single (left)
+   * driven DAC replay every-other sample at 2x speed (octave-up).  Duplicate
+   * each mono sample into both half-words in a ping-pong scratch area first,
+   * then DMA the expanded stereo frame.
    */
 
   cfg.src_width    = BK7258_DMA_WIDTH_32;
   cfg.dst_width    = BK7258_DMA_WIDTH_32;
+
+  if (priv->channels == 1 && priv->mono_expand_buf != NULL)
+    {
+      FAR uint8_t *scratch = (FAR uint8_t *)priv->mono_expand_buf
+                             + (size_t)priv->expand_idx
+                               * BK7258_AUDIO_BUFFER_SIZE * 2u;
+      FAR uint32_t *stereo = (FAR uint32_t *)scratch;
+      FAR const int16_t *mono = (FAR const int16_t *)apb->samp;
+      uint32_t nsamples = apb->nbytes / 2u;
+      uint32_t i;
+
+      for (i = 0; i < nsamples; i++)
+        {
+          uint32_t s = (uint32_t)(uint16_t)mono[i];
+          stereo[i] = (s << 16) | s;   /* {R:s, L:s} */
+        }
+
+      cfg.buf     = (uintptr_t)scratch;
+      cfg.buf_len = (size_t)nsamples * 4u;
+      priv->expand_idx ^= 1u;
+    }
+  else
+    {
+      cfg.buf     = (uintptr_t)apb->samp;
+      cfg.buf_len = apb->nbytes;
+    }
+
   /* AVDK's reference audio path uses REPEAT + src loop instead of a
    * one-shot transfer.  Empirical trace with one_shot=true showed the DMA
    * moves only 3 words then stalls (remain_len frozen).  In REPEAT mode
@@ -305,8 +336,7 @@ static int bk7258_start_next_locked(FAR struct bk7258_audio_s *priv)
 
   /* Clean the source buffer out of D-cache; GDMA reads from RAM. */
 
-  up_clean_dcache((uintptr_t)apb->samp,
-                  (uintptr_t)apb->samp + apb->nbytes);
+  up_clean_dcache(cfg.buf, cfg.buf + cfg.buf_len);
 
   ret = bk7258_gdma_start_m2p(priv->dma_ch, &cfg);
   if (ret < 0)
@@ -823,6 +853,13 @@ static int bk7258_shutdown(FAR struct audio_lowerhalf_s *dev)
       priv->dma_ch = -1;
     }
 
+  if (priv->mono_expand_buf != NULL)
+    {
+      kmm_free(priv->mono_expand_buf);
+      priv->mono_expand_buf = NULL;
+      priv->expand_idx = 0;
+    }
+
   if (priv->configured)
     {
       bk7258_dac_deinit();
@@ -1000,6 +1037,23 @@ static int bk7258_start(FAR struct audio_lowerhalf_s *dev)
           AUD_ERR("gdma_alloc failed: %d", ret);
           goto errout;
         }
+    }
+
+  /* Mono playback needs a stereo-expansion scratch (see start_next_locked).
+   * Allocate two ping-pong areas once per stream; they are freed on shutdown. */
+
+  if (priv->channels == 1 && priv->mono_expand_buf == NULL)
+    {
+      priv->mono_expand_buf = kmm_memalign(32,
+                                           2u * BK7258_AUDIO_BUFFER_SIZE * 2u);
+      if (priv->mono_expand_buf == NULL)
+        {
+          ret = -ENOMEM;
+          AUD_ERR("mono expand buffer alloc failed");
+          goto errout;
+        }
+
+      priv->expand_idx = 0;
     }
 
   /* Settle the PA while the configured DAC is still muted and before the
