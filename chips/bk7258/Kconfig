@@ -184,6 +184,30 @@ config BK7258_PSRAM_PROBE_SIZE
 		word access and three distinct data patterns, then restores its saved
 		contents.
 
+config BK7258_PSRAM_DISPLAY_SIZE
+	hex "PSRAM display-framebuffer slab size"
+	default 0x400000
+
+config BK7258_PSRAM_AUDIO_SIZE
+	hex "PSRAM audio slab size"
+	default 0x80000
+
+config BK7258_PSRAM_ENCODE_SIZE
+	hex "PSRAM encode slab size"
+	default 0x100000
+
+config BK7258_PSRAM_SECTION_SIZE
+	hex "PSRAM section slab size"
+	default 0x80000
+
+config BK7258_PSRAM_CP_HEAP_SIZE
+	hex "PSRAM CP heap size"
+	default 0x500000
+
+config BK7258_PSRAM_AP_HEAP_SIZE
+	hex "PSRAM AP heap size"
+	default 0x500000
+
 config BK7258_MAILBOX
 	bool "BK7258 Mailbox v2 doorbell"
 	depends on RPTUN

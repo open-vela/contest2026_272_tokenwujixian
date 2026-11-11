@@ -200,6 +200,7 @@ CONFIG_AI_AGENT_AUDIO_NUTTX_DIRECT=y
 # ~14.4 KB BSS; 64 doubles that and leaves headroom past a third
 # server.
 CONFIG_AI_AGENT_MCP_MAX_TOOLS=64
+CONFIG_AI_AGENT_NOTIFY_SERVICE=y
 # CONFIG_AI_AGENT_WS_SERVER is not set
 # CONFIG_AI_AGENT_TOOLS_WEARABLE is not set
 # CONFIG_AI_AGENT_TOOLS_MEDIA is not set
@@ -264,8 +265,14 @@ CONFIG_LCD_JD9853_FREQUENCY=13000000
 CONFIG_GRAPHICS_LVGL=y
 CONFIG_LV_USE_NUTTX=y
 CONFIG_LV_USE_NUTTX_LCD=y
+# PARTIAL render mode: LV_NUTTX_LCD_BUFFER_COUNT==0 (CUSTOM buffer) instead of
+# DOUBLE (count==2 → LV_DISPLAY_RENDER_MODE_FULL).  FULL re-renders + re-flushes
+# the entire 240×296 frame over 13 MHz HW SPI every animation frame (~280 ms),
+# racing the JD9853 60 Hz GRAM scan and showing as a top-to-bottom white sweep.
+# PARTIAL only flushes the dirty region (a bubble, the clock digits, a moving
+# particle), which removes the sweep and matches the old CP-era partial sprites.
 CONFIG_LV_NUTTX_LCD_CUSTOM_BUFFER=y
-CONFIG_LV_NUTTX_LCD_BUFFER_SIZE=40
+CONFIG_LV_NUTTX_LCD_BUFFER_SIZE=60
 CONFIG_LV_USE_CLIB_MALLOC=y
 CONFIG_LV_USE_CLIB_SPRINTF=y
 CONFIG_LV_USE_CLIB_STRING=y
@@ -287,20 +294,22 @@ CONFIG_LV_USE_DEMO_WIDGETS=y
 # needed.  Replaces the contest branch's AI_AGENT_UI_RPMSG to a CP renderer.
 CONFIG_AI_AGENT_LVGL_UI=y
 CONFIG_AI_AGENT_PET_STATUS=y
-# ai_agent f297082 rotates the idle screen between the pet and particle
-# pages; with PET_STATUS alone lvgl_ui_channel.c does not compile.
-CONFIG_AI_AGENT_PARTICLE_FLOW=y
-# Push-to-talk on KEY3 (GPIO8) through ai_agent's ptt_button.c, which also
-# drives the UI (recording/processing states, the user bubble).  Its
-# defaults (button 0 = KEY1, 4 KB stack, priority 100) are wrong here:
-# KEY1 answers permission prompts, voice_channel_start/stop run the ASR TLS
+CONFIG_AI_AGENT_STANDBY_UI=y
+# Push-to-talk on KEY1 (GPIO13) through ai_agent's ptt_button.c, which also
+# drives the UI (recording/processing states, the user bubble).  Its stack
+# default (4 KB) is too small: voice_channel_start/stop run the ASR TLS
 # handshake on this thread's stack and overflowed 4 KB (sha3.c, board log),
 # and a CPU-bound ECDH handshake above bk7258-ap-health (80) starves it
 # until the CP reports the AP stalled.  50 matches ai_agent's voice task.
 CONFIG_AI_AGENT_PTT=y
-CONFIG_AI_AGENT_PTT_BUTTON_IDX=2
+CONFIG_AI_AGENT_PTT_BUTTON_IDX=0
 CONFIG_AI_AGENT_PTT_STACKSIZE=24576
 CONFIG_AI_AGENT_PTT_PRIORITY=50
+# M5 three-key scheme: S1 stays PTT; S2/S3 are the context keys, now owned by
+# the board's button input layer (bk7258_buttons_input.c), which registers as
+# a remote_ctrl input adapter — short press scrolls the chat when idle or
+# approves/denies a pending permission, long press cycles the model / opens a
+# fresh session.  The retired key_manager.c owned this before the fusion.
 # ai_agent nsh_commands calls system(3).
 CONFIG_SYSTEM_SYSTEM=y
 # ARMv8-M MPU, phase one (chips/bk7258/bk7258_mpuinit.c): only flash XIP is

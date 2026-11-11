@@ -18,6 +18,7 @@ const transportIndex = args.indexOf("--transport");
 const brokerIndex = args.indexOf("--broker");
 const topicPrefixIndex = args.indexOf("--topic-prefix");
 const deviceIdIndex = args.indexOf("--device-id");
+const modelsIndex = args.indexOf("--models");
 const mimoAcpPortIndex = args.indexOf("--mimo-acp-port");
 const mimoAttachReadyFileIndex = args.indexOf("--mimo-attach-ready-file");
 const backendName = backendIndex >= 0 ? args[backendIndex + 1] : "fake";
@@ -27,6 +28,7 @@ const socket = index >= 0 ? args[index + 1] : runtime ? join(runtime, "vela-desk
 const brokerUrl = brokerIndex >= 0 ? args[brokerIndex + 1] : process.env.DESKMATE_MQTT_BROKER;
 const topicPrefix = topicPrefixIndex >= 0 ? args[topicPrefixIndex + 1] : process.env.DESKMATE_MQTT_TOPIC_PREFIX;
 const deviceId = deviceIdIndex >= 0 ? args[deviceIdIndex + 1] : process.env.DESKMATE_DEVICE_ID;
+const models = modelsIndex >= 0 ? args[modelsIndex + 1].split(",").map((name) => name.trim()).filter(Boolean) : [];
 const attachPort = mimoAcpPortIndex >= 0 ? mimoAcpPort(args[mimoAcpPortIndex + 1]) : null;
 const attachReadyFile = mimoAttachReadyFileIndex >= 0 ? args[mimoAttachReadyFileIndex + 1] : null;
 if (transportName === "loop" && (!socket || !socket.startsWith("/"))) throw new Error("provide an absolute --socket path when XDG_RUNTIME_DIR is unavailable");
@@ -87,6 +89,7 @@ function renderAdapterEvent(event, usage) {
     return;
   }
   if (event.type === "session_started") logAsync(`[bridge] ${event.backend} ACP session ready`);
+  else if (event.type === "backend_state") logAsync(`[bridge] coding agent ${event.state}`);
   else if (event.type === "permission_request") logAsync(`[permission] waiting for DeskMate device: ${event.params?.toolCall?.title ?? "tool call"}`);
   else if (event.type === "usage") logAsync(formatUsage(usage).map((line) => `[billing] ${line}`).join("\n"));
   showPrompt();
@@ -96,6 +99,7 @@ const core = new DeskMateBridgeCore({
   adapter,
   publish: (message) => transport?.send(message),
   onAdapterEvent: renderAdapterEvent,
+  models,
   // Human approval realistically takes longer than the default 30 s window;
   // DESKMATE_PERMISSION_TIMEOUT_MS lets a deployment widen it.
   permissionTimeoutMs: Number(process.env.DESKMATE_PERMISSION_TIMEOUT_MS) * 1_000

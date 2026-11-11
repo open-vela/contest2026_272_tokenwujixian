@@ -8,7 +8,7 @@
  *   - /dev/btn0 takes several readers: the upper half allocates a
  *     btn_open_s per open() with its own pending flag and notifies every
  *     open (drivers/input/button_upper.c).  ai_agent's ptt_button thread
- *     opens it separately for KEY3; this file owns KEY1/KEY2.
+ *     opens it separately for KEY1 (push-to-talk); this file owns KEY2/KEY3.
  *   - The gesture layer reports TAP/HOLD/DOUBLE/COMBO from that snapshot.
  *     LVGL's indev wants a state not an event stream too, so the two layer
  *     cleanly once it arrives.
@@ -37,7 +37,8 @@
 #include "board.h"
 
 /* The remote_ctrl input-adapter surface.  This file is a keymap adapter:
- * it maps gestures to remote_decision_e and registers itself through
+ * it maps gestures onto the application intents it is handed -- decide,
+ * pending, scroll, model-next, new-session -- and registers itself through
  * remote_ctrl_register_input().  A touch-screen adapter would be a sibling
  * doing the same thing with widget events; remote_ctrl never learns which
  * hardware the product has.
@@ -51,11 +52,23 @@ enum remote_decision_e
 };
 
 typedef void (*remote_decide_fn)(enum remote_decision_e decision, void *ctx);
+typedef int  (*remote_pending_fn)(void *ctx);
+typedef void (*remote_scroll_fn)(int dir, void *ctx);
+typedef void (*remote_action_fn)(void *ctx);
+typedef int  (*remote_dismiss_fn)(void *ctx);
+typedef int  (*remote_wake_fn)(void *ctx);
 
 struct remote_input_ops_s
 {
   const char *name;
-  int (*attach)(remote_decide_fn decide, void *ctx);
+  int (*attach)(remote_decide_fn decide,
+                remote_pending_fn pending,
+                remote_scroll_fn scroll,
+                remote_action_fn model_next,
+                remote_action_fn session_new,
+                remote_dismiss_fn dismiss,
+                remote_wake_fn wake,
+                void *ctx);
   void (*detach)(void);
 };
 
@@ -138,7 +151,6 @@ static unsigned int s_ctx_depth;
  ****************************************************************************/
 
 static void action_cancel(void);
-static void action_stat(void);
 /* ponytail: diagnostic for the lost KEY3 (GPIO8) release edge.  GPIO8 is
  * also Armino's ADC10 pin, and Armino's gpio_dev_map()/unmap() clear the
  * pin's int_en (bit 12) and rewrite its mux.  Dump CFG and the mux word
@@ -157,24 +169,33 @@ static void key3_regs(const char *tag)
 
 static void action_once(void);
 static void action_deny(void);
+static void action_scroll_up(void);
+static void action_scroll_down(void);
+static void action_model(void);
+static void action_session(void);
 
 static const struct keymap_s g_global_map[] =
 {
-  { KEY_BIT(0) | KEY_BIT(1), GESTURE_COMBO, action_cancel },
+  { KEY_BIT(1) | KEY_BIT(2), GESTURE_COMBO, action_cancel },
 };
 
+/* Idle: KEY2/KEY3 scroll the chat transcript on a tap, or cycle the remote
+ * model / open a fresh session on a hold.  KEY1 (GPIO13) is push-to-talk,
+ * owned by ai_agent's ptt_button thread on its own /dev/btn0 open. */
 static const struct keymap_s g_idle_map[] =
 {
-  { KEY_BIT(0), GESTURE_TAP,    action_once },
-  { KEY_BIT(1), GESTURE_TAP,    action_deny  },
-  { KEY_BIT(0), GESTURE_HOLD,   action_stat },
-  { KEY_BIT(1), GESTURE_HOLD,   action_stat },
+  { KEY_BIT(1), GESTURE_TAP,    action_scroll_up },
+  { KEY_BIT(2), GESTURE_TAP,    action_scroll_down },
+  { KEY_BIT(1), GESTURE_HOLD,   action_model },
+  { KEY_BIT(2), GESTURE_HOLD,   action_session },
+};
 
-  /* KEY3 (GPIO8) is push-to-talk, owned by ai_agent's ptt_button thread
-   * (CONFIG_AI_AGENT_PTT_BUTTON_IDX=2) on its own /dev/btn0 open.  The
-   * upper half keeps per-open pending state, so both readers see every
-   * edge; nothing is bound to it here.
-   */
+/* Approval: pushed on top of idle while a permission request is pending, so
+ * the same two keys answer it instead of scrolling. */
+static const struct keymap_s g_approval_map[] =
+{
+  { KEY_BIT(1), GESTURE_TAP,    action_once },
+  { KEY_BIT(2), GESTURE_TAP,    action_deny },
 };
 
 static const struct keyctx_s g_global_ctx =
@@ -187,6 +208,12 @@ static const struct keyctx_s g_idle_ctx =
 {
   IDLE_MAP_NAME, g_idle_map,
   sizeof(g_idle_map) / sizeof(g_idle_map[0]), NULL, NULL
+};
+
+static const struct keyctx_s g_approval_ctx =
+{
+  "approval", g_approval_map,
+  sizeof(g_approval_map) / sizeof(g_approval_map[0]), NULL, NULL
 };
 
 void keyctx_push(const struct keyctx_s *ctx)
@@ -258,69 +285,130 @@ static const struct keymap_s *keymap_lookup(uint32_t keys,
 /****************************************************************************
  * Actions
  *
- * The key map reports a decision, not a button press.  The decide entry
- * point arrives through remote_ctrl_register_input() and is the only thing
- * this adapter knows about the application.
+ * The key map reports an application intent, not a button press.  The entry
+ * points arrive through remote_ctrl_register_input() and are the only thing
+ * this adapter knows about the application: decide / pending / scroll /
+ * model-next / new-session.  Each action just forwards to the callback it
+ * was handed; the semantics (and any "nothing pending" feedback) live in
+ * ai_agent, never here.
  ****************************************************************************/
 
 static remote_decide_fn s_decide;
-static void *s_decide_ctx;
+static remote_pending_fn s_pending;
+static remote_scroll_fn s_scroll;
+static remote_action_fn s_model_next;
+static remote_action_fn s_session_new;
+static remote_dismiss_fn s_dismiss;
+static remote_wake_fn s_wake;
+static void *s_ctx;
 
 static void action_cancel(void)
 {
   printf("[key] cancel\n");
 }
 
-static void action_stat(void)
-{
-#ifdef CONFIG_AI_AGENT_REMOTE_CTRL
-  if (s_decide != NULL)
-    {
-      /* VIEW_PENDING is not a permission decision, so it is not routed
-       * through decide(); print the pending request directly when the
-       * channel is configured.
-       */
-
-      printf("[key] view pending\n");
-    }
-#endif
-}
-
 static void action_once(void)
 {
-#ifdef CONFIG_AI_AGENT_REMOTE_CTRL
   if (s_decide != NULL)
     {
-      s_decide(REMOTE_DECISION_ONCE, s_decide_ctx);
+      s_decide(REMOTE_DECISION_ONCE, s_ctx);
     }
-#else
-  printf("[key] once (no remote-ctrl)\n");
-#endif
+  else
+    {
+      printf("[key] once (no input adapter)\n");
+    }
 }
 
 static void action_deny(void)
 {
-#ifdef CONFIG_AI_AGENT_REMOTE_CTRL
   if (s_decide != NULL)
     {
-      s_decide(REMOTE_DECISION_DENY, s_decide_ctx);
+      s_decide(REMOTE_DECISION_DENY, s_ctx);
     }
-#else
-  printf("[key] deny (no remote-ctrl)\n");
-#endif
+  else
+    {
+      printf("[key] deny (no input adapter)\n");
+    }
 }
 
-static int keymap_attach(remote_decide_fn decide, void *ctx)
+static void action_scroll_up(void)
+{
+  if (s_scroll != NULL)
+    {
+      s_scroll(0, s_ctx);
+    }
+  else
+    {
+      printf("[key] scroll up (no input adapter)\n");
+    }
+}
+
+static void action_scroll_down(void)
+{
+  if (s_scroll != NULL)
+    {
+      s_scroll(1, s_ctx);
+    }
+  else
+    {
+      printf("[key] scroll down (no input adapter)\n");
+    }
+}
+
+static void action_model(void)
+{
+  if (s_model_next != NULL)
+    {
+      s_model_next(s_ctx);
+    }
+  else
+    {
+      printf("[key] model-next (no input adapter)\n");
+    }
+}
+
+static void action_session(void)
+{
+  if (s_session_new != NULL)
+    {
+      s_session_new(s_ctx);
+    }
+  else
+    {
+      printf("[key] new-session (no input adapter)\n");
+    }
+}
+
+static int keymap_attach(remote_decide_fn decide,
+                         remote_pending_fn pending,
+                         remote_scroll_fn scroll,
+                         remote_action_fn model_next,
+                         remote_action_fn session_new,
+                         remote_dismiss_fn dismiss,
+                         remote_wake_fn wake,
+                         void *ctx)
 {
   s_decide = decide;
-  s_decide_ctx = ctx;
+  s_pending = pending;
+  s_scroll = scroll;
+  s_model_next = model_next;
+  s_session_new = session_new;
+  s_dismiss = dismiss;
+  s_wake = wake;
+  s_ctx = ctx;
   return 0;
 }
 
 static void keymap_detach(void)
 {
   s_decide = NULL;
-  s_decide_ctx = NULL;
+  s_pending = NULL;
+  s_scroll = NULL;
+  s_model_next = NULL;
+  s_session_new = NULL;
+  s_dismiss = NULL;
+  s_wake = NULL;
+  s_ctx = NULL;
 }
 
 static const struct remote_input_ops_s g_keymap_ops =
@@ -350,7 +438,27 @@ static uint32_t now_ms(void)
 static void gesture_fire(uint32_t keys, enum gesture_e g)
 {
   const char *which = "-";
-  const struct keymap_s *m = keymap_lookup(keys, g, &which);
+  const struct keymap_s *m;
+
+  if (s_dismiss != NULL && s_dismiss(s_ctx))
+    {
+      printf("[key] notice: keys=%lx gesture=%d -> dismissed (swallowed)\n",
+             (unsigned long)keys, g);
+      return;
+    }
+
+  /* While the standby clock is up, a key press only unlocks the screen and is
+   * swallowed: the same S2 that wakes the device must not also answer a pending
+   * approval (or scroll). The wake entry point reports back whether it ate the
+   * press. */
+  if (s_wake != NULL && s_wake(s_ctx))
+    {
+      printf("[key] standby: keys=%lx gesture=%d -> wake (swallowed)\n",
+             (unsigned long)keys, g);
+      return;
+    }
+
+  m = keymap_lookup(keys, g, &which);
 
   printf("[key] %s: keys=%lx gesture=%d -> %s\n", which,
          (unsigned long)keys, g,
@@ -552,6 +660,36 @@ static void button_source_poll(void)
  * Public Functions
  ****************************************************************************/
 
+/* Tracks whether the approval context is currently on the stack so the poll
+ * below only pushes/pops on a transition, not every slice. */
+static bool s_approval_active;
+
+/* Switch the key context when a remote permission request comes and goes.
+ * Polled once per slice: when pending() says an approval is up, the approval
+ * map (S2 approve / S3 deny) is pushed over the idle map; when it clears, it
+ * is popped and the keys go back to scrolling. */
+static void update_pending_ctx(void)
+{
+  bool pending;
+
+#ifdef CONFIG_AI_AGENT_REMOTE_CTRL
+  pending = (s_pending != NULL) && s_pending(s_ctx) != 0;
+#else
+  pending = false;
+#endif
+
+  if (pending && !s_approval_active)
+    {
+      keyctx_push(&g_approval_ctx);
+      s_approval_active = true;
+    }
+  else if (!pending && s_approval_active)
+    {
+      keyctx_pop();
+      s_approval_active = false;
+    }
+}
+
 static FAR void *key_thread(FAR void *arg)
 {
   (void)arg;
@@ -572,6 +710,7 @@ static FAR void *key_thread(FAR void *arg)
 
   for (; ; )
     {
+      update_pending_ctx();
       button_source_poll();
       if (++ticks >= LED_SLICE_TICKS)
         {
@@ -590,7 +729,14 @@ int bk7258_buttons_input_initialize(void)
   int ret;
 
   pthread_attr_init(&attr);
-  pthread_attr_setstacksize(&attr, 4096);
+  /* 4 KB was enough for the bare /dev/btn0 poll loop, but the key path now
+   * fans out into ai_agent's remote_ctrl decide/scroll callbacks, which hop
+   * into LVGL via lv_async_call() (lv_malloc + lv_timer_create) underneath a
+   * printf/syslog formatting chain.  That depth overflows 4 KB and silently
+   * drops the UI update: buttons register in the log but the screen never
+   * changes.  32 KB matches the vela_tls floor and leaves comfortable
+   * headroom; the heap arena is ~8 MB so the cost is negligible. */
+  pthread_attr_setstacksize(&attr, 32768);
   ret = pthread_create(&tid, &attr, key_thread, NULL);
   pthread_attr_destroy(&attr);
   return ret == 0 ? 0 : -EIO;

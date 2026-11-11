@@ -16,6 +16,11 @@ function validRequestId(value) {
     Buffer.byteLength(value, "utf8") <= MAX_REQUEST_ID_BYTES;
 }
 
+function validModelName(value) {
+  return typeof value === "string" && value.length > 0 &&
+    Buffer.byteLength(value, "utf8") <= 64 && !/[\u0000-\u001f\u007f]/.test(value);
+}
+
 function splitOutput(message) {
   const pieces = [];
   let piece = "";
@@ -35,7 +40,7 @@ function splitOutput(message) {
 }
 
 export class DeskMateBridgeCore {
-  constructor({ adapter, publish, clock = () => Date.now(), permissionTimeoutMs = 30_000, outputFlushMs = 40, onAdapterEvent = () => {} }) {
+  constructor({ adapter, publish, clock = () => Date.now(), permissionTimeoutMs = 30_000, outputFlushMs = 40, onAdapterEvent = () => {}, models = [] }) {
     this.adapter = adapter;
     this.publish = publish;
     this.clock = clock;
@@ -55,8 +60,13 @@ export class DeskMateBridgeCore {
     this.usageReady = false;
     this.nonce = null;
     this.linkActive = false;
-    this.facts = { total: 1, running: 0, waiting: 0, msg: "Agent offline", prompt: null };
+    this.facts = { total: 1, running: 0, waiting: 0, msg: "Agent offline", prompt: null, backend: adapter.backendState ?? "unknown" };
     this.usage = new SessionUsageLedger({ backend: adapter.backend, clock });
+    this.modelOptions = Array.isArray(models) ? models.filter(validModelName).slice(0, 32) : [];
+    this.modelCurrent = this.modelOptions[0] ?? null;
+    this.generation = 0;
+    this.generations = [];
+    this.currentSession = null;
     this.onAdapterEvent = onAdapterEvent;
     this.adapter.onEvent((event) => this.#onAdapterEvent(event));
   }
@@ -78,9 +88,47 @@ export class DeskMateBridgeCore {
     this.requestAcks.clear();
     this.facts.prompt = null;
     this.facts.waiting = 0;
+    if (this.facts.backend === "up" && typeof this.adapter.alive === "function" && this.adapter.alive() === false) {
+      this.facts.backend = "down";
+    }
     this.publish({ v: VERSION, type: "hello_ack", connection_nonce: this.nonce, epoch: this.epoch, capabilities: ["chat_turns"] });
     this.snapshot();
     this.usageSnapshot();
+    this.modelsSnapshot();
+    this.sessionListSnapshot();
+  }
+
+  modelsSnapshot() {
+    if (!this.linkActive || !this.nonce || this.modelOptions.length === 0) return;
+    this.publish(assertFits({
+      v: VERSION, type: "models", connection_nonce: this.nonce, epoch: this.epoch,
+      current: this.modelCurrent, options: this.modelOptions, truncated: false,
+    }));
+  }
+
+  sessionListSnapshot() {
+    if (!this.linkActive || !this.nonce || this.generations.length === 0) return;
+    this.publish(assertFits({
+      v: VERSION, type: "session_list", connection_nonce: this.nonce, epoch: this.epoch,
+      sessions: this.generations.map((entry) => ({
+        id: entry.id, preview: entry.preview, current: entry.id === this.currentSession,
+      })),
+      truncated: false,
+    }));
+  }
+
+  #recordGeneration(acpSessionId) {
+    this.generation += 1;
+    const entry = {
+      id: String(this.generation),
+      preview: `Generation ${this.generation}`,
+      acpSessionId: acpSessionId ?? null,
+    };
+    this.generations.push(entry);
+    if (this.generations.length > 8) this.generations.shift();
+    this.currentSession = entry.id;
+    this.sessionListSnapshot();
+    return entry;
   }
 
   snapshot(extra = {}) {
@@ -88,7 +136,7 @@ export class DeskMateBridgeCore {
     const message = {
       v: VERSION, type: "snapshot", connection_nonce: this.nonce, epoch: this.epoch, seq: ++this.seq,
       total: this.facts.total, running: this.facts.running, waiting: this.facts.waiting,
-      msg: this.facts.msg, prompt: this.facts.prompt, ...extra,
+      msg: this.facts.msg, prompt: this.facts.prompt, backend: this.facts.backend, ...extra,
     };
     message.msg = summarizeMessage(message.msg);
     this.publish(assertFits(message));
@@ -120,6 +168,10 @@ export class DeskMateBridgeCore {
       return;
     }
     if (message.cmd === "prompt_submit") return this.#receivePrompt(message);
+    if (message.cmd === "model_select") return this.#receiveModelSelect(message);
+    if (message.cmd === "session_list" || message.cmd === "session_new" || message.cmd === "session_switch") {
+      return this.#receiveSession(message);
+    }
     if (message.cmd !== "permission") throw new TypeError("unsupported command");
     if (message.connection_nonce !== this.nonce || message.epoch !== this.epoch) {
       return this.#result(message.id, false, "stale_connection");
@@ -164,6 +216,25 @@ export class DeskMateBridgeCore {
     this.facts.waiting = 0;
   }
 
+  #armPermissionTimeout() {
+    clearTimeout(this.permissionTimer);
+    this.permissionTimer = setTimeout(() => {
+      this.permissionTimer = null;
+      const rejected = this.permissions.rejectPending();
+      if (rejected) {
+        try {
+          const sent = this.adapter.respondPermission(rejected.id, rejected.result);
+          if (sent && typeof sent.catch === "function") sent.catch(() => {});
+        } catch {}
+      }
+      this.facts.prompt = null;
+      this.facts.waiting = 0;
+      this.facts.running = this.activeTurn ? 1 : 0;
+      this.facts.msg = "Approval request expired";
+      this.snapshot();
+    }, this.permissionTimeoutMs);
+  }
+
   submitLocal(text) {
     if (!validText(text)) throw new TypeError("text required and limited to 2048 UTF-8 bytes");
     if (this.activeTurn || this.facts.waiting > 0) throw new Error("turn_busy");
@@ -185,6 +256,7 @@ export class DeskMateBridgeCore {
       if (previous.result) this.#publishTurnResult(previous.result);
       return;
     }
+    if (this.facts.backend === "down") return this.#promptAck(message.request_id, false, "backend_unavailable");
     if (this.activeTurn || this.facts.waiting > 0) return this.#promptAck(message.request_id, false, "turn_busy");
 
     const started = this.#startTurn({
@@ -197,6 +269,56 @@ export class DeskMateBridgeCore {
     const ack = { requestId: message.request_id, turnId: started.turn.id, accepted: true, text: message.text };
     this.requestAcks.set(message.request_id, ack);
     this.#publishPromptAck(ack);
+  }
+
+  async #receiveModelSelect(message) {
+    if (message.connection_nonce !== this.nonce || message.epoch !== this.epoch) return;
+    if (!validModelName(message.model) || !this.modelOptions.includes(message.model)) return;
+    if (message.model === this.modelCurrent) return this.modelsSnapshot();
+    if (typeof this.adapter.setModel === "function") {
+      try {
+        await this.adapter.setModel(message.model);
+      } catch {
+        return this.modelsSnapshot();
+      }
+    }
+    this.modelCurrent = message.model;
+    this.modelsSnapshot();
+  }
+
+  async #receiveSession(message) {
+    if (message.connection_nonce !== this.nonce || message.epoch !== this.epoch) return;
+
+    if (message.cmd === "session_list") return this.sessionListSnapshot();
+
+    if (message.cmd === "session_switch") {
+      const target = this.generations.find((entry) => entry.id === message.target);
+      if (!target || target.acpSessionId === null ||
+          typeof this.adapter.selectSession !== "function") {
+        return this.sessionListSnapshot();
+      }
+      this.adapter.selectSession(target.acpSessionId);
+      this.currentSession = target.id;
+      this.facts.msg = `Session ${target.id} selected`;
+      this.sessionListSnapshot();
+      this.snapshot();
+      return;
+    }
+
+    if (this.activeTurn || this.facts.waiting > 0) return this.sessionListSnapshot();
+    if (typeof this.adapter.newSession !== "function") return this.sessionListSnapshot();
+
+    const before = this.generation;
+    try {
+      await this.adapter.newSession();
+    } catch {
+      return this.sessionListSnapshot();
+    }
+    if (this.generation === before) {
+      this.#recordGeneration(this.adapter.attachSession?.() ?? null);
+    }
+    this.facts.msg = "New session started";
+    this.snapshot();
   }
 
   #startTurn({ text, device, requestId = null, nonce = null, epoch: turnEpoch = null }) {
@@ -307,7 +429,17 @@ export class DeskMateBridgeCore {
       if (event.type === "text") {
         event = { ...event, text: sanitizeAgentText(event.text) };
       }
+      if (event.type === "backend_state") {
+        const state = event.state === "up" ? "up" : "down";
+        if (this.facts.backend !== state) {
+          this.facts.backend = state;
+          this.facts.msg = state === "up" ? "Coding agent ready" : "Coding agent exited";
+          this.snapshot();
+        }
+        return;
+      }
       if (event.type === "session_started") {
+        this.#recordGeneration(event.sessionId ?? this.adapter.attachSession?.() ?? null);
         this.usage.reset(event.backend ?? this.adapter.backend);
         this.usageReady = true;
         this.usageSnapshot();
@@ -316,6 +448,17 @@ export class DeskMateBridgeCore {
       if (event.type === "usage") {
         this.usage.record(event);
         this.usageSnapshot();
+        return;
+      }
+      if (event.type === "models") {
+        if (!Array.isArray(event.options)) return;
+        const options = event.options.filter(validModelName).slice(0, 32);
+        if (options.length === 0) return;
+        this.modelOptions = options;
+        this.modelCurrent = validModelName(event.current) && options.includes(event.current)
+          ? event.current
+          : options[0];
+        this.modelsSnapshot();
         return;
       }
       if (event.type === "permission_request") {
@@ -333,7 +476,7 @@ export class DeskMateBridgeCore {
         const snapshot = this.permissions.ptSubmit(event.params);
         this.facts = { ...this.facts, ...snapshot, msg: snapshot.msg };
         this.snapshot();
-        this.permissionTimer = setTimeout(() => this.disconnect(), this.permissionTimeoutMs);
+        this.#armPermissionTimeout();
         return;
       }
       if (event.type === "tool") {
