@@ -63,6 +63,12 @@ export class DeskMateBridgeCore {
     this.facts = { total: 1, running: 0, waiting: 0, msg: "Agent offline", prompt: null, backend: adapter.backendState ?? "unknown" };
     this.usage = new SessionUsageLedger({ backend: adapter.backend, clock });
     this.modelOptions = Array.isArray(models) ? models.filter(validModelName).slice(0, 32) : [];
+    /* `--models` is an explicit operator choice: when given, the device's
+     * switch list is exactly that list.  Without this the backend's own
+     * catalogue (MiMo publishes ~25 built-ins, most of them not reachable
+     * through the configured provider) replaced it the moment a session
+     * started, and a device press cycled models the gateway cannot serve. */
+    this.modelsPinned = this.modelOptions.length > 0;
     this.modelCurrent = this.modelOptions[0] ?? null;
     this.generation = 0;
     this.generations = [];
@@ -452,6 +458,16 @@ export class DeskMateBridgeCore {
       }
       if (event.type === "models") {
         if (!Array.isArray(event.options)) return;
+        if (this.modelsPinned) {
+          /* Keep the operator's list; only follow the backend's live current
+           * when it names one of the pinned models (a switch we asked for, or
+           * the backend's own default). */
+          if (validModelName(event.current) && this.modelOptions.includes(event.current)) {
+            this.modelCurrent = event.current;
+            this.modelsSnapshot();
+          }
+          return;
+        }
         const options = event.options.filter(validModelName).slice(0, 32);
         if (options.length === 0) return;
         this.modelOptions = options;

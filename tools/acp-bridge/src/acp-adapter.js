@@ -161,7 +161,20 @@ export class StdioAcpAdapter {
     if (message.id !== undefined && message.method === "session/request_permission") {
       const toolCall = message.params?.toolCall ?? {};
       const cached = this.tools.get(toolCall.toolCallId);
-      this.listener({ type: "permission_request", params: { ...message.params, requestId: message.id, toolCall: { ...cached, ...toolCall, rawInput: toolCall.rawInput ?? cached?.rawInput } } });
+      /* A permission request is a *different shape* from the tool call it is
+       * about.  MiMoCode fills `rawInput` with the permission's metadata, which
+       * is `{}` for the bash external-directory ask, and sets `title` to the
+       * permission id (`external_directory`).  An empty object is truthy, so a
+       * plain `??` let `{}` clobber the real arguments cached from the earlier
+       * tool_call update — the device then showed an empty hint.  Only a
+       * non-empty payload may replace what we already know; `locations` gets
+       * the same treatment. */
+      const hasPayload = (value) =>
+        value !== undefined && value !== null &&
+        (typeof value === "object" ? Object.keys(value).length > 0 : String(value).length > 0);
+      const rawInput = hasPayload(toolCall.rawInput) ? toolCall.rawInput : cached?.rawInput;
+      const locations = Array.isArray(toolCall.locations) && toolCall.locations.length > 0 ? toolCall.locations : cached?.locations;
+      this.listener({ type: "permission_request", params: { ...message.params, requestId: message.id, toolCall: { ...cached, ...toolCall, rawInput, locations } } });
       return;
     }
     if (message.id !== undefined && message.method) {
