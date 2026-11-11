@@ -119,7 +119,7 @@ test("snapshot message is UTF-8 safe and capped at 128 bytes", async () => {
   const snapshot = outbound.at(-1);
   assert.equal(snapshot.type, "snapshot");
   assert.ok(Buffer.byteLength(snapshot.msg, "utf8") <= 128);
-  assert.ok(snapshot.msg.endsWith("…"));
+  assert.ok(snapshot.msg.endsWith(".."));
   assert.doesNotThrow(() => Buffer.from(snapshot.msg, "utf8").toString("utf8"));
 });
 

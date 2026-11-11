@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
 
 /* The device renders the prompt on a 240x296 round panel, so a hint has to be
- * short enough to read but long enough to decide on: 160 bytes is ~6-7 lines of
- * 16 px CJK text inside the approval card.  REMOTE_HINT_MAX in the firmware's
+ * short enough to read but long enough to decide on: the approval card scrolls,
+ * so 240 bytes (~8 lines of 12 px CJK text) buys a whole shell command line
+ * without making the common case scroll.  REMOTE_HINT_MAX in the firmware's
  * remote_link.h and async_approval_t.hint must stay >= this value. */
-const HINT_MAX_BYTES = 160;
+const HINT_MAX_BYTES = 240;
 const TOOL_TITLE_MAX_BYTES = 40;
 const MESSAGE_MAX_BYTES = 128;
 const PROMPT_ID_MAX_BYTES = 40;
@@ -12,13 +13,59 @@ const PROMPT_ID_MAX_BYTES = 40;
 /* Fields a human needs in order to decide on a permission prompt, most
  * operative first.  ACP tools put the payload under different names depending
  * on the tool (shell / read / write / search / fetch), and the raw JSON dump we
- * used to show ("external filetory{...}") told the user nothing. */
+ * used to show ("external filetory{...}") told the user nothing.
+ *
+ * MiMoCode's permission requests carry the permission's `metadata` here
+ * (lowercase `filepath` / `parentDir`), which is a different spelling from the
+ * toolCall shapes below — keep both. */
 const HINT_FIELDS = [
   "command", "cmd", "script",
-  "path", "filePath", "file_path", "filename", "target", "files",
+  "path", "filePath", "file_path", "filepath", "filename", "target", "files",
+  "parentDir", "dir", "directory", "cwd",
   "pattern", "query", "q", "url", "uri",
   "name", "description", "prompt", "text", "title",
 ];
+
+/* MiMoCode raises each permission kind as its own "tool" name, so without a
+ * mapping the device would show `external_directory` / `bash_delete`.  The
+ * panel is Chinese and its 12 px font is a 3990-codepoint subset, so these
+ * labels are ASCII-free and every glyph was checked against
+ * packages/ai_agent/src/ui/lv_font_misans_12_cjk.c.  Unknown kinds fall back to
+ * the backend's own title. */
+const PERMISSION_LABELS = {
+  external_directory: "访问项目外目录",
+  bash: "执行命令",
+  bash_delete: "删除文件",
+  edit: "修改文件",
+  write: "写入文件",
+  read: "读取文件",
+  webfetch: "网络请求",
+  fetch: "网络请求",
+  websearch: "网络搜索",
+  doom_loop: "工具循环保护",
+};
+
+/* Shown when the backend sends no arguments at all (the tool was still being
+ * prepared when the permission fired), so the page explains WHAT is being
+ * asked instead of rendering an empty body. */
+const PERMISSION_HINTS = {
+  external_directory: "命令将读取或写入项目目录之外的路径",
+  bash: "即将在终端执行命令",
+  bash_delete: "即将删除文件",
+  edit: "即将修改文件",
+  write: "即将写入文件",
+  read: "即将读取文件",
+  webfetch: "即将访问网络",
+  fetch: "即将访问网络",
+  websearch: "即将搜索网络",
+  doom_loop: "工具调用出现循环",
+};
+
+/* Separator for several hint fragments.  The panel font has no U+00B7 middle
+ * dot and no U+2026 ellipsis (they rendered as tofu boxes), so the bridge only
+ * emits glyphs the device can draw: "、" and "..". */
+const HINT_SEPARATOR = "、";
+const ELLIPSIS = "..";
 
 const SENSITIVE_KEY = /(?:api[_-]?key|authorization|cookie|credential|password|secret|token)/i;
 const SENSITIVE_TEXT = /\b(?:api[_ -]?key|authorization|cookie|credential|password|secret|token)\b\s*([:=])\s*(?:Bearer\s+)?[^\s,;]+/gi;
@@ -43,13 +90,12 @@ function utf8Prefix(value, maxBytes) {
 
 function utf8Summary(value, maxBytes) {
   const input = String(value ?? "");
-  const marker = "…";
 
   if (Buffer.byteLength(input, "utf8") <= maxBytes) {
     return input;
   }
 
-  return utf8Prefix(input, maxBytes - Buffer.byteLength(marker, "utf8")) + marker;
+  return utf8Prefix(input, maxBytes - Buffer.byteLength(ELLIPSIS, "utf8")) + ELLIPSIS;
 }
 
 function redact(value, key = "") {
@@ -101,8 +147,14 @@ function summarizeArguments(argumentsValue, maxBytes = HINT_MAX_BYTES) {
     return utf8Summary(clean(redacted), maxBytes);
   }
   if (Array.isArray(redacted)) {
-    const joined = redacted.map((item) => (typeof item === "string" ? item : "")).filter(Boolean).join(" · ");
+    const joined = redacted.map((item) => (typeof item === "string" ? item : "")).filter(Boolean).join(HINT_SEPARATOR);
     return utf8Summary(clean(joined || JSON.stringify(redacted)), maxBytes);
+  }
+  if (typeof redacted !== "object" || Object.keys(redacted).length === 0) {
+    /* An empty payload has nothing to say.  Returning "{}" here is what put a
+     * literal "{}" on the approval page: the caller now falls through to the
+     * permission explanation instead. */
+    return "";
   }
 
   const parts = [];
@@ -118,7 +170,7 @@ function summarizeArguments(argumentsValue, maxBytes = HINT_MAX_BYTES) {
       continue;
     }
     parts.push(clean(text));
-    if (Buffer.byteLength(parts.join(" · "), "utf8") >= maxBytes) {
+    if (Buffer.byteLength(parts.join(HINT_SEPARATOR), "utf8") >= maxBytes) {
       break;
     }
   }
@@ -134,8 +186,23 @@ function summarizeArguments(argumentsValue, maxBytes = HINT_MAX_BYTES) {
     }
   }
 
-  const rendered = parts.length > 0 ? parts.join(" · ") : JSON.stringify(redacted) ?? "";
+  const rendered = parts.length > 0 ? parts.join(HINT_SEPARATOR) : JSON.stringify(redacted) ?? "";
   return utf8Summary(clean(rendered), maxBytes);
+}
+
+/* ACP also reports where the tool will operate (the permission request carries
+ * `locations`).  For paths that is often the only detail a backend sends, so
+ * use it when the arguments themselves are empty. */
+function summarizeLocations(locations, maxBytes = HINT_MAX_BYTES) {
+  if (!Array.isArray(locations)) {
+    return "";
+  }
+  const clean = (value) => sanitizeAgentText(String(value)).replace(/\s+/g, " ").trim();
+  const paths = locations
+    .map((item) => (typeof item === "string" ? item : item?.path ?? item?.uri ?? ""))
+    .filter((item) => typeof item === "string" && item.trim() !== "")
+    .map(clean);
+  return paths.length > 0 ? utf8Summary(paths.join(HINT_SEPARATOR), maxBytes) : "";
 }
 
 function summarizeMessage(value) {
@@ -182,12 +249,24 @@ function normalizePermission(params) {
   const allowOnce = choiceOptionId(options, "allow_once");
   const rejectOnce = choiceOptionId(options, "reject_once");
   const promptId = promptIdFor(sessionId, requestId, toolCallId);
+  const title = toolLabel(toolCall);
+  const kind = typeof toolCall.kind === "string" ? toolCall.kind.trim() : "";
+  const label = PERMISSION_LABELS[title] ?? PERMISSION_LABELS[kind] ?? title;
+  /* Detail order: what the tool will actually run / touch, then where it will
+   * run, then (if the backend sent neither) what the permission itself means.
+   * Never the raw JSON dump that produced "{}" on the panel. */
+  const detail =
+    summarizeArguments(toolCall.rawInput ?? toolCall.input ?? toolCall.arguments) ||
+    summarizeLocations(toolCall.locations) ||
+    PERMISSION_HINTS[title] ||
+    PERMISSION_HINTS[kind] ||
+    "";
   return {
     acpRequestId: requestId,
     prompt: {
       id: promptId,
-      tool: utf8Prefix(toolLabel(toolCall), TOOL_TITLE_MAX_BYTES),
-      hint: summarizeArguments(toolCall.rawInput ?? toolCall.input ?? toolCall.arguments),
+      tool: utf8Prefix(label, TOOL_TITLE_MAX_BYTES),
+      hint: detail,
       canOnce: typeof allowOnce === "string",
       canDeny: typeof rejectOnce === "string",
     },

@@ -65,10 +65,12 @@ test("hints and messages preserve their separate UTF-8 caps", () => {
   const hint = summarizeArguments({ text: "你".repeat(100) });
   const message = summarizeMessage("你".repeat(100));
 
-  assert.ok(Buffer.byteLength(hint, "utf8") <= 160);
+  assert.ok(Buffer.byteLength(hint, "utf8") <= 240);
   assert.ok(Buffer.byteLength(message, "utf8") <= 128);
-  assert.ok(hint.endsWith("…"));
-  assert.ok(message.endsWith("…"));
+  /* ASCII marker on purpose: the panel font has no U+2026. */
+  assert.ok(hint.endsWith(".."));
+  assert.ok(message.endsWith(".."));
+  assert.doesNotMatch(hint + message, /…/);
   assert.doesNotThrow(() => Buffer.from(hint, "utf8").toString("utf8"));
   assert.doesNotThrow(() => Buffer.from(message, "utf8").toString("utf8"));
 });
@@ -79,7 +81,43 @@ test("hint summarizes the operative field instead of dumping JSON", () => {
     "git push origin HEAD:refs/for/trunk",
   );
   const both = summarizeArguments({ path: "examples/hello/hello_main.c", command: "ls" });
-  assert.equal(both, "ls · examples/hello/hello_main.c");
+  /* "、" rather than " · ": U+00B7 is not in the device font subset. */
+  assert.equal(both, "ls、examples/hello/hello_main.c");
+});
+
+test("an empty permission payload is explained, never rendered as {}", () => {
+  const bridge = new AcpBridge();
+  /* MiMoCode's bash external-directory ask: title is the permission id and the
+   * metadata (rawInput) is an empty object. */
+  const snapshot = bridge.ptSubmit(permissionRequest({
+    toolCall: { toolCallId: "tool-9", title: "external_directory", rawInput: {} },
+  }));
+  assert.equal(snapshot.prompt.tool, "访问项目外目录");
+  assert.notEqual(snapshot.prompt.hint, "{}");
+  assert.ok(snapshot.prompt.hint.length > 0);
+  assert.doesNotMatch(snapshot.prompt.hint, /[{}]/);
+});
+
+test("permission metadata paths are shown when there are no arguments", () => {
+  const bridge = new AcpBridge();
+  const snapshot = bridge.ptSubmit(permissionRequest({
+    toolCall: {
+      toolCallId: "tool-9",
+      title: "external_directory",
+      rawInput: { filepath: "/home/u/other/main.c", parentDir: "/home/u/other" },
+    },
+  }));
+  assert.equal(snapshot.prompt.tool, "访问项目外目录");
+  assert.match(snapshot.prompt.hint, /\/home\/u\/other\/main\.c/);
+});
+
+test("permission locations are the last-resort detail", () => {
+  const bridge = new AcpBridge();
+  const snapshot = bridge.ptSubmit(permissionRequest({
+    toolCall: { toolCallId: "tool-9", title: "read", rawInput: {}, locations: [{ path: "/etc/hosts" }] },
+  }));
+  assert.equal(snapshot.prompt.tool, "读取文件");
+  assert.equal(snapshot.prompt.hint, "/etc/hosts");
 });
 
 test("opaque prompt IDs remain within the wire contract for long ACP IDs", () => {
