@@ -236,4 +236,4 @@ rm -f "$d"/ffmpeg_out_tree-prefix/src/ffmpeg_out_tree-stamp/ffmpeg_out_tree-{dow
   本地文件，**严禁入仓/外发**。
 - Mify key 执行时 shell 内替换：`$(tr -d '[:space:]' < ~/桌面/tmp/key.txt)`，
   不得出现在任何输出/日志/对话文本里。
-- 同步会话日志入仓前必须先跑 `contest-log-redact` skill。
+- 同步会话日志入仓前必须先跑 `bk7258-ui-ontarget-test` skill 的脱敏脚本（`.claude/skills/bk7258-ui-ontarget-test/scripts/redact_log_secrets.py --verify`，见其 `references/log-redaction.md`）。

@@ -85,7 +85,7 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
 cd "$SCRIPT_DIR" || exit 1
 
 DEV=${DEV:-/dev/ttyUSB0}
-BAUD=${BAUD:-115200}
+BAUD=${BAUD:-1000000}   # AP 控制台是 1 Mbaud;115200 会全静默(SKILL.md 第 1 步)
 LOG=${LOG:-/tmp/func-test-$(date +%Y%m%d-%H%M%S).log}
 
 # 配置来源。只用它定位行号,不读值、不打印值。

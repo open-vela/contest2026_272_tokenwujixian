@@ -166,7 +166,7 @@ sntp   synced (re-syncs every 30 min)
 - 用 pyserial 直接开 `/dev/ttyUSB0`(**1000000**,1 Mbaud),不要经 minicom。
 - **先写 `\r\n` 再等提示符**,否则永远等不到(板子不主动输出)。
 - 一次性从 `../scripts/cmd_scripts.sh` 里取 `set_llm` 整行原样下发,避免脚本文本里再存一份 key。
-- 落到文件的日志**必须把 key 打码**再存/提交(见 `contest-log-redact` skill)。
+- 落到文件的日志**必须把 key 打码**再存/提交(跑本 skill 的 `scripts/redact_log_secrets.py --verify`,见 `references/log-redaction.md`)。
 
 ---
 
