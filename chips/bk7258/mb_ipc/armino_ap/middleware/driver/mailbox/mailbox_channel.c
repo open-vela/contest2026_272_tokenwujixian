@@ -683,11 +683,21 @@ bk_err_t mb_chnl_init(void)
 		bk_mailbox_recv_callback_register(dst_cpu, SELF_CPU, mb_phy_chnl_rx_isr);
 	}
 
-	mb_phy_chnl_reset(0);
-
 	mb_chnnl_init_ok = 1;
 
 	mb_chnl_exit_critical(init_int_mask);
+
+	/* v5d fix: never fire the reset while still holding the channel
+	 * spinlock.  mb_phy_chnl_reset() -> bk_mailbox_send_safe() ->
+	 * mb_chnl_enter_critical() would acquire the SAME non-recursive SMP
+	 * spinlock (mb_chnl_spin_lock) on this CPU and spin forever
+	 * (self-deadlock).  That matches the observed hang: amp-init's first
+	 * mailbox touch on either CPU entered mb_chnl_init and never returned
+	 * (terminal word40 0x0323 in both v5bd and v5c), starving the prio-80
+	 * heartbeat co-resident on that core.  The reset is a fire-and-forget
+	 * RPMsg send already serialized by the backend's own lock
+	 * (g_bk_mb.lock), so firing it after mb_chnl_exit_critical() is safe. */
+	mb_phy_chnl_reset(0);
 
 	return BK_OK;
 }

@@ -322,6 +322,7 @@ void bk7258_ap_record_fault(uint32_t fault)
     {
       return;
     }
+
   record.stage = BK7258_AP_STAGE_FAULT;
   record.fault = fault;
   bk7258_ap_write(&record);
@@ -348,6 +349,29 @@ bool bk7258_ap_c2flag_test(void)
   volatile uint32_t *flag = (volatile uint32_t *)g_ap_record;
 
   return flag[BK7258_AP_SWAP_C2_WORD] == BK7258_AP_SWAP_C2_MAGIC;
+}
+
+void bk7258_ap_sched_gate_set(void)
+{
+  volatile uint32_t *flag = (volatile uint32_t *)g_ap_record;
+
+  flag[BK7258_AP_SWAP_GATE_WORD] = BK7258_AP_SWAP_GATE_MAGIC;
+  bk7258_ap_barrier();
+}
+
+void bk7258_ap_sched_gate_clear(void)
+{
+  volatile uint32_t *flag = (volatile uint32_t *)g_ap_record;
+
+  flag[BK7258_AP_SWAP_GATE_WORD] = 0;
+  bk7258_ap_barrier();
+}
+
+bool bk7258_ap_sched_gate_test(void)
+{
+  volatile uint32_t *flag = (volatile uint32_t *)g_ap_record;
+
+  return flag[BK7258_AP_SWAP_GATE_WORD] == BK7258_AP_SWAP_GATE_MAGIC;
 }
 
 void bk7258_ap_dbg_mark(uint32_t mark)

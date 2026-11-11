@@ -2226,6 +2226,12 @@ svr_recv_data_async:
 #include "mb_ipc_test.c"
 #endif
 
+/* v5d diagnostics: word40 boot-mark probe from the amp-init context.  See
+ * chips/bk7258/include/bk7258_ap_boot.h for the probe-value contract
+ * (0x032a/0x032b/0x032c).  Marks only fire on the very first mb_ipc_init()
+ * entry (the chnl_inited == 0 branch), i.e. once per AP boot. */
+extern void bk7258_ap_dbg_mark(uint32_t mark);
+
 bk_err_t mb_ipc_init(void)
 {
 	bk_err_t		ret_code;
@@ -2234,6 +2240,10 @@ bk_err_t mb_ipc_init(void)
 
 	if(chnl_inited != 0)
 		return BK_OK;
+
+	/* v5d probe: first-ever mb_ipc_init entry.  Terminal 0x032a = hang
+	 * inside the first mb_chnl_open -> mb_chnl_init (channel spinlock). */
+	bk7258_ap_dbg_mark(0x032au);
 
 	int route_id = 0;
 
@@ -2252,8 +2262,16 @@ bk_err_t mb_ipc_init(void)
 		mb_chnl_ctrl(chnl_id, MB_CHNL_SET_TX_CMPL_ISR, (void *)ipc_router_tx_cmpl_isr);
 	}
 
+	/* v5d probe: every route's chnl_open + ISR ctrl completed, so the
+	 * channel init (incl. the reset send) came back.  Hang before this
+	 * mark but after 0x032a would point inside mb_chnl_init again. */
+	bk7258_ap_dbg_mark(0x032bu);
+
 	init_client_socket();
 	init_server_socket();
+
+	/* v5d probe: routing/socket tables ready, mb_ipc_init() returns OK. */
+	bk7258_ap_dbg_mark(0x032cu);
 
 #ifdef TEST_IPC
 mb_ipc_test_init();

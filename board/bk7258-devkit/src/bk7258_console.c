@@ -34,6 +34,8 @@ int cu_main(int argc, FAR char *argv[]);
 
 bool bk7258_ap_is_running(void);
 
+#define BK7258_CONSOLE_ATTACH_ATTEMPTS 4
+
 static void bk7258_console_attach_ap(void)
 {
   FAR char *argv[] =
@@ -41,23 +43,53 @@ static void bk7258_console_attach_ap(void)
     "cu", "-l", "/dev/ttyAP", NULL
   };
 
+  int attempt;
   int polls = 0;
   pid_t pid;
 
-  while (!bk7258_ap_is_running())
+  /* The AP console occasionally comes up slower than one window (rf
+   * calibration, PSRAM sizing, the console relay's own bring-up); the
+   * single-window timeout permanently missed the attach on those boots and
+   * the CP NSH stayed on itself for the whole session.  Retry a few full
+   * windows instead: a healthy AP is claimed late rather than never, and a
+   * truly dead AP still falls back to the CP NSH after all attempts. */
+
+  for (attempt = 0; attempt < BK7258_CONSOLE_ATTACH_ATTEMPTS; attempt++)
     {
-      if (++polls * BK7258_CONSOLE_POLL_MS >
-          CONFIG_BK7258_CONSOLE_AUTO_AP_TIMEOUT * 1000)
+      polls = 0;
+
+      while (!bk7258_ap_is_running())
         {
-          printf("\n[console] AP not running after %d s, "
-                 "staying on the CP NSH\n",
-                 CONFIG_BK7258_CONSOLE_AUTO_AP_TIMEOUT);
-          return;
+          if (++polls * BK7258_CONSOLE_POLL_MS >
+              CONFIG_BK7258_CONSOLE_AUTO_AP_TIMEOUT * 1000)
+            {
+              if (attempt < BK7258_CONSOLE_ATTACH_ATTEMPTS - 1)
+                {
+                  printf("\n[console] AP console not ready after %d s, "
+                         "retrying (%d/%d)\n",
+                         CONFIG_BK7258_CONSOLE_AUTO_AP_TIMEOUT,
+                         attempt + 1, BK7258_CONSOLE_ATTACH_ATTEMPTS);
+                }
+              else
+                {
+                  printf("\n[console] AP not running after %d x %d s, "
+                         "staying on the CP NSH\n",
+                         BK7258_CONSOLE_ATTACH_ATTEMPTS,
+                         CONFIG_BK7258_CONSOLE_AUTO_AP_TIMEOUT);
+                  return;
+                }
+
+              break;
+            }
+
+          usleep(BK7258_CONSOLE_POLL_MS * 1000);
         }
 
-      usleep(BK7258_CONSOLE_POLL_MS * 1000);
+      if (bk7258_ap_is_running())
+        {
+          break;
+        }
     }
-
   printf("\n[console] attached to the AP NSH; "
          "\"~.\" returns to the CP NSH, \"cu\" comes back\n");
 

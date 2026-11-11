@@ -6,6 +6,10 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#ifdef CONFIG_SMP
+#  include <unistd.h>
+#  include <nuttx/sched.h>
+#endif
 
 #ifdef CONFIG_RPTUN
 
@@ -21,6 +25,7 @@
 #include <nuttx/nuttx.h>
 #include <nuttx/rptun/rptun.h>
 #include <nuttx/signal.h>
+#include <nuttx/spinlock.h>
 #include <sys/boardctl.h>
 
 #include <arch/chip/bk7258_mailbox.h>
@@ -333,6 +338,45 @@ static int bk7258_rptun_reset(struct rptun_dev_s *dev,
 #endif
 }
 
+#ifdef CONFIG_SMP
+/* Board-local busy-wait forensics: a long stay in the doorbell retry loop
+ * means the peer stopped draining its doorbell FIFO while we hold the latch
+ * (and possibly rdev->lock) with interrupts disabled.  Append a sample to
+ * the SWAP busy-wait table so the CP monitor can name the site after the
+ * console dies.  The table layout is the one bk7258_ap_control.c dumps; the
+ * AP is its only writer, so the slot write is followed by a plain publish
+ * of the bumped sequence word. */
+
+#define BK7258_RPTUN_BW_NSLOT          8
+#define BK7258_RPTUN_BW_MAGIC          UINT32_C(0x4d425759) /* "MBWY" */
+#define BK7258_RPTUN_BW_OFFSET         0x380
+#define BK7258_RPTUN_BW_SEQ_OFFSET     0x440
+
+static void bk7258_rptun_busywait_record(uint32_t marker, uint32_t spins,
+                                         uint32_t caller)
+{
+  FAR volatile uint32_t *seqp = (FAR volatile uint32_t *)
+    (BK7258_SWAP_BASE + BK7258_RPTUN_BW_SEQ_OFFSET);
+  FAR volatile uint32_t *slot;
+  uint32_t n = __atomic_fetch_add(seqp, 1, __ATOMIC_RELAXED);
+
+  slot = (FAR volatile uint32_t *)(BK7258_SWAP_BASE +
+                                   BK7258_RPTUN_BW_OFFSET) +
+         (n & (BK7258_RPTUN_BW_NSLOT - 1)) * 6;
+  slot[0] = BK7258_RPTUN_BW_MAGIC;
+  slot[1] = marker;
+  slot[2] = spins;
+  slot[3] = caller;
+  slot[4] = ((uint32_t)getpid() << 16) |
+            ((uint32_t)up_cpu_index() & 0xffffu);
+  slot[5] = 0;
+
+  __asm__ volatile ("dmb sy" ::: "memory");
+
+  *seqp = n + 1;
+}
+#endif /* CONFIG_SMP */
+
 static int bk7258_rptun_notify(struct rptun_dev_s *dev, uint32_t vqid)
 {
   struct bk7258_rptun_dev_s *priv =
@@ -365,6 +409,31 @@ static int bk7258_rptun_notify(struct rptun_dev_s *dev, uint32_t vqid)
    * round-trip, so spin-retry while holding the latch until the kick lands. */
 
   ret = bk7258_mbox_notify(peer, RPTUN_NOTIFY_ALL);
+#ifdef CONFIG_SMP
+  {
+    uint32_t bw_spins = 0;
+
+    while (ret == -EBUSY)
+      {
+        volatile unsigned int spin;
+
+        if ((++bw_spins & 0xfffu) == 0)
+          {
+            bk7258_rptun_busywait_record(UINT32_C(0x00000100) | (uint32_t)peer,
+                                         bw_spins,
+                                         (uint32_t)(uintptr_t)
+                                         bk7258_rptun_notify);
+          }
+
+        for (spin = 0; spin < 200; spin++)
+          {
+            __asm__ volatile ("nop");
+          }
+
+        ret = bk7258_mbox_notify(peer, RPTUN_NOTIFY_ALL);
+      }
+  }
+#else
   while (ret == -EBUSY)
     {
       volatile unsigned int spin;
@@ -376,6 +445,7 @@ static int bk7258_rptun_notify(struct rptun_dev_s *dev, uint32_t vqid)
 
       ret = bk7258_mbox_notify(peer, RPTUN_NOTIFY_ALL);
     }
+#endif
 
   if (ret < 0)
     {
