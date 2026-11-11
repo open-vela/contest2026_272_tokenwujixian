@@ -20,29 +20,101 @@ export class StdioAcpAdapter {
     this.tools = new Map();
     this.nextId = 1;
     this.child = null;
+    this.availableModels = [];
+    this.modelId = null;
+    this.backendState = "unknown";
   }
 
   onEvent(listener) { this.listener = listener; }
+
+  alive() {
+    if (!this.child) return null;
+    return Boolean(this.child.exitCode === null && !this.child.killed);
+  }
+
+  #noteBackend(state) {
+    if (this.backendState === state) return;
+    this.backendState = state;
+    this.listener({ type: "backend_state", state });
+  }
 
   async start() {
     this.child = spawn(this.command, this.args, { cwd: this.cwd, env: this.env, stdio: ["pipe", "pipe", "pipe"], detached: true });
     this.child.stderr.on("data", () => {}); // stderr is deliberately never forwarded to DeskMate Link.
     this.child.on("error", (error) => {
       for (const entry of this.pending.values()) entry.reject(error);
-      this.pending.clear(); this.listener({ type: "text", text: "ACP backend unavailable" });
+      this.pending.clear();
+      this.#noteBackend("down");
+      this.listener({ type: "text", text: "ACP backend unavailable" });
     });
     this.child.on("exit", () => {
       for (const entry of this.pending.values()) entry.reject(new Error("acp_process_exited"));
-      this.pending.clear(); this.listener({ type: "text", text: "ACP backend disconnected" });
+      this.pending.clear();
+      this.#noteBackend("down");
+      this.listener({ type: "text", text: "ACP backend disconnected" });
     });
     readline.createInterface({ input: this.child.stdout, crlfDelay: Infinity }).on("line", (line) => this.#receive(line));
     const initialized = await this.request("initialize", { protocolVersion: 1, clientCapabilities: {}, clientInfo: { name: "vela-deskmate", version: "0.1.0" } });
     await delay(READY_DELAY_MS);
     const created = await this.request("session/new", { cwd: this.cwd, mcpServers: [] });
     this.sessionId = created.sessionId;
-    this.listener({ type: "session_started", backend: this.backend });
+    this.#syncModels(created);
+    this.listener({ type: "session_started", backend: this.backend, sessionId: this.sessionId });
     this.listener({ type: "text", text: `${this.backend} session ready` });
+    this.#noteBackend("up");
     return initialized;
+  }
+
+  async newSession() {
+    const created = await this.request("session/new", { cwd: this.cwd, mcpServers: [] });
+    if (typeof created.sessionId === "string" && created.sessionId) {
+      this.sessionId = created.sessionId;
+    }
+    const wanted = this.modelId;
+    this.#syncModels(created);
+    if (wanted && wanted !== this.modelId) {
+      try { await this.setModel(wanted); } catch {}
+    }
+    this.listener({ type: "session_started", backend: this.backend, sessionId: this.sessionId });
+    return this.sessionId;
+  }
+
+  #syncModels(created) {
+    const models = created?.models;
+    if (!models || typeof models !== "object") return;
+    if (typeof models.currentModelId === "string" && models.currentModelId) {
+      this.modelId = models.currentModelId;
+    }
+    if (!Array.isArray(models.availableModels)) return;
+    const seen = new Set();
+    const options = [];
+    for (const entry of models.availableModels) {
+      const id = entry?.modelId;
+      if (typeof id !== "string" || !id) continue;
+      if (/\/(low|medium|high|xhigh|max)$/.test(id)) continue;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      options.push(id);
+    }
+    if (options.length === 0) return;
+    if (this.modelId && seen.has(this.modelId)) {
+      options.splice(options.indexOf(this.modelId), 1);
+      options.unshift(this.modelId);
+    }
+    this.availableModels = options;
+    this.listener({ type: "models", current: this.modelId, options });
+  }
+
+  async setModel(modelId) {
+    const result = await this.request("session/set_model", { sessionId: this.sessionId, modelId });
+    this.modelId = modelId;
+    this.listener({ type: "models", current: modelId, options: this.availableModels });
+    return result;
+  }
+
+  selectSession(sessionId) {
+    if (typeof sessionId === "string" && sessionId) this.sessionId = sessionId;
+    return this.sessionId;
   }
 
   attachSession() {
@@ -59,6 +131,7 @@ export class StdioAcpAdapter {
 
   async stop() {
     if (!this.child?.pid) return;
+    this.#noteBackend("down");
     try { process.kill(-this.child.pid, "SIGTERM"); } catch { this.child.kill("SIGTERM"); }
   }
 

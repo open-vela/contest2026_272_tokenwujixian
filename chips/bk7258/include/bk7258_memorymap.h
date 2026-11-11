@@ -284,9 +284,17 @@
 /* AON GPIO per-pin configuration register bit fields.  These match the
  * Armino SDK gpio_struct.h / gpio_ll.h layout used by the board bring-up:
  *
- *   bit 0          sampled input value
- *   bit 1          output latch value
- *   bits [3:2]     IO mode: 0=output, 2=I/O disable, 3=input
+ *   bit 0          sampled input value (gpio_input)
+ *   bit 1          output latch value (gpio_output, R/W level)
+ *   bit 2          gpio_input_en  (HIGH active: 1 = input buffer enabled)
+ *   bit 3          gpio_output_en (LOW active: 0 = output driver ENABLED,
+ *                                  1 = disabled/high-Z) -- see gpio_ll.h
+ *                                  "GPIO output enable low active"
+ *   bits [3:2]     IO mode (encoded as independent enables, NOT a 2-bit enum):
+ *                    output  = bit3=0,bit2=0  -> (0<<2)  (drive the pad)
+ *                    input   = bit3=1,bit2=1  -> (3<<2)  (read the pad)
+ *                    high-Z  = bit3=1,bit2=0  -> (2<<2)  (disable, peripheral
+ *                                                          owns pad via bit6)
  *   bits [5:4]     pull: 0=none, 2=pull-down, 3=pull-up
  *   bit 6          second function enable (1=peripheral drives the pad)
  *   bit 7          input monitor control
@@ -294,14 +302,19 @@
  *   bits [11:10]   interrupt type: low/high/rising/falling = 0/1/2/3
  *   bit 12         interrupt enable
  *   bit 13         interrupt clear
+ *
+ * NOTE: an earlier edit wrongly assumed gpio_output_en was HIGH active and
+ * set MODE_OUTPUT=(2<<2), which sets bit3=1 => output DISABLED (high-Z),
+ * breaking every GPIO output (LCD backlight/LDO/CS/DC all went high-Z).
+ * The (0<<2) here is correct: bit3=0 => output ENABLED (low active).
  */
 
 #define BK7258_GPIO_CFG_INPUT       (UINT32_C(1) << 0)
 #define BK7258_GPIO_CFG_OUTPUT      (UINT32_C(1) << 1)
 #define BK7258_GPIO_CFG_MODE_MASK   (UINT32_C(3) << 2)
-#define BK7258_GPIO_CFG_MODE_OUTPUT (UINT32_C(0) << 2)
-#define BK7258_GPIO_CFG_MODE_INPUT  (UINT32_C(3) << 2)
-#define BK7258_GPIO_CFG_MODE_DIS    (UINT32_C(2) << 2)
+#define BK7258_GPIO_CFG_MODE_OUTPUT (UINT32_C(0) << 2)  /* out_en=0(low-act=enable) */
+#define BK7258_GPIO_CFG_MODE_INPUT  (UINT32_C(3) << 2)  /* in_en=1,out_en=1(dis) */
+#define BK7258_GPIO_CFG_MODE_DIS    (UINT32_C(2) << 2)  /* out_en=1(dis),in_en=0 */
 #define BK7258_GPIO_CFG_PULL_MASK   (UINT32_C(3) << 4)
 #define BK7258_GPIO_CFG_PULL_DOWN   (UINT32_C(2) << 4)
 #define BK7258_GPIO_CFG_PULL_UP     (UINT32_C(3) << 4)

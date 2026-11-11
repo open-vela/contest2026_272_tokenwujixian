@@ -147,6 +147,42 @@ git apply /path/to/contest2026_272_tokenwujixian/docs/zhangyi101/patches/nuttx-a
 
 **性质说明**：本 patch 未提交至 `open-vela/nuttx` 官方仓库，仅作为团队内部保管、可复用的改动记录，存放于本专属仓库 `docs/zhangyi101/patches/` 目录下。
 
+## nuttx-uart-rpmsg-console-nonblocking.patch
+
+**用途**：修复 uart_rpmsg 控制台 TX 无限阻塞（BUG-20261021-01 根修，对应 nuttx 本地分支 `dev-ai-contest-2026` 提交 `96cdd86`）。
+
+**背景**：`uart_rpmsg_dmasend()` 用 `wait=true` 取 AP→CP RPMSG TX buffer。本 SoC 上这个 wait 实际是无界的：`rpmsg_virtio_notify_wait()` 把 `-ETIMEDOUT` 映射回 0（成功），OpenAMP 等待循环永不递减 tick 计数、永不返回 NULL。控制台与 usrsock LLM 流量共用同一条 RPTUN 链路的 TX 池（4×2048B）时，一次 `ask` 耗尽池子，所有打印的线程——LVGL 线程在 `lv_timer_handler()` 里持着 `lvgl_ui_lock()`、agent loop 堵在那把锁后、看门狗堵在自己的裸 `write(1)`——全部卡在这一个调用上，表现为「在线 ask 后整机静默」。
+
+**改动内容**：
+- `uart_rpmsg_dmasend()` 里 `rpmsg_get_tx_payload_buffer(&priv->ept, &space, true)` → `false`：竞争时丢弃本次 DMA（`dmatx.length=0` 保留 tail，`uart_xmitchars_dma()` 稍后自动重试），调用者永不阻塞。可丢字的控制台好过整机死掉。
+
+**应用方法**（在 openvela 工作区的 `nuttx` 目录下）：
+
+```bash
+cd nuttx
+git apply /path/to/contest2026_272_tokenwujixian/docs/zhangyi101/patches/nuttx-uart-rpmsg-console-nonblocking.patch
+```
+
+**性质说明**：本 patch 未提交至 `open-vela/nuttx` 官方仓库，仅作为团队内部保管、可复用的改动记录，存放于本专属仓库 `docs/zhangyi101/patches/` 目录下。
+
+## nuttx-kconfig-cmake-quote-nameandvalue.patch
+
+**用途**：修复 `nuttx_kconfig.cmake` 未加引号展开 `${NameAndValue}` 导致 CMake configure 崩溃（对应 nuttx 本地分支 `dev-ai-contest-2026` 提交 `d54e6e6`）。
+
+**背景**：`nuttx_export_kconfig(_by_value)` 里的 `string(REGEX … Name ${NameAndValue})` 是未加引号的展开。当某行 .config 被 `file(STRINGS)` 按 `;` 拆出**空 list 元素**（例如 `CONFIG_LV_TXT_BREAK_CHARS=" ,.;:-_)}"` 含 `;`）时，未加引号的 `${NameAndValue}` 凭空消失，`string(REGEX MATCH)` 参数 <5 → CMake configure 在 `nuttx_kconfig.cmake:48/76` 直接中止。
+
+**改动内容**：
+- 两个函数里 4 处 `${NameAndValue}` 加引号 → `"${NameAndValue}"`：空输入时 `Name=""` → `if(Name)` 为假跳过（既有 guard 兜住）；非空值行为不变。解锁 BK7258 CP reconfigure（重生成含 `LV_TXT_BREAK_CHARS` 的 .config）。
+
+**应用方法**（在 openvela 工作区的 `nuttx` 目录下）：
+
+```bash
+cd nuttx
+git apply /path/to/contest2026_272_tokenwujixian/docs/zhangyi101/patches/nuttx-kconfig-cmake-quote-nameandvalue.patch
+```
+
+**性质说明**：本 patch 未提交至 `open-vela/nuttx` 官方仓库，仅作为团队内部保管、可复用的改动记录，存放于本专属仓库 `docs/zhangyi101/patches/` 目录下。
+
 ## nuttx-apps-bk7258-test-apps.patch
 
 **用途**：BK7258 DevKit 板上验证用的按键 / 音频测试程序（对应 nuttx-apps 本地分支 `dev-ai-contest-2026` 提交 `2b9076e`，板上真机已验）。

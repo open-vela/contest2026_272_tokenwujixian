@@ -28,7 +28,9 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <errno.h>
+#include <syslog.h>
 #include <debug.h>
 
 #include <nuttx/arch.h>
@@ -207,6 +209,21 @@ int board_lcd_initialize(void)
    */
 
   g_lcd_dev->setpower(g_lcd_dev, 1);
+
+  /* Diagnostic: read back the LCD control GPIO config registers after the
+   * full init+setpower path so the boot log shows the actual pad state.
+   * bit3=output_en (LOW active: 0=drive enabled), bit1=output level (R/W),
+   * bit6=second_func.  For a lit panel we expect GPIO25/52 = bit3=0 (drive
+   * on) and bit1=1 (level high).  AON GPIO base 0x44000400, per-pin stride 4.
+   */
+
+#define LCD_GPIO_CFG(pin) (0x44000400u + ((uint32_t)(pin) << 2))
+  syslog(LOG_INFO, "[lcd] GPIO_CFG BL(25)=0x%08" PRIx32 " LDO(52)=0x%08" PRIx32
+                   " DC(5)=0x%08" PRIx32 " RST(45)=0x%08" PRIx32 "\n",
+        *(volatile uint32_t *)LCD_GPIO_CFG(BOARD_LCD_BL_PIN),
+        *(volatile uint32_t *)LCD_GPIO_CFG(BOARD_LCD_LDO_PIN),
+        *(volatile uint32_t *)LCD_GPIO_CFG(BOARD_LCD_DC_PIN),
+        *(volatile uint32_t *)LCD_GPIO_CFG(BOARD_LCD_RST_PIN));
 
   return OK;
 }

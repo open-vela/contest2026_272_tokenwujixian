@@ -151,6 +151,30 @@ test("permission timeout rejects the original ACP request", async () => {
   assert.deepEqual(adapter.responses, [{ id: 9, result: { outcome: { outcome: "selected", optionId: "reject" } } }]);
 });
 
+test("permission timeout clears the device prompt and keeps the link alive", async () => {
+  const adapter = new FakeAcpAdapter();
+  const outbound = [];
+  const core = new DeskMateBridgeCore({ adapter, publish: (message) => outbound.push(message), permissionTimeoutMs: 10 });
+  await core.receive(hello("nonce-a"));
+  adapter.requestPermission({ requestId: 9, sessionId: "s", toolCall: { toolCallId: "t", title: "Bash" }, options: [{ kind: "reject_once", optionId: "reject" }] });
+
+  const pending = outbound.at(-1);
+  assert.equal(pending.waiting, 1);
+  assert.ok(pending.prompt);
+
+  await new Promise((resolve) => setTimeout(resolve, 25));
+
+  const expired = outbound.at(-1);
+  assert.equal(expired.type, "snapshot");
+  assert.equal(expired.connection_nonce, "nonce-a");
+  assert.equal(expired.waiting, 0);
+  assert.equal(expired.prompt, null);
+
+  adapter.tool({ toolCallId: "tool-1", title: "Lookup", status: "completed" });
+  const next = outbound.filter((message) => message.type === "snapshot").at(-1);
+  assert.ok(next.seq > expired.seq);
+});
+
 test("Unix loop drops an overlong framed message and resynchronizes", async () => {
   const directory = await mkdtemp(join(tmpdir(), "deskmate-frame-"));
   const path = join(directory, "link.sock");

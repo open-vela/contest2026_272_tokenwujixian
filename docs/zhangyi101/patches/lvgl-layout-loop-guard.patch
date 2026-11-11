@@ -1,0 +1,32 @@
+--- a/lvgl/src/core/lv_obj_pos.c
++++ b/lvgl/src/core/lv_obj_pos.c
+@@ -296,8 +296,28 @@
+     update_layout_mutex = true;
+ 
+     lv_obj_t * scr = lv_obj_get_screen(obj);
+-    /*Repeat until there are no more layout invalidations*/
++
++    /* Repeat until there are no more layout invalidations.
++     *
++     * LOCAL PATCH (AI agent UI, BUG-20261021-01): this loop used to have no
++     * bound.  A widget pair whose size feeds back into its own layout input —
++     * e.g. an LV_SIZE_CONTENT container holding a child sized in lv_pct() of
++     * that container, or a flex item whose grow width is recomputed from the
++     * row width every pass — re-invalidates the screen on every iteration and
++     * spins here forever.  On BK7258 that freezes the LVGL thread while it
++     * holds the application UI lock, which silently stops the whole console.
++     * Cap the passes and say so: a handful of passes is normal, a runaway one
++     * is a widget-tree defect that must be visible in the log. */
++    uint32_t passes = 0;
+     while(scr->scr_layout_inv) {
++        if(passes >= 32) {
++            LV_LOG_WARN("layout did not converge after %u passes (screen %p)",
++                        (unsigned)passes, (void *)scr);
++            scr->scr_layout_inv = 0;
++            break;
++        }
++        passes++;
++
+         LV_LOG_TRACE("Layout update begin");
+         scr->scr_layout_inv = 0;
+         layout_update_core(scr);

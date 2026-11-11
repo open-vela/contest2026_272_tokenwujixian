@@ -30,6 +30,8 @@ node bin/deskmate-client.mjs --socket /tmp/deskmate-link.sock
 
 The client sends hello with a fresh nonce and then displays `Offline`, `Idle`, `Busy`, `Attention`, or `Result` from DeskMate snapshots. Its commands are `status`, `once`, `deny`, `disconnect`, and `quit`. It has no `ptSubmit` command: only the bridge's ACP capture path can create a prompt.
 
+Every snapshot also carries `backend` (`"up"` or `"down"`): the liveness of the ACP coding-agent process behind the bridge. The bridge process can outlive its child, so `Idle` alone does not mean the agent is there — when the child exits and the link stays connected, the bridge reports `down` and refuses a new prompt locally instead of opening a turn nobody will run. An older bridge omits the field, and a device must read that as `unknown` rather than `down`.
+
 For the fake demo, type `prompt` into the bridge terminal. This creates a synthetic request solely for PC-loop testing; it never runs a command. Then choose `once` or `deny` in the client terminal.
 
 ## Real ACP state-flow probe

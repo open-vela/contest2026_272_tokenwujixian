@@ -35,3 +35,7 @@ compile_commands.json
 # the openvela build (vendor/beken/chips/bk7258 -> chips/bk7258, etc.).
 # Local-only build glue, never committed.
 vendor/
+
+# .claude/skills/contest-log-redact/ = 本地脱敏脚本，含密钥分片，严禁入仓。
+# 整目录忽略（SKILL.md 也含本机绝对路径与本地密钥文件位置，且无脚本即不可用）。
+.claude/skills/contest-log-redact/
