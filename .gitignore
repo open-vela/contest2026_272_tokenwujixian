@@ -36,6 +36,6 @@ compile_commands.json
 # Local-only build glue, never committed.
 vendor/
 
-# .claude/skills/contest-log-redact/ = 本地脱敏脚本，含密钥分片，严禁入仓。
-# 整目录忽略（SKILL.md 也含本机绝对路径与本地密钥文件位置，且无脚本即不可用）。
-.claude/skills/contest-log-redact/
+# .claude/skills/bk7258-ui-ontarget-test/scripts/redact_log_secrets.py = 本地脱敏脚本，
+# 含密钥分片与本机密钥文件路径，严禁入仓（脱敏流程已并入 bk7258-ui-ontarget-test skill）。
+.claude/skills/bk7258-ui-ontarget-test/scripts/redact_log_secrets.py

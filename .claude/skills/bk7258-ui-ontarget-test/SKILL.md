@@ -1,6 +1,6 @@
 ---
 name: bk7258-ui-ontarget-test
-description: "Use when 需要在 BK7258 真机(串口 /dev/ttyUSB0)驱动并判定 ai_agent UI(AP 侧):按最新流程回归宠物/聊天/审批/按键/语音界面、逐条核对预期日志与预期界面、驱动 ai_agent/set_pet/set_page/show_chat/ask 命令,或排查 flush 率异常、串口无回显/TX 掉线、wapi 联网失败、set_llm 模型未配置、在线 ask 后整机静默等显示/联网/模型/控制台写卡死问题。先读 verification-record.md 分清已验/未验,不重复验证。"
+description: "Use when 需要在 BK7258 真机(串口 /dev/ttyUSB0)驱动并判定 ai_agent UI(AP 侧):按最新流程回归宠物/聊天/审批/按键/语音界面、逐条核对预期日志与预期界面、驱动 ai_agent/set_pet/set_page/show_chat/ask 命令,或排查 flush 率异常、串口无回显/TX 掉线、wapi 联网失败、set_llm 模型未配置、在线 ask 后整机静默等显示/联网/模型/控制台写卡死问题。先读 verification-record.md 分清已验/未验,不重复验证。附带选手仓 logs/ 会话 jsonl 入仓前的密钥脱敏流程(references/log-redaction.md + scripts/redact_log_secrets.py,任何 logs sync 提交前必须 --verify 输出 CLEAN)。"
 ---
 
 # BK7258 真机 UI 测试
@@ -57,7 +57,7 @@ description: "Use when 需要在 BK7258 真机(串口 /dev/ttyUSB0)驱动并判�
 
 - **判定**:每条步骤同时核「预期日志 + 预期界面」(判据在 flow doc / main_loop §0)。日志级硬判据:无 `flush rc!=0`、无 `assert`/`UsageFault`/`Panic by remote core`、无 `LLM unavailable`(除非故意测出错支线)。
 - **自动化**(可选):pyserial 直接开 `/dev/ttyUSB0`(别经 minicom);先写 `\r\n` 再等提示符;`set_llm` 整行从 `scripts/cmd_scripts.sh` 原样下发,避免脚本再存一份 key。
-- **脱敏**:落到文件/日志的密钥先打码再存/提交(见 `contest-log-redact`,必须 `--verify` 输出 `CLEAN` 且退出码 0)。
+- **脱敏**:落到文件/日志的密钥先打码再存/提交——跑本 skill 自带的 `scripts/redact_log_secrets.py`(流程与规则见 `references/log-redaction.md`),必须 `--verify` 输出 `CLEAN` 且退出码 0。该脚本含密钥分片,**已 .gitignore 忽略,严禁入仓/外发**。
 
 ## 排障速查(架构级,不随流程变)
 
@@ -69,6 +69,8 @@ description: "Use when 需要在 BK7258 真机(串口 /dev/ttyUSB0)驱动并判�
 | `ifconfig` 空 | AP 是纯 usrsock 客户端,网卡在 CP;属正常,看 `net_status` |
 | flush 率异常慢(~2–10/s) | defconfig 误切 `SPI_BITBANG`;应 HW SPI + `CONFIG_SPI=y` |
 | 在线 `ask` 后 ~20s 整机静默 | BUG-20261021-01,真根因=RPMSG 控制台写 `wait=true` 无限阻塞,已修(`uart_rpmsg_dmasend` 改 `wait=false`);仍复现见 wifi-and-llm-config-flow.md §4.4 |
+| `rstat` = Offline,mosquitto 日志里没有板子 | 板子经手机热点的 **NAT 出口 IP 变了**,PC 的 iptables 白名单还停在旧 IP(SYN 被 DROP)。`tcpdump -n -i <if> 'tcp port 1883'` 看源 IP,再 `sudo iptables -I INPUT 1 -p tcp --dport 1883 -s <新IP> -j ACCEPT` |
+| `rask` 报 `a remote turn is already running` / `rstat` 有 `A turn is running.` | 上一轮挂在板上(`turn_active` 只在链路断开时清)。用 `REJECT --reject-with tcp-reset` 打断板子到 1883 的连接让它自己重连归 Idle;**别重启板子**(AP `/data` 是 tmpfs,一重启联网/模型/远控配置全丢) |
 
 ## 保持不过时
 
